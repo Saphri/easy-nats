@@ -2,7 +2,7 @@ package org.mjelle.quarkus.easynats;
 
 import io.nats.client.JetStream;
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.inject.Inject;
+import java.nio.charset.StandardCharsets;
 
 /**
  * Simple injectable wrapper for publishing string messages to NATS JetStream.
@@ -12,8 +12,16 @@ import jakarta.inject.Inject;
 @ApplicationScoped
 public class NatsPublisher {
 
-    @Inject
-    NatsConnectionManager connectionManager;
+    private final NatsConnectionManager connectionManager;
+
+    /**
+     * Constructor for dependency injection.
+     *
+     * @param connectionManager the NATS connection manager (injected by Quarkus)
+     */
+    NatsPublisher(NatsConnectionManager connectionManager) {
+        this.connectionManager = connectionManager;
+    }
 
     /**
      * Publishes a string message to the hardcoded NATS subject "test".
@@ -27,6 +35,6 @@ public class NatsPublisher {
         }
 
         JetStream jetStream = connectionManager.getJetStream();
-        jetStream.publish("test", message.getBytes());
+        jetStream.publish("test", message.getBytes(StandardCharsets.UTF_8));
     }
 }

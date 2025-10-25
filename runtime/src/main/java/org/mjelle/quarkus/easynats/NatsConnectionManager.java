@@ -16,7 +16,7 @@ import java.io.IOException;
  * Initialization: Connects to NATS broker on application startup.
  * Shutdown: Gracefully closes the connection on application shutdown.
  */
-@ApplicationScoped
+@ApplicationScoped // Note: @ApplicationScoped provides singleton semantics in Quarkus
 public class NatsConnectionManager {
 
     private Connection connection;

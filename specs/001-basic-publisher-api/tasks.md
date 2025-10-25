@@ -111,9 +111,11 @@ description: "Task list for Basic NatsPublisher API (MVP) feature implementation
     - Call `publisher.publish("hello")`
     - Verify no exception is thrown
   - Test method: `testMessageAppearsOnBroker()`
-    - Publish message to NATS via publisher
-    - Subscribe to subject `test` using NATS CLI: `nats sub test`
-    - Verify message arrives (may be done manually or via NATS client API)
+    - **Explicit test implementation required**: Subscribe to subject `test` using NATS JetStream client API with 1-message limit and 5-second timeout
+    - Publish test message "hello world" via publisher
+    - Assert received message equals published content; compare byte arrays for exact match
+    - Implementation: Use `NatsConnection.jetstream().subscribe("test")` with pull consumer or create push subscriber; wait for 1 message; verify content before timeout
+    - Do NOT rely on manual CLI verification; test must be programmatic and repeatable in CI/CD
   - Abstract methods to allow reuse in integration test
 
 - [X] T014 [P] [US1] Create integration test `BasicPublisherIT.java` in `integration-tests/src/main/java/io/quarkus/easynats/it/`
@@ -190,6 +192,12 @@ description: "Task list for Basic NatsPublisher API (MVP) feature implementation
   - Integration tests: `./mvnw clean install -Pit`
   - Dev mode: `./mvnw quarkus:dev`
 
+- [X] T024 Review deferred error-handling strategy document
+  - Reference: `specs/001-basic-publisher-api/deferred-error-handling.md` (auto-generated)
+  - Document records edge cases and deferral decisions for future MVPs
+  - Verify strategies align with constitution principles (Principle VI, VII)
+  - Use as input for MVP 002 planning (startup modes, async publish, observability)
+
 ---
 
 ## Dependencies & Execution Order
@@ -230,6 +238,7 @@ description: "Task list for Basic NatsPublisher API (MVP) feature implementation
 - T021: Depends on T020 (native image optional)
 - T022: Depends on T020 (validate quickstart works)
 - T023: Depends on T022 (document after validation)
+- T024: Depends on T023 (review deferred strategy after MVP complete)
 
 ---
 
@@ -267,6 +276,7 @@ Sequential: T019 → T020 (run full build after cleanup)
 Sequential: T020 → T021 (optional native image after build)
 Sequential: T020 → T022 (validate quickstart after build)
 Sequential: T022 → T023 (document after validation)
+Sequential: T023 → T024 (review deferred strategy after MVP complete)
 ```
 
 ---

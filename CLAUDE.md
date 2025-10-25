@@ -86,6 +86,150 @@ Tests are configured to use `org.jboss.logmanager.LogManager` for logging. Syste
 - **Extension Descriptor**: The `quarkus-extension-maven-plugin` automatically generates extension descriptors at compile time
 - **Specification Files**: The `.specify/` directory contains project specification and planning templates (Speckit workflow)
 
+## Coding Guidelines (MANDATORY)
+
+### Dependency Injection
+
+- **Constructor Injection REQUIRED**: All dependencies must be injected via constructor parameters, NOT fields
+- **@Inject Annotation**: ONLY allowed in test classes (@QuarkusTest, @QuarkusIntegrationTest)
+- **Production Code**: Never use `@Inject` field injection in runtime or deployment modules
+- **Rationale**: Constructor injection enables immutability, testability, and explicit dependency declaration
+
+**Example (CORRECT)**:
+```java
+@Singleton
+public class NatsPublisher {
+    private final NatsConnectionManager connectionManager;
+
+    NatsPublisher(NatsConnectionManager connectionManager) {
+        this.connectionManager = connectionManager;
+    }
+}
+```
+
+**Example (WRONG)**:
+```java
+@Singleton
+public class NatsPublisher {
+    @Inject NatsConnectionManager connectionManager;  // ❌ NEVER in production code
+}
+```
+
+### Testing Assertions
+
+- **AssertJ REQUIRED**: All assertions must use AssertJ (import `static org.assertj.core.api.Assertions.*`)
+- **JUnit Assertions FORBIDDEN**: Never use `org.junit.jupiter.api.Assertions` or `JUnit.assert*`
+- **Rationale**: AssertJ provides fluent, readable assertions with better error messages
+
+**Example (CORRECT)**:
+```java
+@Test
+void testPublisherCanBeInjected() {
+    assertThat(publisher).isNotNull();
+    assertThat(publisher.getClass().getSimpleName()).isEqualTo("NatsPublisher");
+}
+```
+
+**Example (WRONG)**:
+```java
+@Test
+void testPublisherCanBeInjected() {
+    assertNotNull(publisher);  // ❌ JUnit assertion; use AssertJ instead
+    assertEquals("NatsPublisher", publisher.getClass().getSimpleName());
+}
+```
+
+### REST Response Handling
+
+- **Never use `jakarta.ws.rs.core.Response`**: Do not use Response class directly in controllers
+- **Use Quarkus REST Response Types**: Return POJOs and let Quarkus serialize them, or use `io.quarkus.rest.common.runtime.Response` equivalents
+- **Rationale**: Keeps REST endpoints declarative and decoupled from HTTP response building
+
+**Example (CORRECT - Quarkus REST with POJO)**:
+```java
+@POST
+@Path("/publish")
+public PublishResult publish(PublishRequest request) {
+    publisher.publish(request.getMessage());
+    return new PublishResult("success", request.getMessage());
+}
+```
+
+**Example (CORRECT - Using Jackson/@JsonResponse)**:
+```java
+@POST
+@Path("/publish")
+@Produces(MediaType.APPLICATION_JSON)
+public PublishResult publish(PublishRequest request) {
+    publisher.publish(request.getMessage());
+    return new PublishResult("success", request.getMessage());
+}
+```
+
+**Example (WRONG)**:
+```java
+@POST
+@Path("/publish")
+public Response publish(PublishRequest request) {
+    try {
+        publisher.publish(request.getMessage());
+        return Response.ok(new PublishResult("success")).build();  // ❌ Avoid Response builder
+    } catch (Exception e) {
+        return Response.serverError().entity(e.getMessage()).build();
+    }
+}
+```
+
+### Async Testing with Awaitility
+
+- **Never use `Thread.sleep()` or `wait()`**: Use Awaitility library for async testing
+- **Awaitility Required**: Import `org.awaitility.Awaitility.*`
+- **Rationale**: Awaitility handles timing, retries, and timeouts more reliably than sleep; tests run faster
+
+**Example (CORRECT)**:
+```java
+@Test
+void testMessageAppearsOnBroker() throws Exception {
+    publisher.publish("hello world");
+
+    // Wait for message to appear (up to 5 seconds, polling every 100ms)
+    await()
+        .atMost(Duration.ofSeconds(5))
+        .pollInterval(Duration.ofMillis(100))
+        .untilAsserted(() -> {
+            Message msg = subscriber.nextMessage(Duration.ofMillis(100));
+            assertThat(msg).isNotNull();
+            assertThat(new String(msg.getData())).isEqualTo("hello world");
+        });
+}
+```
+
+**Example (WRONG)**:
+```java
+@Test
+void testMessageAppearsOnBroker() throws Exception {
+    publisher.publish("hello world");
+
+    Thread.sleep(2000);  // ❌ Hard to debug; slow tests; unreliable
+    Message msg = subscriber.nextMessage(Duration.ofSeconds(5));
+    assertTrue(msg != null);
+}
+```
+
+### Maven Dependency Setup
+
+Add Awaitility to `integration-tests/pom.xml`:
+```xml
+<dependency>
+    <groupId>org.awaitility</groupId>
+    <artifactId>awaitility</artifactId>
+    <version>4.1.1</version>
+    <scope>test</scope>
+</dependency>
+```
+
+---
+
 ## Active Technologies
 - Java 21 (enforced per Principle IV) (001-basic-publisher-api)
 - N/A (publisher only; no persistence in this MVP) (001-basic-publisher-api)

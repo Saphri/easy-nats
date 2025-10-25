@@ -1,208 +1,282 @@
-# Data Model: Basic NatsPublisher API
+# Phase 1 Data Model: Basic NatsPublisher API (MVP)
 
-**Date**: 2025-10-25
-**Feature**: Basic NatsPublisher (MVP)
+**Branch**: `001-basic-publisher-api`
+**Status**: Complete
+**Date**: 2025-10-26
 
-## Entities
+## Overview
 
-### NatsPublisher
-
-**Purpose**: Simple injectable wrapper for publishing string messages to NATS JetStream.
-
-**Type**: Runtime class (io.quarkus.easynats.NatsPublisher)
-
-**Public API**:
-
-```java
-public class NatsPublisher {
-    /**
-     * Publishes a string message to the hardcoded NATS subject "test".
-     *
-     * @param message the raw message content to publish
-     * @throws Exception if publication fails (connection error, broker unreachable, etc.)
-     */
-    public void publish(String message) throws Exception;
-}
-```
-
-**Dependencies** (injected):
-- `NatsConnectionManager` (singleton): provides access to the JetStream connection
-
-**Lifecycle**:
-- Injected via CDI (`@Inject NatsPublisher publisher`)
-- Created once per application instance by Quarkus Arc container
-- Lifecycle tied to application startup/shutdown
-
-**State**: Stateless (all state managed by `NatsConnectionManager`)
+This document defines the domain entities, relationships, and lifecycle for MVP 001. All entities are simple; no complex state machines or persistence required.
 
 ---
 
-### NatsConnectionManager
+## Domain Entities
 
-**Purpose**: Manages the singleton NATS JetStream connection for the entire application.
+### NatsConnectionManager (Singleton Lifecycle Bean)
 
-**Type**: Runtime class (io.quarkus.easynats.NatsConnectionManager)
+**Purpose**: Manages the single shared NATS JetStream connection for the entire Quarkus application.
 
-**Scope**: Arc singleton (`@Singleton`)
+**Scope**: `@Singleton` (exactly one instance per application)
 
-**Public API**:
+**Fields**:
+| Field | Type | Nullable | Constraints | Notes |
+|-------|------|----------|-------------|-------|
+| `jetStream` | `JetStream` | No | Not null after initialization | Shared JetStream instance; created on StartupEvent |
+| `connection` | `NatsConnection` | No | Not null after initialization | Underlying NATS connection (internal, not exposed) |
+| `connectionUrl` | `String` (hardcoded) | No | Value: `nats://localhost:4222` | MVP 001 only; configuration deferred to MVP 002+ |
+| `username` | `String` (hardcoded) | No | Value: `guest` | MVP 001 only; configuration deferred to MVP 002+ |
+| `password` | `String` (hardcoded) | No | Value: `guest` | MVP 001 only; configuration deferred to MVP 002+ |
+
+**Lifecycle**:
+```
+[Quarkus Application Started]
+  ↓
+[@Observes StartupEvent fires]
+  ↓
+[Initialize NATS connection synchronously]
+  ↓
+[If connection fails: throw IOException, abort startup]
+  ↓
+[Connection ready; getJetStream() available for injection]
+```
+
+**Methods**:
+- `public void onStartup(@Observes StartupEvent event) throws IOException`
+  - Synchronously initializes connection on Quarkus startup
+  - Throws `IOException` if broker unreachable (fail-fast)
+  - Completes before any `@Inject` fields are populated (Quarkus guarantee)
+
+- `public JetStream getJetStream()`
+  - Returns shared JetStream instance
+  - Safe to call after initialization complete
+  - Never returns null
+
+**Validation Rules**:
+- Connection parameters hardcoded (no validation needed for MVP 001)
+- Connection must be established before any NatsPublisher injection
+- Exactly one instance per application (enforced by `@Singleton`)
+
+**State Transitions**:
+| State | Trigger | Next State |
+|-------|---------|-----------|
+| UNINITIALIZED | Quarkus startup | INITIALIZING |
+| INITIALIZING | Connection established | READY |
+| INITIALIZING | IOException thrown | FAILED (application startup aborted) |
+| READY | (terminal) | N/A |
+
+---
+
+### NatsPublisher (Singleton Facade Bean)
+
+**Purpose**: Simple wrapper providing `publish()` method for sending string messages to NATS JetStream.
+
+**Scope**: `@Singleton` (exactly one instance per application)
+
+**Fields**:
+| Field | Type | Nullable | Constraints | Notes |
+|-------|------|----------|-------------|-------|
+| `connectionManager` | `NatsConnectionManager` | No | Arc dependency injection | Injected; initialized before NatsPublisher (timing guarantee) |
+| `subject` | `String` (hardcoded) | No | Value: `"test"` | MVP 001 only; subject configuration deferred to MVP 002+ |
+| `stream` | `String` (hardcoded) | No | Value: `"test_stream"` | JetStream stream name; must exist before startup |
+
+**Methods**:
+- `public void publish(String message) throws Exception`
+  - **Parameters**: `message` (UTF-8 string to publish)
+  - **Return**: `void` (fire-and-forget model)
+  - **Throws**: Checked `Exception` (IOException on network error, auth failure, broker down)
+  - **Behavior**:
+    1. Obtain JetStream instance from NatsConnectionManager
+    2. Encode message to UTF-8 bytes
+    3. Create PublishOptions (none for MVP; defaults used)
+    4. Call `jetStream.publish(subject, messageBytes)`
+    5. Return (or throw if publish fails)
+  - **Timing**: Blocks until NATS broker acknowledges (no async in MVP 001)
+
+**Validation Rules**:
+- `message` parameter: Non-null string (no length limit for MVP)
+- `subject` and `stream` hardcoded (no user configuration)
+- Caller responsible for exception handling (checked Exception contract)
+
+**Dependencies**:
+- Depends on: `NatsConnectionManager` (Arc injection)
+- Used by: Application code (via `@Inject` annotation)
+
+---
+
+## Data Flow Diagrams
+
+### Application Startup Sequence
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Quarkus Application Starts                                  │
+└──────────────────────┬──────────────────────────────────────┘
+                       │
+                       ↓
+        ┌──────────────────────────────────┐
+        │ @Observes StartupEvent fires     │
+        │ (NatsConnectionManager)           │
+        └──────────────────┬───────────────┘
+                           │
+              ┌────────────┴────────────┐
+              ↓                         ↓
+    ┌──────────────────┐    ┌──────────────────┐
+    │ Connect to NATS  │    │ Broker DOWN      │
+    │ nats://loc:4222  │    │ (IOException)    │
+    └────────┬─────────┘    └────────┬─────────┘
+             │                      │
+             ↓                      ↓
+    ┌──────────────────┐    ┌──────────────────┐
+    │ Connection READY │    │ Startup ABORTS   │
+    │ (Singleton)      │    │ (Fail-fast)      │
+    └────────┬─────────┘    └──────────────────┘
+             │
+             ↓
+    ┌──────────────────────────────────┐
+    │ Arc injects NatsPublisher beans   │
+    │ (Timing guaranteed; conn ready)   │
+    └──────────────┬───────────────────┘
+                   │
+                   ↓
+         ┌────────────────────┐
+         │ App Ready to Use   │
+         │ @Inject Publishers │
+         └────────────────────┘
+```
+
+### Publish Message Sequence
+
+```
+┌────────────────────────────────────┐
+│ Application Code                   │
+│ publisher.publish("hello")         │
+└─────────────────┬──────────────────┘
+                  │
+                  ↓
+    ┌─────────────────────────────────┐
+    │ NatsPublisher.publish()          │
+    │ - Get JetStream from Manager     │
+    │ - Encode "hello" → UTF-8 bytes   │
+    │ - Call jetStream.publish(...)    │
+    └─────────────┬───────────────────┘
+                  │
+        ┌─────────┴──────────┐
+        ↓                    ↓
+  ┌─────────────┐    ┌───────────────┐
+  │ NATS ACK    │    │ IOException   │
+  │ (Success)   │    │ (Throw)       │
+  └─────────────┘    └───────────────┘
+        │                    │
+        ↓                    ↓
+  ┌─────────────┐    ┌───────────────┐
+  │ Return void │    │ Caller must   │
+  │ (completed) │    │ catch & handle│
+  └─────────────┘    └───────────────┘
+```
+
+---
+
+## Relationships & Constraints
+
+### Dependency Graph
+
+```
+Application
+    ↓
+@Inject NatsPublisher
+    ↓
+NatsPublisher
+    ↓ (injected)
+NatsConnectionManager
+    ↓ (initializes on)
+StartupEvent
+```
+
+### Design Constraints
+
+1. **Single Connection Per App**: Exactly one NatsConnectionManager instance (enforced by `@Singleton`)
+2. **Timing Guarantee**: NatsConnectionManager initializes synchronously before NatsPublisher injection
+3. **Fail-Fast on Startup**: Connection failure aborts application immediately (IOException, no retries)
+4. **No Configuration**: All connection parameters hardcoded for MVP 001 (deferred to MVP 002+)
+5. **Checked Exceptions**: publish() throws Exception; caller must handle explicitly
+
+---
+
+## Validation & Error Handling
+
+### Startup Validation
+
+| Scenario | Action |
+|----------|--------|
+| NATS broker at `nats://localhost:4222` reachable | Create connection; proceed |
+| NATS broker unreachable (connection refused) | Throw IOException; abort startup |
+| Authentication fails (guest/guest invalid) | Throw IOException; abort startup |
+
+### Publish Validation
+
+| Scenario | Action |
+|----------|--------|
+| Message publish succeeds | Return void normally |
+| Network error during publish | Throw IOException; propagate to caller |
+| Stream `test_stream` doesn't exist | JetStream throws; propagate as IOException |
+| Subject `test` not in stream | JetStream throws; propagate as IOException |
+
+---
+
+## Implementation Notes
+
+### NatsConnectionManager Implementation Details
 
 ```java
 @Singleton
 public class NatsConnectionManager {
-    /**
-     * Returns the shared JetStream connection.
-     * Initialized at application startup.
-     * Do not close this connection; lifecycle is managed by Quarkus.
-     *
-     * @return the JetStream connection
-     */
-    public JetStream getJetStream();
+    private final JetStream jetStream;
+
+    NatsConnectionManager() throws IOException {
+        // Initialize connection in constructor; Quarkus will call this before StartupEvent
+        NatsConnection conn = Nats.connect("nats://localhost:4222");
+        // Auth is implicit in connection URL (format: nats://username:password@host:port)
+        this.jetStream = conn.jetStream();
+    }
+
+    public JetStream getJetStream() {
+        return jetStream;
+    }
 }
 ```
 
-**Dependencies**:
-- `io.nats.client.Connection`: underlying NATS connection
-- `io.nats.client.JetStream`: JetStream API wrapper
-- Quarkus lifecycle events: `@Observes StartupEvent`, `@Observes ShutdownEvent`
+**Note**: Constructor injection is used. If StartupEvent hook is needed, use `@Observes StartupEvent event` as a method parameter in another bean, or rely on constructor initialization (preferred).
 
-**Initialization**:
-- On `StartupEvent`: establish connection to NATS broker
-- Connection URL: defaults to `nats://localhost:4222` (hardcoded for MVP; configurable in future)
-- Fail fast: throw exception if unable to connect at startup
+### NatsPublisher Implementation Details
 
-**Shutdown**:
-- On `ShutdownEvent`: gracefully close JetStream and underlying Connection
-- No-op if already closed
+```java
+@Singleton
+public class NatsPublisher {
+    private final NatsConnectionManager connectionManager;
 
-**State**:
-- `connection`: io.nats.client.Connection instance
-- `jetStream`: io.nats.client.JetStream instance
-- `isConnected`: boolean flag (for health checks in future)
+    private static final String SUBJECT = "test";
 
-**Thread Safety**: JetStream API handles concurrent publish calls safely (via underlying connection pooling in JNats)
+    // Constructor injection (REQUIRED; never use @Inject field injection)
+    NatsPublisher(NatsConnectionManager connectionManager) {
+        this.connectionManager = connectionManager;
+    }
 
----
-
-## Relationships
-
-```
-┌─────────────────────────────┐
-│  Quarkus Application        │
-│  (Arc Container)            │
-└────────────┬────────────────┘
-             │
-             │ manages (lifecycle)
-             ▼
-┌─────────────────────────────┐
-│ NatsConnectionManager       │
-│ (@Singleton)                │
-│                             │
-│ - getJetStream()            │
-└─────────────┬───────────────┘
-              │
-              │ delegates to
-              ▼
-┌──────────────────────────────────┐
-│ JetStream (io.nats.client)       │
-│ - publish(subject, payload)      │
-└──────────────────────────────────┘
-              ▲
-              │ injected into
-              │
-┌─────────────────────────────┐
-│  NatsPublisher              │
-│                             │
-│  - publish(String message)  │
-└─────────────────────────────┘
-              ▲
-              │ injected via @Inject
-              │
-┌─────────────────────────────┐
-│  User Application           │
-│  (uses the extension)       │
-└─────────────────────────────┘
+    public void publish(String message) throws Exception {
+        JetStream js = connectionManager.getJetStream();
+        byte[] data = message.getBytes(StandardCharsets.UTF_8);
+        js.publish(SUBJECT, data);
+    }
+}
 ```
 
----
-
-## Message Flow (MVP)
-
-**Scenario**: Developer publishes "hello" string to NATS.
-
-```
-User Application
-    ↓
-    [calls publisher.publish("hello")]
-    ↓
-NatsPublisher.publish("hello")
-    ↓
-    [retrieves JetStream from NatsConnectionManager singleton]
-    ↓
-    [calls jetStream.publish("test", "hello".getBytes())]
-    ↓
-JetStream API (io.nats.client)
-    ↓
-    [sends PUBLISH message to NATS broker on subject "test" with payload "hello"]
-    ↓
-NATS Broker (JetStream)
-    ↓
-    [stores in stream, acknowledges receipt]
-    ↓
-Broker returns PublishAck
-    ↓
-Message published successfully
-```
+**Note**: All dependencies injected via constructor. This enables immutability and testability. For tests only, `@Inject` field injection is permitted.
 
 ---
 
-## Data Types
+## Future Considerations (MVP 002+)
 
-### Input
-
-| Field | Type | Constraints | Example |
-|-------|------|-------------|---------|
-| message | String | Non-null, any UTF-8 content | "hello" |
-
-### Output
-
-| Field | Type | Notes |
-|-------|------|-------|
-| (void) | PublishAck (internal) | Framework handles; developer sees no return value |
-
----
-
-## Validation Rules
-
-- **message parameter**: Must not be null (throws NullPointerException if caller passes null)
-- **Connection state**: NatsConnectionManager MUST be connected before any publisher can be used
-  - Verified at application startup (fail-fast)
-  - If connection lost, next publish attempt will fail with IOException
-
----
-
-## Constraints & Assumptions
-
-- **Subject name**: Hardcoded to "test" (no configuration in MVP)
-- **Message format**: Raw bytes (no CloudEvents wrapping)
-- **Serialization**: String is converted to UTF-8 bytes for transmission
-- **Broker location**: Hardcoded to `nats://localhost:4222` (configurable in future feature)
-- **Stream configuration**: REQUIRED - Developer MUST manually create JetStream stream before publishing
-  - Created via NATS CLI: `nats stream add test_stream --subjects test --discard old --max-age=-1 --replicas=1`
-  - Stream name: `test_stream` (explicit naming convention)
-  - Subject: `test` (matches publisher hardcoded subject)
-  - See quickstart.md Step 0 for full setup instructions
-  - Future v0.2 may add automatic stream creation if missing
-
----
-
-## Future Extensions (Post-MVP)
-
-These data model additions are anticipated for future features:
-
-- **Typed generics**: `NatsPublisher<T>` with serialization support
-- **Subject configuration**: `@NatsSubject` annotation to replace hardcoded "test"
-- **Consumer management**: `NatsSubscriber` class with `@NatsSubscriber` annotation
-- **CloudEvents support**: Message envelope with CloudEvents attributes in headers
-- **Health checking**: NatsConnectionManager exposes readiness probe status
-- **Observability**: Tracing context propagation via W3C Trace Context headers
+- **Configuration Properties**: Move hardcoded values to `application.properties`
+- **Typed Generics**: `NatsPublisher<T>` with serialization support
+- **Annotations**: `@NatsSubject("subject-name")` for subject specification
+- **Async Publishing**: `publishAsync(String): CompletionStage<PublishAck>`
+- **Message Lifecycle**: Hooks for pre-publish validation, post-publish callbacks
