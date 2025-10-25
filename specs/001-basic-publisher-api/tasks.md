@@ -34,13 +34,13 @@ description: "Task list for Basic NatsPublisher API (MVP) feature implementation
 
 **Tasks**:
 
-- [ ] T001 Review and validate project structure per plan.md (multi-module Maven: runtime/deployment/integration-tests)
-- [ ] T002 Verify Maven pom.xml includes io.nats:jnats dependency (version per parent pom.xml)
-- [ ] T003 [P] Verify quarkus-extension.yaml exists in `runtime/src/main/resources/META-INF/quarkus-extension.yaml`
-- [ ] T004 [P] Verify NATS CLI is installed (`nats --version` succeeds)
-- [ ] T005 Start docker-compose NATS broker: `docker-compose -f integration-tests/docker-compose-devservices.yml up -d`
-- [ ] T006 Create JetStream stream using NATS CLI: `nats stream add test_stream --subjects test --discard old --max-age=-1 --replicas=1`
-- [ ] T007 Verify stream created: `nats stream list` should show `test_stream`
+- [X] T001 Review and validate project structure per plan.md (multi-module Maven: runtime/deployment/integration-tests)
+- [X] T002 Verify Maven pom.xml includes io.nats:jnats dependency (version per parent pom.xml)
+- [X] T003 [P] Verify quarkus-extension.yaml exists in `runtime/src/main/resources/META-INF/quarkus-extension.yaml`
+- [X] T004 [P] Verify NATS CLI is installed (`nats --version` succeeds)
+- [X] T005 Start docker-compose NATS broker: `docker-compose -f integration-tests/docker-compose-devservices.yml up -d`
+- [X] T006 Create JetStream stream using NATS CLI: `nats stream add test_stream --subjects test --discard old --max-age=-1 --replicas=1`
+- [X] T007 Verify stream created: `nats stream list` should show `test_stream`
 
 ---
 
@@ -52,7 +52,7 @@ description: "Task list for Basic NatsPublisher API (MVP) feature implementation
 
 **Tasks**:
 
-- [ ] T008 Implement `NatsConnectionManager.java` in `runtime/src/main/java/io/quarkus/easynats/`
+- [X] T008 Implement `NatsConnectionManager.java` in `runtime/src/main/java/io/quarkus/easynats/`
   - `@Singleton` Arc bean
   - `@Observes StartupEvent` to initialize NATS connection
   - `getJetStream()` returns shared JetStream instance
@@ -61,7 +61,7 @@ description: "Task list for Basic NatsPublisher API (MVP) feature implementation
   - Fail-fast: throw exception if connection fails at startup
   - See data-model.md for full API specification
 
-- [ ] T009 Implement `NatsPublisher.java` in `runtime/src/main/java/io/quarkus/easynats/`
+- [X] T009 Implement `NatsPublisher.java` in `runtime/src/main/java/io/quarkus/easynats/`
   - `public void publish(String message) throws Exception`
   - Injects `NatsConnectionManager` (Arc dependency injection)
   - Publishes message to hardcoded subject `test`
@@ -69,18 +69,18 @@ description: "Task list for Basic NatsPublisher API (MVP) feature implementation
   - Throws exceptions if publication fails
   - See data-model.md for full API specification
 
-- [ ] T010 Create deployment processor `QuarkusEasyNatsProcessor.java` in `deployment/src/main/java/io/quarkus/easynats/deployment/`
+- [X] T010 Create deployment processor `QuarkusEasyNatsProcessor.java` in `deployment/src/main/java/io/quarkus/easynats/deployment/`
   - `@BuildStep` method to register NatsPublisher bean for CDI
   - Uses Quarkus build-time processing
   - Registers `NatsConnectionManager` as singleton
   - Registers `NatsPublisher` as injectable bean
   - See plan.md project structure for context
 
-- [ ] T011 [P] Create `NatsFeature.java` in `deployment/src/main/java/io/quarkus/easynats/deployment/`
+- [X] T011 [P] Create `NatsFeature.java` in `deployment/src/main/java/io/quarkus/easynats/deployment/`
   - Feature descriptor for Quarkus
   - Declares extension name and capabilities
 
-- [ ] T012 Build and verify compilation: `./mvnw clean install -DskipTests`
+- [X] T012 Build and verify compilation: `./mvnw clean install -DskipTests`
   - No compilation errors in runtime or deployment modules
   - Verify JAR size < 500KB (Principle II constraint)
 
@@ -102,7 +102,7 @@ description: "Task list for Basic NatsPublisher API (MVP) feature implementation
 
 **⚠️ CRITICAL**: Write these tests FIRST, ensure they FAIL before implementation
 
-- [ ] T013 [P] [US1] Create base test class `BasicPublisherTest.java` in `integration-tests/src/main/java/io/quarkus/easynats/it/`
+- [X] T013 [P] [US1] Create base test class `BasicPublisherTest.java` in `integration-tests/src/main/java/io/quarkus/easynats/it/`
   - `@QuarkusTest` annotation (dev mode test)
   - Test method: `testPublisherCanBeInjected()`
     - Verify `@Inject NatsPublisher publisher` provides a non-null instance
@@ -116,7 +116,7 @@ description: "Task list for Basic NatsPublisher API (MVP) feature implementation
     - Verify message arrives (may be done manually or via NATS client API)
   - Abstract methods to allow reuse in integration test
 
-- [ ] T014 [P] [US1] Create integration test `BasicPublisherIT.java` in `integration-tests/src/main/java/io/quarkus/easynats/it/`
+- [X] T014 [P] [US1] Create integration test `BasicPublisherIT.java` in `integration-tests/src/main/java/io/quarkus/easynats/it/`
   - `@QuarkusIntegrationTest` annotation
   - Extends `BasicPublisherTest` to reuse all test methods
   - Runs against real NATS broker via docker-compose
@@ -124,22 +124,22 @@ description: "Task list for Basic NatsPublisher API (MVP) feature implementation
 
 ### Implementation for User Story 1
 
-- [ ] T015 [US1] Implement CDI producer/bean registration in `QuarkusEasyNatsProcessor.java` (if not already done in T010)
+- [X] T015 [US1] Implement CDI producer/bean registration in `QuarkusEasyNatsProcessor.java` (if not already done in T010)
   - Ensure `NatsPublisher` is discoverable via `@Inject` in test applications
   - Verify Arc container injects singleton instance
 
-- [ ] T016 [US1] Run dev-mode test to validate implementation
+- [X] T016 [US1] Run dev-mode test to validate implementation
   - `./mvnw -pl integration-tests test -Dtest=BasicPublisherTest`
   - All three test methods MUST pass
   - Verify message is published to NATS subject `test`
 
-- [ ] T017 [US1] Run integration test with docker-compose
+- [X] T017 [US1] Run integration test with docker-compose
   - Start docker-compose: `docker-compose -f integration-tests/docker-compose-devservices.yml up -d`
   - Run integration test: `./mvnw clean install -Pit -Dtest=BasicPublisherIT`
   - All three test methods MUST pass in full integration mode
   - Verify connection to real NATS broker works
 
-- [ ] T018 [US1] Verify test coverage >= 80%
+- [X] T018 [US1] Verify test coverage >= 80%
   - Check coverage report for `NatsPublisher` and `NatsConnectionManager`
   - All public methods must have test coverage
   - Use JaCoCo or Surefire coverage reports
@@ -166,25 +166,25 @@ description: "Task list for Basic NatsPublisher API (MVP) feature implementation
 
 **Purpose**: Improvements affecting all user stories (MVP complete validation)
 
-- [ ] T019 [P] Clean up Docker Compose after testing: `docker-compose -f integration-tests/docker-compose-devservices.yml down`
+- [X] T019 [P] Clean up Docker Compose after testing: `docker-compose -f integration-tests/docker-compose-devservices.yml down`
 
-- [ ] T020 Run full build validation: `./mvnw clean install -Pit`
+- [X] T020 Run full build validation: `./mvnw clean install -Pit`
   - ✅ Compilation gate: no errors
   - ✅ Unit test gate: all tests pass (runtime + deployment)
   - ✅ Integration test gate: all integration tests pass
   - ✅ Code coverage gate: >= 80% coverage
   - ✅ Architecture gate: no unauthorized runtime dependencies
 
-- [ ] T021 Verify native image compilation is possible (future gate, not required for MVP)
+- [X] T021 Verify native image compilation is possible (future gate, not required for MVP)
   - `./mvnw clean package -Pnative` (may skip if GraalVM not installed)
   - Document any native image constraints
 
-- [ ] T022 Review quickstart.md against implementation
+- [X] T022 Review quickstart.md against implementation
   - Verify all steps in quickstart.md work with actual code
   - Test step-by-step: create app, add dependency, inject publisher, publish message
   - Update quickstart if any steps fail
 
-- [ ] T023 Document build commands in README (if applicable)
+- [X] T023 Document build commands in README (if applicable)
   - Build: `./mvnw clean install`
   - Test: `./mvnw clean test`
   - Integration tests: `./mvnw clean install -Pit`
