@@ -1,0 +1,9 @@
+name: quarkus-easy-nats
+#description: JetStream NATS messaging library with CloudEvents support and Quarkus integration
+metadata:
+#  keywords:
+#    - quarkus-easy-nats
+#  guide: ... # To create and publish this guide, see https://github.com/quarkiverse/quarkiverse/wiki#documenting-your-extension
+#  categories:
+#    - "miscellaneous"
+#  status: "preview"

@@ -1,0 +1,15 @@
+.git
+.gitignore
+.dockerignore
+.vscode/
+.idea/
+.mvn/
+target/
+**/pom.xml
+**/README.md
+
+*
+!target/*-runner
+!target/*-runner.jar
+!target/lib/*
+!target/quarkus-app/*
