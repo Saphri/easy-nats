@@ -5,15 +5,11 @@
 
 version: 2
 updates:
- - package-ecosystem: "devcontainers"
-   directory: "/"
-   schedule:
-     interval: weekly
  - package-ecosystem: maven
    directory: "/"
    schedule:
      interval: daily
  - package-ecosystem: "docker"
-   directory: "/src/main/docker"
+   directory: "/integration-tests"
    schedule:
      interval: "daily"
