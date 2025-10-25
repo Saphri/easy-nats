@@ -17,16 +17,34 @@
 package org.mjelle.quarkus.easynats.it;
 
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
 import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
+import org.mjelle.quarkus.easynats.NatsPublisher;
 
 @Path("/quarkus-easy-nats")
 @ApplicationScoped
 public class QuarkusEasyNatsResource {
-    // add some rest methods here
+
+    @Inject
+    NatsPublisher publisher;
 
     @GET
     public String hello() {
         return "Hello quarkus-easy-nats";
+    }
+
+    @POST
+    @Path("/publish")
+    public Response publish(String message) {
+        try {
+            publisher.publish(message);
+            return Response.ok("Published: " + message).build();
+        } catch (Exception e) {
+            return Response.serverError().entity(e.getMessage()).build();
+        }
     }
 }
