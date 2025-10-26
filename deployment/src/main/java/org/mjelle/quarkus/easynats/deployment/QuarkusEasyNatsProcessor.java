@@ -1,21 +1,34 @@
 package org.mjelle.quarkus.easynats.deployment;
 
 import io.quarkus.arc.deployment.AdditionalBeanBuildItem;
+import io.quarkus.arc.deployment.UnremovableBeanBuildItem;
 import io.quarkus.arc.deployment.ValidationPhaseBuildItem;
 import io.quarkus.arc.processor.BeanInfo;
 import io.quarkus.arc.processor.InjectionPointInfo;
 import io.quarkus.deployment.annotations.BuildProducer;
 import io.quarkus.deployment.annotations.BuildStep;
+import io.quarkus.deployment.annotations.ExecutionTime;
+import io.quarkus.deployment.annotations.Record;
+import io.quarkus.deployment.builditem.CombinedIndexBuildItem;
 import io.quarkus.deployment.builditem.ExtensionSslNativeSupportBuildItem;
 import io.quarkus.deployment.builditem.FeatureBuildItem;
+import io.quarkus.deployment.builditem.nativeimage.ReflectiveClassBuildItem;
 import io.quarkus.deployment.builditem.nativeimage.RuntimeInitializedClassBuildItem;
 import jakarta.enterprise.inject.spi.DefinitionException;
+import java.util.List;
 import org.jboss.jandex.AnnotationInstance;
 import org.jboss.jandex.DotName;
 import org.mjelle.quarkus.easynats.NatsConnectionManager;
 import org.mjelle.quarkus.easynats.NatsPublisher;
 import org.mjelle.quarkus.easynats.NatsSubject;
+import org.mjelle.quarkus.easynats.deployment.build.SubscriberBuildItem;
+import org.mjelle.quarkus.easynats.deployment.build.SubscribersCollectionBuildItem;
+import org.mjelle.quarkus.easynats.deployment.processor.SubscriberDiscoveryProcessor;
 import org.mjelle.quarkus.easynats.runtime.NatsPublisherRecorder;
+import org.mjelle.quarkus.easynats.runtime.SubscriberRegistry;
+import org.mjelle.quarkus.easynats.runtime.SubscriberRegistryRecorder;
+import org.mjelle.quarkus.easynats.runtime.metadata.SubscriberMetadata;
+import org.mjelle.quarkus.easynats.runtime.startup.SubscriberInitializer;
 
 class QuarkusEasyNatsProcessor {
 
@@ -36,6 +49,70 @@ class QuarkusEasyNatsProcessor {
             BuildProducer<RuntimeInitializedClassBuildItem> runtimeInitializedClasses) {
         runtimeInitializedClasses.produce(new RuntimeInitializedClassBuildItem("io.nats.client.support.RandomUtils"));
         runtimeInitializedClasses.produce(new RuntimeInitializedClassBuildItem("io.nats.client.NUID"));
+    }
+
+    @BuildStep
+    void discoverSubscribers(
+            CombinedIndexBuildItem index,
+            BuildProducer<SubscriberBuildItem> subscribers,
+            BuildProducer<ValidationPhaseBuildItem.ValidationErrorBuildItem> errors) {
+        try {
+            SubscriberDiscoveryProcessor processor = new SubscriberDiscoveryProcessor();
+            List<SubscriberMetadata> discovered = processor.discoverSubscribers(index.getIndex());
+            for (SubscriberMetadata metadata : discovered) {
+                subscribers.produce(new SubscriberBuildItem(metadata));
+            }
+        } catch (IllegalArgumentException e) {
+            errors.produce(new ValidationPhaseBuildItem.ValidationErrorBuildItem(
+                    new DefinitionException("Subscriber validation error: " + e.getMessage())));
+        }
+    }
+
+    @BuildStep
+    void registerSubscribersForReflection(
+            List<SubscriberBuildItem> subscriberBuildItems,
+            BuildProducer<ReflectiveClassBuildItem> reflectiveClasses) {
+        for (SubscriberBuildItem item : subscriberBuildItems) {
+            SubscriberMetadata metadata = item.getMetadata();
+
+            // Register the class that declares the subscriber method
+            reflectiveClasses.produce(ReflectiveClassBuildItem.builder(metadata.declaringBeanClass()).methods().build());
+
+            // Register the parameter types of the subscriber method
+            for (String paramType : metadata.parameterTypes()) {
+                reflectiveClasses.produce(ReflectiveClassBuildItem.builder(paramType).build());
+            }
+        }
+    }
+
+    @BuildStep
+    void markSubscriberBeansAsUnremovable(
+            List<SubscriberBuildItem> subscriberBuildItems,
+            BuildProducer<UnremovableBeanBuildItem> unremovableBeans) {
+        // Mark all beans containing @NatsSubscriber methods as unremovable
+        // This prevents Arc from removing them as "unused" since they're accessed via reflection
+        subscriberBuildItems.stream()
+                .map(item -> item.getMetadata().declaringBeanClass())
+                .distinct()
+                .forEach(beanClassName -> {
+                    unremovableBeans.produce(UnremovableBeanBuildItem.beanClassNames(beanClassName));
+                });
+    }
+
+    @BuildStep
+    SubscribersCollectionBuildItem aggregateSubscribers(List<SubscriberBuildItem> subscriberBuildItems) {
+        List<SubscriberMetadata> metadata = subscriberBuildItems.stream()
+                .map(SubscriberBuildItem::getMetadata)
+                .toList();
+        return new SubscribersCollectionBuildItem(metadata);
+    }
+
+    @BuildStep
+    @Record(ExecutionTime.RUNTIME_INIT)
+    void registerSubscribers(
+            SubscribersCollectionBuildItem subscribersCollection,
+            SubscriberRegistryRecorder recorder) {
+        recorder.registerSubscribers(subscribersCollection.getSubscribers());
     }
 
     @BuildStep
@@ -73,6 +150,8 @@ class QuarkusEasyNatsProcessor {
         return AdditionalBeanBuildItem.builder()
                 .addBeanClass(NatsConnectionManager.class)
                 .addBeanClass(NatsPublisherRecorder.class)
+                .addBeanClass(SubscriberRegistry.class)
+                .addBeanClass(SubscriberInitializer.class)
                 .build();
     }
 }

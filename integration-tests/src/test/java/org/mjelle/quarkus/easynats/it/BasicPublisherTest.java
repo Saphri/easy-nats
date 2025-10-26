@@ -4,6 +4,7 @@ import io.nats.client.Connection;
 import io.nats.client.JetStreamSubscription;
 import io.nats.client.Message;
 import io.nats.client.JetStream;
+import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -25,6 +26,7 @@ import static org.mjelle.quarkus.easynats.it.NatsTestUtils.purgeStream;
  * integration-test (@QuarkusIntegrationTest) contexts via inheritance.
  */
 @QuarkusTest
+@QuarkusTestResource(NatsStreamTestResource.class)
 public class BasicPublisherTest {
 
     private static final String SUBJECT = "test.basic_publisher";
