@@ -55,24 +55,29 @@ public class NatsPublisher<T> {
 
     /**
      * Publishes a typed payload with CloudEvents metadata headers.
+     * Returns the generated CloudEvents metadata so callers can access the actual ce-id and ce-time.
      *
      * @param payload the object to publish (must not be null)
      * @param ceType the CloudEvents type (nullable; auto-generated if null)
      * @param ceSource the CloudEvents source (nullable; auto-generated if null)
+     * @return the CloudEventsMetadata that was published (includes generated ce-id and ce-time)
      * @throws IllegalArgumentException if payload is null
      * @throws SerializationException if serialization fails
      * @throws Exception if publication fails
      */
-    public void publishCloudEvent(T payload, String ceType, String ceSource) throws Exception {
+    public CloudEventsHeaders.CloudEventsMetadata publishCloudEvent(T payload, String ceType, String ceSource) throws Exception {
         if (payload == null) {
             throw new IllegalArgumentException("Cannot publish null object");
         }
 
         byte[] encodedPayload = encodePayload(payload);
-        Headers headers = CloudEventsHeaders.createHeaders(payload.getClass(), ceType, ceSource);
+        CloudEventsHeaders.HeadersWithMetadata hwm = CloudEventsHeaders.createHeadersWithMetadata(
+            payload.getClass(), ceType, ceSource);
 
         JetStream jetStream = connectionManager.getJetStream();
-        jetStream.publish("test", headers, encodedPayload);
+        jetStream.publish("test", hwm.headers, encodedPayload);
+
+        return hwm.metadata;
     }
 
     /**

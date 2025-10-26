@@ -1,13 +1,12 @@
 package org.mjelle.quarkus.easynats.it;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.quarkus.runtime.annotations.RegisterForReflection;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
-import org.mjelle.quarkus.easynats.NatsConnectionManager;
+import org.mjelle.quarkus.easynats.CloudEventsHeaders;
 import org.mjelle.quarkus.easynats.NatsPublisher;
 
 /**
@@ -19,18 +18,18 @@ import org.mjelle.quarkus.easynats.NatsPublisher;
 @Consumes(MediaType.APPLICATION_JSON)
 public class TypedPublisherResource {
 
-    private final NatsConnectionManager connectionManager;
-    private final ObjectMapper objectMapper;
+    private final NatsPublisher<String> stringPublisher;
+    private final NatsPublisher<TestOrder> orderPublisher;
 
     /**
-     * Constructor injection - dependencies provided by Quarkus CDI.
+     * Constructor injection - typed publishers provided by Quarkus CDI via NatsPublisherFactory.
      */
     TypedPublisherResource(
-        NatsConnectionManager connectionManager,
-        ObjectMapper objectMapper
+        NatsPublisher<String> stringPublisher,
+        NatsPublisher<TestOrder> orderPublisher
     ) {
-        this.connectionManager = connectionManager;
-        this.objectMapper = objectMapper;
+        this.stringPublisher = stringPublisher;
+        this.orderPublisher = orderPublisher;
     }
 
     /**
@@ -50,10 +49,6 @@ public class TypedPublisherResource {
                     .build();
             }
 
-            NatsPublisher<String> stringPublisher = new NatsPublisher<>(
-                connectionManager,
-                objectMapper
-            );
             stringPublisher.publish(message);
             return Response.noContent().build();
         } catch (Exception e) {
@@ -78,10 +73,6 @@ public class TypedPublisherResource {
                     .build();
             }
 
-            NatsPublisher<TestOrder> orderPublisher = new NatsPublisher<>(
-                connectionManager,
-                objectMapper
-            );
             orderPublisher.publish(order);
             return Response.noContent().build();
         } catch (Exception e) {
@@ -106,21 +97,12 @@ public class TypedPublisherResource {
                     .build();
             }
 
-            NatsPublisher<String> stringPublisher = new NatsPublisher<>(
-                connectionManager,
-                objectMapper
-            );
-            stringPublisher.publishCloudEvent(message, null, null);
+            // Capture the actual metadata that was published
+            CloudEventsHeaders.CloudEventsMetadata metadata =
+                stringPublisher.publishCloudEvent(message, null, null);
 
-            // Return metadata for verification
-            var ceMetadata = new CloudEventsMetadata(
-                String.class.getCanonicalName(),
-                getDefaultSource(),
-                java.util.UUID.randomUUID().toString(),
-                java.time.Instant.now().toString()
-            );
-
-            return Response.ok(ceMetadata).build();
+            // Return the actual metadata from the published event
+            return Response.ok(new ResponseMetadata(metadata)).build();
         } catch (Exception e) {
             return Response.serverError().entity(e.getMessage()).build();
         }
@@ -143,53 +125,33 @@ public class TypedPublisherResource {
                     .build();
             }
 
-            NatsPublisher<TestOrder> orderPublisher = new NatsPublisher<>(
-                connectionManager,
-                objectMapper
-            );
-            orderPublisher.publishCloudEvent(order, null, null);
+            // Capture the actual metadata that was published
+            CloudEventsHeaders.CloudEventsMetadata metadata =
+                orderPublisher.publishCloudEvent(order, null, null);
 
-            // Return metadata for verification
-            var ceMetadata = new CloudEventsMetadata(
-                TestOrder.class.getCanonicalName(),
-                getDefaultSource(),
-                java.util.UUID.randomUUID().toString(),
-                java.time.Instant.now().toString()
-            );
-
-            return Response.ok(ceMetadata).build();
+            // Return the actual metadata from the published event
+            return Response.ok(new ResponseMetadata(metadata)).build();
         } catch (Exception e) {
             return Response.serverError().entity(e.getMessage()).build();
         }
     }
 
     /**
-     * Get default source identifier (hostname or localhost).
-     */
-    private String getDefaultSource() {
-        try {
-            return java.net.InetAddress.getLocalHost().getHostName();
-        } catch (java.net.UnknownHostException e) {
-            String appName = System.getProperty("app.name");
-            return appName != null ? appName : "localhost";
-        }
-    }
-
-    /**
-     * CloudEvents metadata returned in response body.
+     * Response wrapper for CloudEvents metadata.
+     * Contains the actual metadata that was published to NATS.
      */
     @RegisterForReflection
-    public static class CloudEventsMetadata {
+    public static class ResponseMetadata {
         public String ceType;
         public String ceSource;
         public String ceId;
         public String ceTime;
 
-        public CloudEventsMetadata(String ceType, String ceSource, String ceId, String ceTime) {
-            this.ceType = ceType;
-            this.ceSource = ceSource;
-            this.ceId = ceId;
-            this.ceTime = ceTime;
+        public ResponseMetadata(CloudEventsHeaders.CloudEventsMetadata metadata) {
+            this.ceType = metadata.type;
+            this.ceSource = metadata.source;
+            this.ceId = metadata.id;
+            this.ceTime = metadata.time;
         }
     }
 }

@@ -130,4 +130,40 @@ public class CloudEventsHeaders {
 
         return headers;
     }
+
+    /**
+     * Create NATS Headers object and return the generated metadata.
+     *
+     * @param payloadClass the class of the payload (used to auto-generate ce-type)
+     * @param ceTypeOverride the ce-type override (nullable; auto-generated if null)
+     * @param ceSourceOverride the ce-source override (nullable; auto-generated if null)
+     * @return a HeadersWithMetadata containing both Headers and the generated CloudEventsMetadata
+     */
+    public static HeadersWithMetadata createHeadersWithMetadata(
+        Class<?> payloadClass, String ceTypeOverride, String ceSourceOverride) {
+        CloudEventsMetadata metadata = generateMetadata(payloadClass, ceTypeOverride, ceSourceOverride);
+        Headers headers = new Headers();
+
+        headers.add(HEADER_SPECVERSION, metadata.specVersion);
+        headers.add(HEADER_TYPE, metadata.type);
+        headers.add(HEADER_SOURCE, metadata.source);
+        headers.add(HEADER_ID, metadata.id);
+        headers.add(HEADER_TIME, metadata.time);
+        headers.add(HEADER_DATACONTENTTYPE, metadata.dataContentType);
+
+        return new HeadersWithMetadata(headers, metadata);
+    }
+
+    /**
+     * Data structure containing both NATS Headers and CloudEvents metadata.
+     */
+    public static class HeadersWithMetadata {
+        public final Headers headers;
+        public final CloudEventsMetadata metadata;
+
+        public HeadersWithMetadata(Headers headers, CloudEventsMetadata metadata) {
+            this.headers = headers;
+            this.metadata = metadata;
+        }
+    }
 }

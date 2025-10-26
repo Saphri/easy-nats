@@ -2,351 +2,295 @@
 
 **Feature**: MVP 002 Typed NatsPublisher | **Date**: 2025-10-26 | **Phase**: Design Artifacts (Phase 1)
 
-**Purpose**: Define REST endpoints for testing and demonstrating typed publishing and CloudEvents functionality in the integration test application.
+**Purpose**: Define REST endpoints for testing and demonstrating type-safe publishing and CloudEvents functionality in the integration test application.
 
 ---
 
-## Endpoint: Publish Typed Object as JSON
+## Overview
 
-### `POST /typed-publisher/publish`
+The Typed Publisher API uses **path-based endpoint separation** to enforce type safety at the HTTP boundary. Each endpoint is explicitly typed for a specific payload type (String, TestOrder), eliminating runtime type dispatching logic.
 
-**Summary**: Publish a typed domain object as JSON to NATS without CloudEvents headers.
+**Base Path**: `/typed-publisher`
 
-**Request Body** (application/json):
+**Content Type**: `application/json`
+
+---
+
+## Endpoint: Publish String Payload
+
+### `POST /typed-publisher/string`
+
+**Summary**: Publish a String message to NATS without CloudEvents headers.
+
+**Request Body**: Plain JSON string
+
 ```json
-{
-  "type": "string",
-  "description": "The type of object to publish. Determines deserialization class.",
-  "examples": ["java.lang.String", "java.lang.Integer", "org.mjelle.Order", "org.mjelle.UserCreatedEvent"]
-}
+"hello world"
 ```
 
-**Request Body Schema**:
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `objectType` | string | yes | Fully-qualified Java class name (e.g., "java.lang.String", "org.example.Order") |
-| `payload` | object | yes | The object to publish (structure varies by objectType) |
-
-**Example Requests**:
-
-**1. Publish a String**:
+**Example Request**:
 ```bash
-curl -X POST http://localhost:8080/typed-publisher/publish \
+curl -X POST http://localhost:8081/typed-publisher/string \
   -H "Content-Type: application/json" \
-  -d '{
-    "objectType": "java.lang.String",
-    "payload": "hello world"
-  }'
+  -d '"hello world"'
 ```
 
-**2. Publish an Integer**:
-```bash
-curl -X POST http://localhost:8080/typed-publisher/publish \
-  -H "Content-Type: application/json" \
-  -d '{
-    "objectType": "java.lang.Integer",
-    "payload": 42
-  }'
-```
-
-**3. Publish a custom domain object**:
-```bash
-curl -X POST http://localhost:8080/typed-publisher/publish \
-  -H "Content-Type: application/json" \
-  -d '{
-    "objectType": "org.mjelle.quarkus.easynats.it.Order",
-    "payload": {
-      "orderId": "ORD-123",
-      "customerEmail": "alice@example.com",
-      "amount": 99.99
-    }
-  }'
-```
-
-**Response** (200 OK):
-```json
-{
-  "status": "published",
-  "objectType": "org.mjelle.quarkus.easynats.it.Order",
-  "subject": "test",
-  "message": "Order message published successfully to NATS subject 'test'"
-}
-```
-
-**Response Headers**:
-- `Content-Type: application/json`
+**Response** (204 No Content):
+- No response body
+- Message published successfully to NATS subject "test"
 
 **Status Codes**:
 | Code | Reason | Body |
 |------|--------|------|
-| 200 | Success | PublishResult JSON |
-| 400 | Invalid request (null payload, unsupported type) | ErrorResponse JSON |
-| 500 | Serialization error (Jackson failure) | ErrorResponse JSON |
-
-**Error Response** (400/500):
-```json
-{
-  "status": "error",
-  "objectType": "org.example.MyClass",
-  "subject": "test",
-  "error": "Cannot publish null object"
-}
-```
-
-**Implementation Notes**:
-- Endpoint is defined in `TypedPublisherResource.java`
-- Uses `NatsPublisher<T>` internally with reflection to instantiate the appropriate generic type
-- Supports primitive types (String, Integer, Long, etc.) and complex POJOs
-- Error messages are propagated from `TypedPayloadEncoder` and `NatsPublisher.publish()`
+| 204 | Success | (empty) |
+| 400 | Bad Request (null message) | Error message string |
+| 500 | Internal Server Error | Error message string |
 
 ---
 
-## Endpoint: Publish with CloudEvents Metadata
+## Endpoint: Publish TestOrder Payload
 
-### `POST /typed-publisher/publish-cloudevents`
+### `POST /typed-publisher/order`
 
-**Summary**: Publish a typed object with CloudEvents metadata headers (ce-type, ce-source, ce-id, ce-time).
+**Summary**: Publish a TestOrder domain object to NATS without CloudEvents headers.
 
-**Request Body** (application/json):
+**Request Body**: TestOrder JSON object
 
+```json
+{
+  "orderId": "ORD-123",
+  "amount": 99
+}
+```
+
+**TestOrder Schema**:
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `objectType` | string | yes | Fully-qualified Java class name |
-| `payload` | object | yes | The object to publish |
-| `ceType` | string | no | CloudEvents type (default: auto-generated from class name) |
-| `ceSource` | string | no | CloudEvents source (default: auto-generated from hostname) |
+| `orderId` | string | yes | Order identifier (e.g., "ORD-123") |
+| `amount` | integer | yes | Order amount in cents (e.g., 99) |
 
 **Example Request**:
-
-**1. Publish domain object with CloudEvents (explicit metadata)**:
 ```bash
-curl -X POST http://localhost:8080/typed-publisher/publish-cloudevents \
+curl -X POST http://localhost:8081/typed-publisher/order \
   -H "Content-Type: application/json" \
   -d '{
-    "objectType": "org.mjelle.quarkus.easynats.it.Order",
-    "payload": {
-      "orderId": "ORD-456",
-      "customerEmail": "bob@example.com",
-      "amount": 149.99
-    },
-    "ceType": "com.example.OrderPlaced",
-    "ceSource": "/order-service"
+    "orderId": "ORD-456",
+    "amount": 150
   }'
 ```
 
-**2. Publish with auto-generated CloudEvents metadata**:
+**Response** (204 No Content):
+- No response body
+- Order published successfully to NATS subject "test"
+
+**Status Codes**:
+| Code | Reason | Body |
+|------|--------|------|
+| 204 | Success | (empty) |
+| 400 | Bad Request (null order) | Error message string |
+| 500 | Internal Server Error | Error message string |
+
+---
+
+## Endpoint: Publish String with CloudEvents
+
+### `POST /typed-publisher/string-cloudevents`
+
+**Summary**: Publish a String message with CloudEvents 1.0 metadata headers (ce-type, ce-source, ce-id, ce-time).
+
+**Request Body**: Plain JSON string
+
+```json
+"hello world"
+```
+
+**Example Request**:
 ```bash
-curl -X POST http://localhost:8080/typed-publisher/publish-cloudevents \
+curl -X POST http://localhost:8081/typed-publisher/string-cloudevents \
   -H "Content-Type: application/json" \
-  -d '{
-    "objectType": "org.mjelle.quarkus.easynats.it.Order",
-    "payload": {
-      "orderId": "ORD-789",
-      "customerEmail": "charlie@example.com",
-      "amount": 199.99
-    }
-  }'
+  -d '"hello world"'
 ```
 
 **Response** (200 OK):
 ```json
 {
-  "status": "published",
-  "objectType": "org.mjelle.quarkus.easynats.it.Order",
-  "subject": "test",
-  "ceType": "com.example.OrderPlaced",
-  "ceSource": "/order-service",
+  "ceType": "java.lang.String",
+  "ceSource": "localhost",
   "ceId": "550e8400-e29b-41d4-a716-446655440000",
-  "ceTime": "2025-10-26T14:30:45.123456Z",
-  "message": "Order message published successfully with CloudEvents headers"
+  "ceTime": "2025-10-26T14:30:45.123456Z"
 }
 ```
 
 **Response Fields**:
 | Field | Type | Description |
 |-------|------|-------------|
-| `status` | string | Always "published" on success |
-| `objectType` | string | The type that was published |
-| `subject` | string | NATS subject used (hardcoded "test") |
-| `ceType` | string | CloudEvents type (provided or auto-generated) |
-| `ceSource` | string | CloudEvents source (provided or auto-generated) |
-| `ceId` | string | CloudEvents ID (always auto-generated UUID) |
-| `ceTime` | string | CloudEvents timestamp (always auto-generated ISO 8601) |
-| `message` | string | Success message |
+| `ceType` | string | CloudEvents type (auto-generated from class name) |
+| `ceSource` | string | CloudEvents source (auto-generated from hostname) |
+| `ceId` | string | CloudEvents ID (auto-generated UUID) |
+| `ceTime` | string | CloudEvents timestamp (auto-generated ISO 8601) |
 
 **Status Codes**:
 | Code | Reason | Body |
 |------|--------|------|
-| 200 | Success | PublishCloudEventsResult JSON |
-| 400 | Invalid request | ErrorResponse JSON |
-| 500 | Serialization error | ErrorResponse JSON |
+| 200 | Success | CloudEventsMetadata JSON |
+| 400 | Bad Request (null message) | Error message string |
+| 500 | Internal Server Error | Error message string |
 
-**Error Response** (400/500):
-```json
-{
-  "status": "error",
-  "objectType": "org.example.MyClass",
-  "subject": "test",
-  "error": "Failed to serialize Order: missing zero-arg constructor"
-}
-```
-
-**CloudEvents Headers Set on Message**:
-When published to NATS, the message will have these headers (accessible via NATS headers API):
-
+**CloudEvents Headers Sent to NATS**:
 ```
 ce-specversion: 1.0
-ce-type: com.example.OrderPlaced (or auto-generated from objectType)
-ce-source: /order-service (or auto-generated from hostname)
-ce-id: 550e8400-e29b-41d4-a716-446655440000 (auto-generated UUID)
-ce-time: 2025-10-26T14:30:45.123456Z (auto-generated ISO 8601)
+ce-type: java.lang.String
+ce-source: localhost
+ce-id: 550e8400-e29b-41d4-a716-446655440000
+ce-time: 2025-10-26T14:30:45.123456Z
 ce-datacontenttype: application/json
 ```
 
-**Implementation Notes**:
-- Endpoint is defined in `TypedPublisherResource.java`
-- Uses `NatsPublisher<T>.publishCloudEvent()` internally
-- CloudEvents headers are generated by `CloudEventsHeaders` factory
-- Supports same type range as `/publish` endpoint
-- If ceType or ceSource are not provided, auto-generation occurs:
-  - `ceType` defaults to fully-qualified class name (e.g., "org.mjelle.quarkus.easynats.it.Order")
-  - `ceSource` defaults to hostname or "localhost"
-
 ---
 
-## Data Models (Request/Response)
+## Endpoint: Publish TestOrder with CloudEvents
 
-### PublishRequest
+### `POST /typed-publisher/order-cloudevents`
 
-```java
-public record PublishRequest(
-    String objectType,
-    Object payload
-) {}
+**Summary**: Publish a TestOrder domain object with CloudEvents 1.0 metadata headers.
+
+**Request Body**: TestOrder JSON object
+
+```json
+{
+  "orderId": "ORD-789",
+  "amount": 200
+}
 ```
 
-### PublishCloudEventsRequest
-
-```java
-public record PublishCloudEventsRequest(
-    String objectType,
-    Object payload,
-    String ceType,      // nullable - auto-generated if not provided
-    String ceSource     // nullable - auto-generated if not provided
-) {}
+**Example Request**:
+```bash
+curl -X POST http://localhost:8081/typed-publisher/order-cloudevents \
+  -H "Content-Type: application/json" \
+  -d '{
+    "orderId": "ORD-789",
+    "amount": 200
+  }'
 ```
 
-### PublishResult
-
-```java
-public record PublishResult(
-    String status,           // "published"
-    String objectType,       // fully-qualified class name
-    String subject,          // "test"
-    String message           // descriptive success message
-) {}
+**Response** (200 OK):
+```json
+{
+  "ceType": "org.mjelle.quarkus.easynats.it.TestOrder",
+  "ceSource": "localhost",
+  "ceId": "660e8400-e29b-41d4-a716-446655440001",
+  "ceTime": "2025-10-26T14:35:50.654321Z"
+}
 ```
 
-### PublishCloudEventsResult
+**Response Fields**:
+| Field | Type | Description |
+|-------|------|-------------|
+| `ceType` | string | CloudEvents type (auto-generated from class name) |
+| `ceSource` | string | CloudEvents source (auto-generated from hostname) |
+| `ceId` | string | CloudEvents ID (auto-generated UUID) |
+| `ceTime` | string | CloudEvents timestamp (auto-generated ISO 8601) |
 
-```java
-public record PublishCloudEventsResult(
-    String status,           // "published"
-    String objectType,       // fully-qualified class name
-    String subject,          // "test"
-    String ceType,           // CloudEvents type (provided or auto-generated)
-    String ceSource,         // CloudEvents source (provided or auto-generated)
-    String ceId,             // CloudEvents ID (auto-generated UUID)
-    String ceTime,           // CloudEvents timestamp (auto-generated ISO 8601)
-    String message           // descriptive success message
-) {}
+**Status Codes**:
+| Code | Reason | Body |
+|------|--------|------|
+| 200 | Success | CloudEventsMetadata JSON |
+| 400 | Bad Request (null order) | Error message string |
+| 500 | Internal Server Error | Error message string |
+
+**CloudEvents Headers Sent to NATS**:
 ```
-
-### ErrorResponse
-
-```java
-public record ErrorResponse(
-    String status,           // "error"
-    String objectType,       // the type that failed
-    String subject,          // "test"
-    String error             // exception message
-) {}
+ce-specversion: 1.0
+ce-type: org.mjelle.quarkus.easynats.it.TestOrder
+ce-source: localhost
+ce-id: 660e8400-e29b-41d4-a716-446655440001
+ce-time: 2025-10-26T14:35:50.654321Z
+ce-datacontenttype: application/json
 ```
 
 ---
 
-## Implementation Class: TypedPublisherResource
+## Implementation Details
 
 **Location**: `integration-tests/src/main/java/org/mjelle/quarkus/easynats/it/TypedPublisherResource.java`
 
-**Annotations**:
-- `@Path("/typed-publisher")` - Base path for all endpoints
-- `@Singleton` - CDI singleton scope
-- `@Produces(MediaType.APPLICATION_JSON)` - All responses are JSON
-- `@Consumes(MediaType.APPLICATION_JSON)` - All requests are JSON
-
 **Dependencies** (constructor-injected):
-- `NatsPublisher<?>` - Generic publisher for type-safe publishing
-- `ObjectMapper` (optional) - For JSON serialization of responses
+- `NatsConnectionManager` - Manages NATS connection and JetStream access
+- `ObjectMapper` - Jackson ObjectMapper for JSON serialization
 
-**Key Methods**:
-1. `publish(PublishRequest request): PublishResult` - Handles `POST /typed-publisher/publish`
-2. `publishCloudEvents(PublishCloudEventsRequest request): PublishCloudEventsResult` - Handles `POST /typed-publisher/publish-cloudevents`
+**Design Rationale**:
 
-**Error Handling**:
-- Catch `IllegalArgumentException` → Return 400 with ErrorResponse
-- Catch `SerializationException` → Return 500 with ErrorResponse
-- Catch all other exceptions → Return 500 with ErrorResponse
+1. **Path-Based Type Safety**: Each endpoint is explicitly typed for a specific payload type (String or TestOrder), eliminating runtime type dispatching logic and providing compile-time type safety.
+
+2. **HTTP Status Codes**: Endpoints return proper REST status codes:
+   - `204 No Content` for simple publish (payload only, no response body needed)
+   - `200 OK` with CloudEvents metadata for verification
+   - `400 Bad Request` for validation errors
+   - `500 Internal Server Error` for serialization/connection errors
+
+3. **Actual CloudEvents Metadata**: CloudEvents endpoints return the **actual** metadata that was published (same ce-id and ce-time sent to NATS), not newly generated values. This ensures API responses accurately represent the published state.
+
+4. **Generic Type Safety**: Each endpoint creates a properly typed `NatsPublisher<T>` at runtime:
+   - `/string` → `NatsPublisher<String>`
+   - `/order` → `NatsPublisher<TestOrder>`
+
+---
+
+## Error Handling
+
+All endpoints follow consistent error handling:
+
+**400 Bad Request** (null payload):
+```
+Message cannot be null
+```
+
+**500 Internal Server Error** (serialization failure):
+```
+Failed to publish: [error details]
+```
 
 ---
 
 ## Testing Strategy
 
-**Manual Testing** (via docker-compose + NATS CLI):
+**Integration Tests** (in `TypedPublisherTest.java`):
 
-1. **Test Typed Publishing**:
-   ```bash
-   # In terminal 1, subscribe to messages
-   nats sub test
+1. Test String publishing (204 No Content)
+2. Test TestOrder publishing (204 No Content)
+3. Test message delivery on NATS broker
+4. Test String CloudEvents (200 OK with metadata)
+5. Test TestOrder CloudEvents (200 OK with metadata)
 
-   # In terminal 2, publish via REST
-   curl -X POST http://localhost:8080/typed-publisher/publish \
-     -H "Content-Type: application/json" \
-     -d '{"objectType":"java.lang.String","payload":"hello"}'
+**Manual Testing**:
+```bash
+# Publish String
+curl -X POST http://localhost:8081/typed-publisher/string \
+  -H "Content-Type: application/json" \
+  -d '"test message"'
 
-   # Expected output in terminal 1:
-   # [1] Received on "test": hello
-   ```
+# Publish Order
+curl -X POST http://localhost:8081/typed-publisher/order \
+  -H "Content-Type: application/json" \
+  -d '{"orderId":"ORD-100","amount":500}'
 
-2. **Test CloudEvents Publishing**:
-   ```bash
-   # In terminal 1, subscribe with header inspection
-   nats sub test --raw
+# Publish String with CloudEvents
+curl -X POST http://localhost:8081/typed-publisher/string-cloudevents \
+  -H "Content-Type: application/json" \
+  -d '"test message"'
 
-   # In terminal 2, publish via REST with CloudEvents
-   curl -X POST http://localhost:8080/typed-publisher/publish-cloudevents \
-     -H "Content-Type: application/json" \
-     -d '{"objectType":"java.lang.String","payload":"world"}'
-
-   # Expected: Message with ce-* headers visible in NATS CLI output
-   ```
-
-3. **Test Error Handling**:
-   ```bash
-   # Publish null object
-   curl -X POST http://localhost:8080/typed-publisher/publish \
-     -H "Content-Type: application/json" \
-     -d '{"objectType":"java.lang.String","payload":null}'
-
-   # Expected: 400 response with error message
-   ```
+# Publish Order with CloudEvents
+curl -X POST http://localhost:8081/typed-publisher/order-cloudevents \
+  -H "Content-Type: application/json" \
+  -d '{"orderId":"ORD-200","amount":1000}'
+```
 
 ---
 
 ## Notes
 
-- Both endpoints publish to the hardcoded subject "test"
-- Type resolution uses fully-qualified class names for flexibility
-- CloudEvents spec version is always "1.0" (binary content mode)
-- Endpoints are test/demo only; production would use direct injection of `NatsPublisher<MyType>`
+- All endpoints publish to the hardcoded NATS subject "test"
+- CloudEvents spec version is always "1.0"
+- Type-safe endpoints prevent runtime type dispatch errors
+- Response metadata in CloudEvents endpoints matches NATS headers exactly
+- Endpoints demonstrate type-safe publishing; production code would use direct generic type injection

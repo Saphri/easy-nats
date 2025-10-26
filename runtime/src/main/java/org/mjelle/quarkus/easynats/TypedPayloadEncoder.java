@@ -3,6 +3,7 @@ package org.mjelle.quarkus.easynats;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import java.util.stream.Collectors;
 
 /**
  * Utility class for encoding payloads with a priority-based strategy.
@@ -93,73 +94,40 @@ public class TypedPayloadEncoder {
 
         // Handle primitive arrays: space-separated
         if (value instanceof int[]) {
-            int[] arr = (int[]) value;
-            StringBuilder sb = new StringBuilder();
-            for (int i = 0; i < arr.length; i++) {
-                if (i > 0) sb.append(" ");
-                sb.append(arr[i]);
-            }
-            return sb.toString().getBytes(StandardCharsets.UTF_8);
+            String joined = java.util.Arrays.stream((int[]) value)
+                .mapToObj(String::valueOf)
+                .collect(Collectors.joining(" "));
+            return joined.getBytes(StandardCharsets.UTF_8);
         }
 
         if (value instanceof long[]) {
-            long[] arr = (long[]) value;
-            StringBuilder sb = new StringBuilder();
-            for (int i = 0; i < arr.length; i++) {
-                if (i > 0) sb.append(" ");
-                sb.append(arr[i]);
-            }
-            return sb.toString().getBytes(StandardCharsets.UTF_8);
+            String joined = java.util.Arrays.stream((long[]) value)
+                .mapToObj(String::valueOf)
+                .collect(Collectors.joining(" "));
+            return joined.getBytes(StandardCharsets.UTF_8);
         }
 
         if (value instanceof double[]) {
-            double[] arr = (double[]) value;
-            StringBuilder sb = new StringBuilder();
-            for (int i = 0; i < arr.length; i++) {
-                if (i > 0) sb.append(" ");
-                sb.append(arr[i]);
-            }
-            return sb.toString().getBytes(StandardCharsets.UTF_8);
+            String joined = java.util.Arrays.stream((double[]) value)
+                .mapToObj(String::valueOf)
+                .collect(Collectors.joining(" "));
+            return joined.getBytes(StandardCharsets.UTF_8);
         }
 
         if (value instanceof float[]) {
-            float[] arr = (float[]) value;
-            StringBuilder sb = new StringBuilder();
-            for (int i = 0; i < arr.length; i++) {
-                if (i > 0) sb.append(" ");
-                sb.append(arr[i]);
-            }
-            return sb.toString().getBytes(StandardCharsets.UTF_8);
+            return encodeObjectArrayAsString(toObjectArray((float[]) value)).getBytes(StandardCharsets.UTF_8);
         }
 
         if (value instanceof boolean[]) {
-            boolean[] arr = (boolean[]) value;
-            StringBuilder sb = new StringBuilder();
-            for (int i = 0; i < arr.length; i++) {
-                if (i > 0) sb.append(" ");
-                sb.append(arr[i]);
-            }
-            return sb.toString().getBytes(StandardCharsets.UTF_8);
+            return encodeObjectArrayAsString(toObjectArray((boolean[]) value)).getBytes(StandardCharsets.UTF_8);
         }
 
         if (value instanceof short[]) {
-            short[] arr = (short[]) value;
-            StringBuilder sb = new StringBuilder();
-            for (int i = 0; i < arr.length; i++) {
-                if (i > 0) sb.append(" ");
-                sb.append(arr[i]);
-            }
-            return sb.toString().getBytes(StandardCharsets.UTF_8);
+            return encodeObjectArrayAsString(toObjectArray((short[]) value)).getBytes(StandardCharsets.UTF_8);
         }
 
         if (value instanceof char[]) {
-            char[] arr = (char[]) value;
-            StringBuilder sb = new StringBuilder();
-            for (int i = 0; i < arr.length; i++) {
-                if (i > 0) sb.append(" ");
-                sb.append(arr[i]);
-            }
-            return sb.toString().getBytes(StandardCharsets.UTF_8);
+            return encodeObjectArrayAsString(toObjectArray((char[]) value)).getBytes(StandardCharsets.UTF_8);
         }
 
         // Handle String array: comma-separated
@@ -207,5 +175,61 @@ public class TypedPayloadEncoder {
             return PayloadEncoderStrategy.NATIVE_ENCODER;
         }
         return PayloadEncoderStrategy.JACKSON_ENCODER;
+    }
+
+    /**
+     * Convert a primitive array to an Object array for unified processing.
+     */
+    private static Object[] toObjectArray(float[] arr) {
+        Object[] result = new Object[arr.length];
+        for (int i = 0; i < arr.length; i++) {
+            result[i] = arr[i];
+        }
+        return result;
+    }
+
+    /**
+     * Convert a primitive array to an Object array for unified processing.
+     */
+    private static Object[] toObjectArray(boolean[] arr) {
+        Object[] result = new Object[arr.length];
+        for (int i = 0; i < arr.length; i++) {
+            result[i] = arr[i];
+        }
+        return result;
+    }
+
+    /**
+     * Convert a primitive array to an Object array for unified processing.
+     */
+    private static Object[] toObjectArray(short[] arr) {
+        Object[] result = new Object[arr.length];
+        for (int i = 0; i < arr.length; i++) {
+            result[i] = arr[i];
+        }
+        return result;
+    }
+
+    /**
+     * Convert a primitive array to an Object array for unified processing.
+     */
+    private static Object[] toObjectArray(char[] arr) {
+        Object[] result = new Object[arr.length];
+        for (int i = 0; i < arr.length; i++) {
+            result[i] = arr[i];
+        }
+        return result;
+    }
+
+    /**
+     * Encode an Object array as a space-separated string.
+     */
+    private static String encodeObjectArrayAsString(Object[] arr) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < arr.length; i++) {
+            if (i > 0) sb.append(" ");
+            sb.append(arr[i]);
+        }
+        return sb.toString();
     }
 }
