@@ -1,80 +1,37 @@
-# Implementation Plan: Typed NatsPublisher with CloudEvents Support
+# Implementation Plan: [FEATURE]
 
-**Branch**: `002-typed-publisher` | **Date**: 2025-10-26 | **Spec**: [spec.md](spec.md)
-**Input**: Feature specification from `/specs/002-typed-publisher/spec.md`
+**Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [link]
+**Input**: Feature specification from `/specs/[###-feature-name]/spec.md`
 
-**Note**: This plan is filled in by the `/speckit.plan` command.
+**Note**: This template is filled in by the `/speckit.plan` command. See `.specify/templates/commands/plan.md` for the execution workflow.
 
 ## Summary
 
-**MVP 002** extends the MVP 001 `NatsPublisher` class with generic type parameter `<T>` to provide type-safe publishing of domain objects as JSON. Core features:
-
-1. **Typed Publishing**: `NatsPublisher<T>` extends existing class to support publishing any Java type via Jackson JSON serialization
-2. **Encoder/Decoder Priority**: Primitives (int, long, String, etc.) and arrays handled natively; Jackson used as fallback for complex types
-3. **CloudEvents Support**: Auto-generated headers (ce_type, ce_source, ce_id, ce_time) with ISO 8601 timestamps and UUID IDs
-4. **Native Image Ready**: Full `@RegisterForReflection` documentation for GraalVM compilation support
-
-This MVP fulfills **Principle VI (Developer Experience First)** by introducing generic type safety while keeping implementation minimal and focused.
+[Extract from feature spec: primary requirement + technical approach from research]
 
 ## Technical Context
 
-**Language/Version**: Java 21 (enforced per Principle IV)
-**Primary Dependencies**:
-- Quarkus 3.27.0 (existing)
-- Jackson 2.x (via quarkus-jackson, for complex type serialization)
-- NATS JetStream (via jnats 2.23.0, existing)
+<!--
+  ACTION REQUIRED: Replace the content in this section with the technical details
+  for the project. The structure here is presented in advisory capacity to guide
+  the iteration process.
+-->
 
-**Storage**: N/A (messaging extension, no persistent storage)
-
-**Testing**:
-- Unit tests via JUnit 5 in runtime module (>80% coverage target)
-- Manual integration tests using docker-compose + NATS CLI (no automated integration tests in MVP 002)
-- Existing test approach from MVP 001: RestAssured for HTTP endpoint testing
-
-**Target Platform**: Linux/JVM + GraalVM native image (via Quarkus)
-
-**Project Type**: Quarkus extension (runtime + deployment modules)
-
-**Performance Goals**:
-- Primitive types (int, long, String): direct encoding with zero Jackson overhead
-- Complex types: Jackson serialization with acceptable latency for non-real-time messaging
-- Memory: primitive encoder/decoder <1KB, Jackson integration transparent to users
-
-**Constraints**:
-- Runtime JAR <500KB (per Principle II)
-- Single shared NATS connection per application (per Principle II)
-- Native image compatible (requires @RegisterForReflection for complex types)
-- CloudEvents spec 1.0 compliance (per Principle V)
-
-**Scale/Scope**:
-- Extends existing MVP 001 NatsPublisher class
-- Adds generic type parameter and typed encode/decode logic
-- ~500-1000 LOC estimated for core typed publisher + CloudEvents support
+**Language/Version**: [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION]  
+**Primary Dependencies**: [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION]  
+**Storage**: [if applicable, e.g., PostgreSQL, CoreData, files or N/A]  
+**Testing**: [e.g., pytest, XCTest, cargo test or NEEDS CLARIFICATION]  
+**Target Platform**: [e.g., Linux server, iOS 15+, WASM or NEEDS CLARIFICATION]
+**Project Type**: [single/web/mobile - determines source structure]  
+**Performance Goals**: [domain-specific, e.g., 1000 req/s, 10k lines/sec, 60 fps or NEEDS CLARIFICATION]  
+**Constraints**: [domain-specific, e.g., <200ms p95, <100MB memory, offline-capable or NEEDS CLARIFICATION]  
+**Scale/Scope**: [domain-specific, e.g., 10k users, 1M LOC, 50 screens or NEEDS CLARIFICATION]
 
 ## Constitution Check
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-### Principles Evaluation
-
-| Principle | Requirement | Status | Notes |
-|-----------|-------------|--------|-------|
-| **I. Extension-First** | Runtime/deployment split with @BuildStep | ✅ PASS | MVP 002 extends existing MVP 001 architecture (no changes to runtime/deployment split) |
-| **II. Minimal Runtime** | <500KB JAR, single connection, JetStream-only | ✅ PASS | Generic type support + Jackson integration adds ~50KB (estimated); within budget; no new connections introduced |
-| **III. TDD** | All changes must have corresponding tests | ✅ PASS | Specification includes test scenarios; implementation will follow red-green-refactor (manual testing + doc examples) |
-| **IV. Java 21** | All code targets Java 21 | ✅ PASS | No language version conflicts; generics compatible with Java 21 |
-| **V. CloudEvents** | Full spec 1.0 compliance with ce-* headers | ✅ PASS | Specification requires ce_type, ce_source, ce_specversion, ce_id, ce_time headers (FR-003) |
-| **VI. Developer Experience** | Generic types + typed publishing (MVP 002 scope) | ✅ PASS | **MVP 002 SCOPED**: Implements `NatsPublisher<T>` generics and CloudEvents support (defers @NatsSubject annotation to future MVP 003) |
-
-### Gate Decision: ✅ PASS
-
-All principles satisfied. MVP 002 scope aligns with constitution Principle VI "MVP 001 Scope Limitation" section:
-- ✅ MVP 002 introduces generic types (`NatsPublisher<T>`)
-- ✅ MVP 002 adds CloudEvents support
-- ✅ MVP 002 defers @NatsSubject annotation pattern to future MVP
-- ✅ No backward compatibility required (fresh extension of MVP 001)
-
-**Approved for Phase 0 Research**
+[Gates determined based on constitution file]
 
 ## Project Structure
 
@@ -91,59 +48,57 @@ specs/[###-feature]/
 ```
 
 ### Source Code (repository root)
-
-Quarkus extension structure with runtime and deployment modules:
+<!--
+  ACTION REQUIRED: Replace the placeholder tree below with the concrete layout
+  for this feature. Delete unused options and expand the chosen structure with
+  real paths (e.g., apps/admin, packages/something). The delivered plan must
+  not include Option labels.
+-->
 
 ```text
-runtime/src/main/java/org/mjelle/quarkus/easynats/
-├── NatsConnectionManager.java      # [MVP 001 - existing]
-├── NatsPublisher.java               # [MVP 002: ADD generics + typed publish]
-├── TypedPayloadEncoder.java         # [MVP 002: NEW - encoder/decoder resolution]
-├── CloudEventsHeaders.java          # [MVP 002: NEW - CloudEvents header factory]
-└── CloudEventsPayload.java          # [MVP 002: NEW - CloudEvents wrapper]
+# [REMOVE IF UNUSED] Option 1: Single project (DEFAULT)
+src/
+├── models/
+├── services/
+├── cli/
+└── lib/
 
-runtime/src/test/java/...           # [MVP 002: Unit tests for TypedPayloadEncoder + CloudEventsHeaders]
+tests/
+├── contract/
+├── integration/
+└── unit/
 
-deployment/src/main/java/org/mjelle/quarkus/easynats/deployment/
-├── QuarkusEasyNatsProcessor.java    # [MVP 001 - existing, no changes for MVP 002]
-└── NatsFeature.java                 # [MVP 001 - existing, no changes for MVP 002]
+# [REMOVE IF UNUSED] Option 2: Web application (when "frontend" + "backend" detected)
+backend/
+├── src/
+│   ├── models/
+│   ├── services/
+│   └── api/
+└── tests/
 
-integration-tests/
-├── src/main/java/org/mjelle/quarkus/easynats/it/
-│   ├── PublisherResource.java       # [MVP 001 - existing]
-│   └── TypedPublisherResource.java  # [MVP 002: NEW - test REST endpoint for typed publishing]
-│
-├── src/test/java/org/mjelle/quarkus/easynats/it/
-│   ├── BasicPublisherTest.java      # [MVP 001 - existing]
-│   ├── BasicPublisherIT.java        # [MVP 001 - existing]
-│   ├── TypedPublisherTest.java      # [MVP 002: NEW - dev-mode tests for typed publishing]
-│   └── TypedPublisherIT.java        # [MVP 002: NEW - integration tests]
+frontend/
+├── src/
+│   ├── components/
+│   ├── pages/
+│   └── services/
+└── tests/
+
+# [REMOVE IF UNUSED] Option 3: Mobile + API (when "iOS/Android" detected)
+api/
+└── [same as backend above]
+
+ios/ or android/
+└── [platform-specific structure: feature modules, UI flows, platform tests]
 ```
 
-**Structure Decision**: Extends existing Quarkus extension structure with new classes for:
-1. **TypedPayloadEncoder**: Handles encoder/decoder resolution (primitives → arrays → Jackson)
-2. **CloudEventsHeaders**: Factory for generating and validating CloudEvents headers
-3. **CloudEventsPayload**: Wrapper class for typed messages with metadata
-4. **TypedPublisherResource**: REST endpoint for integration testing typed publishing
-5. **Test classes**: Manual tests for dev-mode and integration validation
+**Structure Decision**: [Document the selected structure and reference the real
+directories captured above]
 
 ## Complexity Tracking
 
-No constitution violations. All principles satisfied without complexity trade-offs. ✅
+> **Fill ONLY if Constitution Check has violations that must be justified**
 
----
-
-## Phase 0: Research
-
-Generate `research.md` by researching:
-- Jackson configuration in Quarkus for native image support
-- CloudEvents spec 1.0 header naming conventions
-- GraalVM reflection requirements for type erasure at runtime
-
-## Phase 1: Design Artifacts
-
-Generate:
-- `data-model.md` - CloudEventsPayload entity, encoder/decoder architecture
-- `contracts/typed-publisher-api.md` - REST endpoint specs for TypedPublisherResource
-- `quickstart.md` - Code examples for typed publishing and CloudEvents usage
-- Update Claude Code context file via `update-agent-context.sh`
+| Violation | Why Needed | Simpler Alternative Rejected Because |
+|-----------|------------|-------------------------------------|
+| [e.g., 4th project] | [current need] | [why 3 projects insufficient] |
+| [e.g., Repository pattern] | [specific problem] | [why direct DB access insufficient] |
