@@ -5,11 +5,16 @@
 
 version: 2
 updates:
- - package-ecosystem: maven
-   directory: "/"
-   schedule:
-     interval: daily
- - package-ecosystem: "docker"
-   directory: "/integration-tests"
-   schedule:
-     interval: "daily"
+  - package-ecosystem: maven
+    directory: "/"
+    schedule:
+      interval: daily
+    ignore:
+      - dependency-name: "io.quarkus:*"
+        update-types:
+          - "version-update:semver-major"
+          - "version-update:semver-minor"
+  - package-ecosystem: "docker"
+    directory: "/integration-tests"
+    schedule:
+      interval: "daily"
