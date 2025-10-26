@@ -56,7 +56,7 @@ class QuarkusEasyNatsProcessor {
                         }
 
                         // Validate that the subject value is not empty
-                        String subject = qualifier.value().asString();
+                        String subject = qualifier.value() != null ? qualifier.value().asString() : null;
                         if (subject == null || subject.trim().isEmpty()) {
                             errors.produce(new ValidationPhaseBuildItem.ValidationErrorBuildItem(
                                     new DefinitionException(

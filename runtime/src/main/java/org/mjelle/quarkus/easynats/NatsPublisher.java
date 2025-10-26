@@ -52,9 +52,7 @@ public class NatsPublisher<T> {
      * @throws Exception if publication fails (connection error, broker unreachable, etc.)
      */
     public void publish(T payload) throws Exception {
-        if (this.subject == null || this.subject.isEmpty()) {
-            throw new IllegalStateException("Default NATS subject is not configured for this publisher. Use @NatsSubject or provide the subject dynamically.");
-        }
+        validateDefaultSubject();
         publish(this.subject, payload);
     }
 
@@ -90,9 +88,7 @@ public class NatsPublisher<T> {
      * @throws Exception if publication fails
      */
     public CloudEventsHeaders.CloudEventsMetadata publishCloudEvent(T payload, String ceType, String ceSource) throws Exception {
-        if (this.subject == null || this.subject.isEmpty()) {
-            throw new IllegalStateException("Default NATS subject is not configured for this publisher. Use @NatsSubject or provide the subject dynamically.");
-        }
+        validateDefaultSubject();
         return publishCloudEvent(this.subject, payload, ceType, ceSource);
     }
 
@@ -139,6 +135,17 @@ public class NatsPublisher<T> {
             return TypedPayloadEncoder.encodeNatively(payload);
         } else {
             return TypedPayloadEncoder.encodeWithJackson(payload, objectMapper);
+        }
+    }
+
+    /**
+     * Validates that a default subject is configured for this publisher.
+     *
+     * @throws IllegalStateException if the default subject is not configured
+     */
+    private void validateDefaultSubject() {
+        if (this.subject == null || this.subject.trim().isEmpty()) {
+            throw new IllegalStateException("Default NATS subject is not configured for this publisher. Use @NatsSubject or provide the subject dynamically.");
         }
     }
 }

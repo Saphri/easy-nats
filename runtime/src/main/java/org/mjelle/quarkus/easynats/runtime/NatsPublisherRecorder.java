@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.quarkus.runtime.annotations.Recorder;
 import jakarta.enterprise.context.Dependent;
 import jakarta.enterprise.inject.Produces;
-import jakarta.enterprise.inject.spi.DefinitionException;
 import jakarta.enterprise.inject.spi.InjectionPoint;
 import org.mjelle.quarkus.easynats.NatsConnectionManager;
 import org.mjelle.quarkus.easynats.NatsPublisher;
@@ -30,9 +29,6 @@ public class NatsPublisherRecorder {
     public <T> NatsPublisher<T> publisher(InjectionPoint injectionPoint, NatsConnectionManager connectionManager, ObjectMapper objectMapper) {
         NatsSubject subject = injectionPoint.getAnnotated().getAnnotation(NatsSubject.class);
         if (subject != null) {
-            if (subject.value() == null || subject.value().trim().isEmpty()) {
-                throw new DefinitionException("NatsSubject value cannot be empty. Injection point: " + injectionPoint);
-            }
             return new NatsPublisher<>(connectionManager, objectMapper, subject.value());
         }
         return new NatsPublisher<>(connectionManager, objectMapper);

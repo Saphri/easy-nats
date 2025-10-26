@@ -38,7 +38,7 @@ public class NatsTestUtils {
 
         StreamConfiguration streamConfig = StreamConfiguration.builder()
                 .name(STREAM_NAME)
-                 .subjects("test.>")
+                .subjects("test.>")
                 .storageType(StorageType.Memory)
                 .build();
         jsm.addStream(streamConfig);
