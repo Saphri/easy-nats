@@ -231,9 +231,14 @@ Add Awaitility to `integration-tests/pom.xml`:
 ---
 
 ## Active Technologies
-- Java 21 (enforced per Principle IV) (001-basic-publisher-api)
-- N/A (publisher only; no persistence in this MVP) (001-basic-publisher-api)
-- N/A (messaging extension, no persistent storage) (002-typed-publisher)
+- Java 21 (enforced per Principle IV)
+- Quarkus 3.27.0 (LTS)
+- Jackson 2.x (for JSON serialization with Quarkus integration)
+- NATS JetStream 2.23.0 (messaging)
+- CloudEvents 1.0 spec (with auto-generated metadata headers)
 
 ## Recent Changes
 - 001-basic-publisher-api: Added Java 21 (enforced per Principle IV)
+- 002-typed-publisher: Added typed publisher with JSON serialization and CloudEvents support
+  - Key Classes: `TypedPayloadEncoder`, `CloudEventsHeaders`, `NatsPublisher<T>`, `SerializationException`
+  - Features: Type-safe publishing, automatic encoding selection, CloudEvents metadata headers with auto-generation
