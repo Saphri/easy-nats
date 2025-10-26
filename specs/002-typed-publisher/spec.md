@@ -5,6 +5,14 @@
 **Status**: Draft
 **Input**: Add typed support to NatsPublisher with JSON payloads using Jackson and CloudEvents headers
 
+## Clarifications
+
+### Session 2025-10-26
+
+- Q: How should non-serializable objects be handled? → A: Throw checked `SerializationException` with user-friendly message
+- Q: Which CloudEvents fields are required vs. optional? → A: `ce_type` and `ce_source` are optional; auto-generated from fully-qualified class name and hostname if not provided; `ce_id` (UUID) and `ce_time` (ISO 8601) always auto-generated
+- Q: What should happen when publishing null objects? → A: Throw validation exception (e.g., `IllegalArgumentException("Cannot publish null object")`)
+
 ## User Scenarios & Testing *(mandatory)*
 
 <!--
@@ -65,8 +73,8 @@ Developers want to publish messages that comply with the CloudEvents specificati
 
 ### Edge Cases
 
-- What happens when a developer tries to publish `null`? (Validation required)
-- How does the system handle objects that cannot be serialized to JSON (e.g., no zero-arg constructor)? (Clear error message needed)
+- **What happens when a developer tries to publish `null`?** → Throw validation exception (e.g., `IllegalArgumentException("Cannot publish null object")`)
+- **How does the system handle objects that cannot be serialized to JSON (e.g., no zero-arg constructor)?** → Throw checked `SerializationException` with user-friendly message (e.g., "Failed to serialize MyClass: missing zero-arg constructor")
 - What if a CloudEvents subject is extremely long (> 256 chars)? (Validation or truncation needed)
 - How does the system behave if Jackson is not on the classpath? (Should fail at build or startup, not runtime)
 - Can developers override CloudEvents headers on a per-publish basis? (Flexibility for advanced use cases)
@@ -83,18 +91,25 @@ Developers want to publish messages that comply with the CloudEvents specificati
 - **FR-001**: System MUST support generic `NatsPublisher<T>` where T is any Java class
 - **FR-002**: System MUST encode/decode using resolution order: (1) Java primitives (int, long, byte, short, double, float, boolean, char) and `java.lang.String`, (2) arrays of primitives and String, (3) Jackson for complex types
 - **FR-003**: System MUST support CloudEvents specification headers (`ce_type`, `ce_source`, `ce_specversion`, `ce_id`, `ce_time`) when publishing with CloudEvents mode
-- **FR-004**: System MUST auto-generate `ce_id` (UUID) if not provided by developer
-- **FR-005**: System MUST auto-generate `ce_time` (ISO 8601 UTC timestamp) if not provided
-- **FR-006**: System MUST validate that published objects are not null and provide clear error messages
-- **FR-007**: System MUST use full Java class names (e.g., `java.lang.String`, `com.example.UserCreatedEvent`) for CloudEvents `ce_datacontenttype`
-- **FR-008**: System MUST require Jackson on the classpath for complex type serialization and fail with clear error if not available
-- **FR-009**: System MUST handle primitive type arrays (e.g., `int[]`, `String[]`) without Jackson dependency
-- **FR-010**: System MUST document that complex types require `@RegisterForReflection` annotation for GraalVM native image compilation
+- **FR-004**: System MUST auto-generate `ce_type` from fully-qualified class name (e.g., `com.example.UserCreatedEvent`) if not provided by developer
+- **FR-004b**: System MUST auto-generate `ce_source` from hostname or application identifier if not provided by developer
+- **FR-005**: System MUST auto-generate `ce_id` (UUID v4) if not provided by developer
+- **FR-006**: System MUST auto-generate `ce_time` (ISO 8601 UTC timestamp) if not provided
+- **FR-007**: System MUST throw `IllegalArgumentException` with message "Cannot publish null object" when attempting to publish a null object instance
+- **FR-008**: System MUST use full Java class names (e.g., `java.lang.String`, `com.example.UserCreatedEvent`) for CloudEvents `ce_datacontenttype`
+- **FR-009**: System MUST require Jackson on the classpath for complex type serialization and fail with clear error if not available
+- **FR-010**: System MUST handle primitive type arrays (e.g., `int[]`, `String[]`) without Jackson dependency
+- **FR-011**: System MUST document that complex types require `@RegisterForReflection` annotation for GraalVM native image compilation
+- **FR-012**: System MUST throw checked `SerializationException` with user-friendly error message when an object cannot be serialized (e.g., "Failed to serialize MyClass: missing zero-arg constructor")
 
 ### Key Entities
 
 - **NatsPublisher<T>**: Extended version of existing NatsPublisher class with generic type parameter supporting typed object publishing with JSON serialization
-- **CloudEventsPayload**: Wrapper class representing a typed message with CloudEvents metadata (type, source, id, time)
+- **CloudEventsPayload**: Wrapper class representing a typed message with CloudEvents metadata:
+  - `ce_type` (optional, String): Event type; auto-generated from fully-qualified class name if not provided (e.g., `com.example.UserCreatedEvent`)
+  - `ce_source` (optional, String): Event source; auto-generated from hostname/application identifier if not provided
+  - `ce_id` (auto-generated, String): Event ID; always generated as UUID v4
+  - `ce_time` (auto-generated, String): Event timestamp; always generated in ISO 8601 UTC format
 
 ## Success Criteria *(mandatory)*
 
