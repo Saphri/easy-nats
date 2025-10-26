@@ -1,14 +1,17 @@
-# Quarkus EasyNATS Extension
+# Quarkus EasyNATS
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
-A Quarkus extension for integrating with [EasyNATS](https://github.com/mjelle/easy-nats), a JetStream NATS messaging library. This extension provides seamless integration with Quarkus, including support for CloudEvents.
+A Quarkus extension for integrating with NATS JetStream, designed for simplicity and developer experience. This extension provides seamless integration with Quarkus, including support for typed payloads and CloudEvents.
 
 **Note:** This project is currently under active development.
 
 ## Features
 
 *   **Simplified NATS Publishing:** Inject a `NatsPublisher` bean to easily publish messages to NATS subjects.
+*   **Typed Payloads:** Publish any Java object as a JSON payload with `NatsPublisher<T>`.
+*   **Annotation-Driven:** Use the `@NatsSubject` annotation to configure the NATS subject declaratively.
+*   **CloudEvents Support:** First-class support for the CloudEvents specification with automatic header generation.
 *   **Quarkus Integration:** Automatically configures and manages the NATS connection lifecycle.
 *   **JetStream Support:** Built on top of NATS JetStream for reliable messaging.
 
@@ -19,6 +22,7 @@ A Quarkus extension for integrating with [EasyNATS](https://github.com/mjelle/ea
 *   Java 21+
 *   Maven 3.8+
 *   An existing Quarkus project
+*   A running NATS server with JetStream enabled.
 
 ### 1. Add the Dependency
 
@@ -38,25 +42,29 @@ Add the following configuration to your `application.properties` file:
 
 ```properties
 # The NATS server URL
-quarkus.easynats.url=nats://localhost:4222
+nats.servers=nats://localhost:4222
+nats.username=admin
+nats.password=secret
 ```
 
-### 3. Use the NatsPublisher
+## Usage
 
-Inject the `NatsPublisher` bean into your application and use it to publish messages:
+### Basic Untyped Publisher
+
+For simple string messages, you can inject a `NatsPublisher` and specify the subject with the `@NatsSubject` annotation.
 
 ```java
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
 import org.mjelle.quarkus.easynats.NatsPublisher;
+import org.mjelle.quarkus.easynats.NatsSubject;
 
 @ApplicationScoped
 public class MyNatsProducer {
 
-    private final NatsPublisher publisher;
-
-    public MyNatsProducer(NatsPublisher publisher) {
-        this.publisher = publisher;
-    }
+    @Inject
+    @NatsSubject("my-subject")
+    NatsPublisher publisher;
 
     public void sendMessage(String message) {
         try {
@@ -68,6 +76,72 @@ public class MyNatsProducer {
     }
 }
 ```
+
+### Typed Publisher
+
+You can also publish any Java object as a JSON payload by using a typed `NatsPublisher<T>`.
+
+First, define your domain object. For native compilation, you'll need to add the `@RegisterForReflection` annotation.
+
+```java
+import io.quarkus.runtime.annotations.RegisterForReflection;
+
+@RegisterForReflection
+public class MyEvent {
+    public String message;
+
+    public MyEvent() {}
+
+    public MyEvent(String message) {
+        this.message = message;
+    }
+}
+```
+
+Then, inject a typed `NatsPublisher` and use it to publish your object.
+
+```java
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+import org.mjelle.quarkus.easynats.NatsPublisher;
+import org.mjelle.quarkus.easynats.NatsSubject;
+
+@ApplicationScoped
+public class MyTypedProducer {
+
+    @Inject
+    @NatsSubject("my-events")
+    NatsPublisher<MyEvent> publisher;
+
+    public void sendEvent(MyEvent event) {
+        try {
+            publisher.publish(event);
+            System.out.println("Event published: " + event.message);
+        } catch (Exception e) {
+            System.err.println("Failed to publish event: " + e.getMessage());
+        }
+    }
+}
+```
+
+### CloudEvents
+
+To publish a message with CloudEvents headers, use the `publishCloudEvent` method.
+
+```java
+// ... (inside a service)
+public void sendCloudEvent(MyEvent event) {
+    try {
+        // The ce-type and ce-source are optional and will be auto-generated if null
+        publisher.publishCloudEvent(event, "my.event.type", "/my-service");
+        System.out.println("CloudEvent published: " + event.message);
+    } catch (Exception e) {
+        System.err.println("Failed to publish CloudEvent: " + e.getMessage());
+    }
+}
+```
+
+The extension will automatically add the required CloudEvents headers to the message, such as `ce-id`, `ce-time`, and `ce-specversion`.
 
 ## Building from Source
 
