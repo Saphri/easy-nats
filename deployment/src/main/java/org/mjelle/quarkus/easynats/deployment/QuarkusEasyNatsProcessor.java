@@ -6,16 +6,23 @@ import io.quarkus.arc.processor.BeanInfo;
 import io.quarkus.arc.processor.InjectionPointInfo;
 import io.quarkus.deployment.annotations.BuildProducer;
 import io.quarkus.deployment.annotations.BuildStep;
+import io.quarkus.deployment.builditem.CombinedIndexBuildItem;
 import io.quarkus.deployment.builditem.ExtensionSslNativeSupportBuildItem;
 import io.quarkus.deployment.builditem.FeatureBuildItem;
 import io.quarkus.deployment.builditem.nativeimage.RuntimeInitializedClassBuildItem;
 import jakarta.enterprise.inject.spi.DefinitionException;
+import java.util.List;
 import org.jboss.jandex.AnnotationInstance;
 import org.jboss.jandex.DotName;
 import org.mjelle.quarkus.easynats.NatsConnectionManager;
 import org.mjelle.quarkus.easynats.NatsPublisher;
 import org.mjelle.quarkus.easynats.NatsSubject;
+import org.mjelle.quarkus.easynats.deployment.build.SubscriberBuildItem;
+import org.mjelle.quarkus.easynats.deployment.processor.SubscriberDiscoveryProcessor;
 import org.mjelle.quarkus.easynats.runtime.NatsPublisherRecorder;
+import org.mjelle.quarkus.easynats.runtime.SubscriberRegistry;
+import org.mjelle.quarkus.easynats.runtime.metadata.SubscriberMetadata;
+import org.mjelle.quarkus.easynats.runtime.startup.SubscriberInitializer;
 
 class QuarkusEasyNatsProcessor {
 
@@ -37,6 +44,24 @@ class QuarkusEasyNatsProcessor {
         runtimeInitializedClasses.produce(new RuntimeInitializedClassBuildItem("io.nats.client.support.RandomUtils"));
         runtimeInitializedClasses.produce(new RuntimeInitializedClassBuildItem("io.nats.client.NUID"));
     }
+
+    @BuildStep
+    void discoverSubscribers(
+            CombinedIndexBuildItem index,
+            BuildProducer<SubscriberBuildItem> subscribers,
+            BuildProducer<ValidationPhaseBuildItem.ValidationErrorBuildItem> errors) {
+        try {
+            SubscriberDiscoveryProcessor processor = new SubscriberDiscoveryProcessor();
+            List<SubscriberMetadata> discovered = processor.discoverSubscribers(index.getIndex());
+            for (SubscriberMetadata metadata : discovered) {
+                subscribers.produce(new SubscriberBuildItem(metadata));
+            }
+        } catch (IllegalArgumentException e) {
+            errors.produce(new ValidationPhaseBuildItem.ValidationErrorBuildItem(
+                    new DefinitionException("Subscriber validation error: " + e.getMessage())));
+        }
+    }
+
 
     @BuildStep
     void validateNatsSubjectInjectionPoints(ValidationPhaseBuildItem validationPhase,
@@ -73,6 +98,8 @@ class QuarkusEasyNatsProcessor {
         return AdditionalBeanBuildItem.builder()
                 .addBeanClass(NatsConnectionManager.class)
                 .addBeanClass(NatsPublisherRecorder.class)
+                .addBeanClass(SubscriberRegistry.class)
+                .addBeanClass(SubscriberInitializer.class)
                 .build();
     }
 }
