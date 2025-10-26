@@ -37,7 +37,8 @@ class NatsSubscriberTest {
     TestSubscriber testSubscriber;
 
     @BeforeEach
-    void setUp() {
+    void setUp() throws Exception {
+        NatsTestUtils.purgeStream();
         testSubscriber.clearMessages();
     }
 
