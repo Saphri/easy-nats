@@ -78,7 +78,8 @@ public class SubscriberInitializer {
      * @param metadata the subscriber metadata
      * @throws Exception if consumer creation or handler registration fails
      */
-    private void initializeSubscriber(SubscriberMetadata metadata) throws Exception {
+    private void initializeSubscriber(SubscriberMetadata metadata)
+            throws Exception, ClassNotFoundException {
         LOGGER.infof(
                 "Initializing subscription: subject=%s, method=%s",
                 metadata.subject(), metadata.methodName());
@@ -173,7 +174,9 @@ public class SubscriberInitializer {
      * @throws NoSuchMethodException if the method is not found
      */
     private Method getSubscriberMethod(Object bean, SubscriberMetadata metadata)
-            throws NoSuchMethodException {
-        return bean.getClass().getMethod(metadata.methodName(), String.class);
+            throws NoSuchMethodException, ClassNotFoundException {
+        ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+        Class<?> beanClass = classLoader.loadClass(metadata.declaringBeanClass());
+        return beanClass.getMethod(metadata.methodName(), String.class);
     }
 }
