@@ -49,7 +49,7 @@ public class TypedPublisherResource {
                     .build();
             }
 
-            stringPublisher.publish(message);
+            stringPublisher.publish("test.typed_publisher.string", message);
             return Response.noContent().build();
         } catch (Exception e) {
             return Response.serverError().entity(e.getMessage()).build();
@@ -73,7 +73,7 @@ public class TypedPublisherResource {
                     .build();
             }
 
-            orderPublisher.publish(order);
+            orderPublisher.publish("test.typed_publisher.order", order);
             return Response.noContent().build();
         } catch (Exception e) {
             return Response.serverError().entity(e.getMessage()).build();
@@ -99,7 +99,7 @@ public class TypedPublisherResource {
 
             // Capture the actual metadata that was published
             CloudEventsHeaders.CloudEventsMetadata metadata =
-                stringPublisher.publishCloudEvent(message, null, null);
+                stringPublisher.publishCloudEvent("test.typed_publisher.string", message, null, null);
 
             // Return the actual metadata from the published event
             return Response.ok(new ResponseMetadata(metadata)).build();
@@ -127,7 +127,7 @@ public class TypedPublisherResource {
 
             // Capture the actual metadata that was published
             CloudEventsHeaders.CloudEventsMetadata metadata =
-                orderPublisher.publishCloudEvent(order, null, null);
+                orderPublisher.publishCloudEvent("test.typed_publisher.order", order, null, null);
 
             // Return the actual metadata from the published event
             return Response.ok(new ResponseMetadata(metadata)).build();

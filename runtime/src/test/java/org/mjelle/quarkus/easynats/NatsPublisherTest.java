@@ -42,7 +42,7 @@ class NatsPublisherTest {
 
     @Test
     void testPublishStringEncodesNatively() throws Exception {
-        stringPublisher.publish("hello");
+        stringPublisher.publish("test", "hello");
 
         ArgumentCaptor<String> subjectCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<byte[]> payloadCaptor = ArgumentCaptor.forClass(byte[].class);
@@ -55,7 +55,7 @@ class NatsPublisherTest {
 
     @Test
     void testPublishIntegerEncodesNatively() throws Exception {
-        intPublisher.publish(42);
+        intPublisher.publish("test", 42);
 
         ArgumentCaptor<String> subjectCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<byte[]> payloadCaptor = ArgumentCaptor.forClass(byte[].class);
@@ -68,7 +68,7 @@ class NatsPublisherTest {
 
     @Test
     void testPublishNullThrowsIllegalArgumentException() throws Exception {
-        assertThatThrownBy(() -> stringPublisher.publish(null))
+        assertThatThrownBy(() -> stringPublisher.publish("test", null))
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessage("Cannot publish null object");
 
@@ -78,7 +78,7 @@ class NatsPublisherTest {
     @Test
     void testPublishPojoUsesJacksonEncoder() throws Exception {
         TestPojo pojo = new TestPojo("test_value", 100);
-        pojoPublisher.publish(pojo);
+        pojoPublisher.publish("test", pojo);
 
         ArgumentCaptor<String> subjectCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<byte[]> payloadCaptor = ArgumentCaptor.forClass(byte[].class);
@@ -98,7 +98,7 @@ class NatsPublisherTest {
 
     @Test
     void testPublishCloudEventWithExplicitMetadata() throws Exception {
-        stringPublisher.publishCloudEvent("hello", "com.example.StringEvent", "/test-app");
+        stringPublisher.publishCloudEvent("test", "hello", "com.example.StringEvent", "/test-app");
 
         ArgumentCaptor<String> subjectCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<Headers> headersCaptor = ArgumentCaptor.forClass(Headers.class);
@@ -119,7 +119,7 @@ class NatsPublisherTest {
 
     @Test
     void testPublishCloudEventWithNullMetadataAutoGenerates() throws Exception {
-        stringPublisher.publishCloudEvent("hello", null, null);
+        stringPublisher.publishCloudEvent("test", "hello", null, null);
 
         ArgumentCaptor<String> subjectCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<Headers> headersCaptor = ArgumentCaptor.forClass(Headers.class);
@@ -139,7 +139,7 @@ class NatsPublisherTest {
 
     @Test
     void testPublishCloudEventWithNullPayloadThrowsException() throws Exception {
-        assertThatThrownBy(() -> stringPublisher.publishCloudEvent(null, "type", "source"))
+        assertThatThrownBy(() -> stringPublisher.publishCloudEvent("test", null, "type", "source"))
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessage("Cannot publish null object");
 
@@ -149,7 +149,7 @@ class NatsPublisherTest {
     @Test
     void testPublishCloudEventWithPojo() throws Exception {
         TestPojo pojo = new TestPojo("order_123", 99);
-        pojoPublisher.publishCloudEvent(pojo, "com.example.OrderEvent", "/orders");
+        pojoPublisher.publishCloudEvent("test", pojo, "com.example.OrderEvent", "/orders");
 
         ArgumentCaptor<String> subjectCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<Headers> headersCaptor = ArgumentCaptor.forClass(Headers.class);
