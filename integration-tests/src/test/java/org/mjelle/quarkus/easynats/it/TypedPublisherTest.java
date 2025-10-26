@@ -24,7 +24,7 @@ public class TypedPublisherTest {
 
     /**
      * Test that String publishing works.
-     * Verifies the REST endpoint returns 200 and publishes successfully.
+     * Returns 204 No Content on success.
      */
     @Test
     public void testPublishString() {
@@ -34,13 +34,12 @@ public class TypedPublisherTest {
             .when()
             .post("/typed-publisher/string")
             .then()
-            .statusCode(200)
-            .body("status", equalTo("published"));
+            .statusCode(204);
     }
 
     /**
      * Test that TestOrder publishing works.
-     * Verifies JSON serialization and successful publish.
+     * Returns 204 No Content on success.
      */
     @Test
     public void testPublishOrder() {
@@ -52,8 +51,7 @@ public class TypedPublisherTest {
             .when()
             .post("/typed-publisher/order")
             .then()
-            .statusCode(200)
-            .body("status", equalTo("published"));
+            .statusCode(204);
     }
 
 
@@ -67,9 +65,8 @@ public class TypedPublisherTest {
             .server("nats://localhost:4222")
             .userInfo("guest", "guest")
             .build();
-        var connection = Nats.connect(options);
 
-        try {
+        try (var connection = Nats.connect(options)) {
             JetStream js = connection.jetStream();
             var subscription = js.subscribe("test");
 
@@ -81,8 +78,7 @@ public class TypedPublisherTest {
                 .when()
                 .post("/typed-publisher/string")
                 .then()
-                .statusCode(200)
-                .body("status", equalTo("published"));
+                .statusCode(204);
 
             // Wait for message on broker
             await()
@@ -97,8 +93,6 @@ public class TypedPublisherTest {
 
                     msg.ack();
                 });
-        } finally {
-            connection.close();
         }
     }
 
@@ -115,15 +109,15 @@ public class TypedPublisherTest {
             .post("/typed-publisher/string-cloudevents")
             .then()
             .statusCode(200)
-            .body("status", equalTo("published"))
             .body("ceSource", notNullValue())
             .body("ceId", notNullValue())
-            .body("ceTime", notNullValue());
+            .body("ceTime", notNullValue())
+            .body("ceType", notNullValue());
     }
 
     /**
      * Test that CloudEvents publishing for TestOrder works.
-     * Verifies metadata generation.
+     * Returns 200 OK with CloudEvents metadata in response body.
      */
     @Test
     public void testPublishOrderCloudEvents() {
@@ -136,9 +130,9 @@ public class TypedPublisherTest {
             .post("/typed-publisher/order-cloudevents")
             .then()
             .statusCode(200)
-            .body("status", equalTo("published"))
             .body("ceSource", notNullValue())
             .body("ceId", notNullValue())
-            .body("ceTime", notNullValue());
+            .body("ceTime", notNullValue())
+            .body("ceType", notNullValue());
     }
 }

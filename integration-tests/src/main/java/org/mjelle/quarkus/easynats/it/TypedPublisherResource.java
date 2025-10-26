@@ -1,23 +1,21 @@
 package org.mjelle.quarkus.easynats.it;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.quarkus.runtime.annotations.RegisterForReflection;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
-import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 import org.mjelle.quarkus.easynats.NatsConnectionManager;
 import org.mjelle.quarkus.easynats.NatsPublisher;
 
 /**
  * REST endpoints for typed message publishing with CloudEvents support.
  * Demonstrates type-safe publishing using path-based endpoint separation.
- *
- * Each endpoint creates a properly typed NatsPublisher<T> at runtime to ensure
- * type safety while working with Jakarta REST's payload deserialization.
+ * Returns proper HTTP status codes: 204 No Content for success, 400 for bad request, 500 for errors.
  */
 @Path("/typed-publisher")
-@Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 public class TypedPublisherResource {
 
@@ -37,17 +35,19 @@ public class TypedPublisherResource {
 
     /**
      * Publish a String payload to NATS.
-     * Demonstrates type-safe publishing with String generic type.
+     * Returns 204 No Content on success, 400 on null, 500 on error.
      *
      * @param message the message string to publish
-     * @return the publish result
+     * @return 204 No Content if successful, 400 if message is null, 500 if error
      */
     @POST
     @Path("/string")
-    public PublishResponse publishString(String message) {
+    public Response publishString(String message) {
         try {
             if (message == null) {
-                return new PublishResponse("error", "Message cannot be null");
+                return Response.status(Response.Status.BAD_REQUEST)
+                    .entity("Message cannot be null")
+                    .build();
             }
 
             NatsPublisher<String> stringPublisher = new NatsPublisher<>(
@@ -55,27 +55,27 @@ public class TypedPublisherResource {
                 objectMapper
             );
             stringPublisher.publish(message);
-            return new PublishResponse("published", "Message published successfully");
-        } catch (IllegalArgumentException e) {
-            return new PublishResponse("error", e.getMessage());
+            return Response.noContent().build();
         } catch (Exception e) {
-            return new PublishResponse("error", "Failed to publish: " + e.getMessage());
+            return Response.serverError().entity(e.getMessage()).build();
         }
     }
 
     /**
      * Publish a TestOrder payload to NATS.
-     * Demonstrates type-safe publishing with POJO generic type.
+     * Returns 204 No Content on success, 400 on null, 500 on error.
      *
      * @param order the order object to publish
-     * @return the publish result
+     * @return 204 No Content if successful, 400 if order is null, 500 if error
      */
     @POST
     @Path("/order")
-    public PublishResponse publishOrder(TestOrder order) {
+    public Response publishOrder(TestOrder order) {
         try {
             if (order == null) {
-                return new PublishResponse("error", "Order cannot be null");
+                return Response.status(Response.Status.BAD_REQUEST)
+                    .entity("Order cannot be null")
+                    .build();
             }
 
             NatsPublisher<TestOrder> orderPublisher = new NatsPublisher<>(
@@ -83,26 +83,27 @@ public class TypedPublisherResource {
                 objectMapper
             );
             orderPublisher.publish(order);
-            return new PublishResponse("published", "Order published successfully");
-        } catch (IllegalArgumentException e) {
-            return new PublishResponse("error", e.getMessage());
+            return Response.noContent().build();
         } catch (Exception e) {
-            return new PublishResponse("error", "Failed to publish: " + e.getMessage());
+            return Response.serverError().entity(e.getMessage()).build();
         }
     }
 
     /**
      * Publish a String payload with CloudEvents metadata headers to NATS.
+     * Returns 200 OK with CloudEvents metadata, 400 on null, 500 on error.
      *
      * @param message the message string to publish
-     * @return the CloudEvents publish result with generated metadata
+     * @return 200 OK with CloudEvents metadata if successful, 400 if null, 500 if error
      */
     @POST
     @Path("/string-cloudevents")
-    public CloudEventsResponse publishStringCloudEvents(String message) {
+    public Response publishStringCloudEvents(String message) {
         try {
             if (message == null) {
-                return new CloudEventsResponse("error", "Message cannot be null", null, null, null, null);
+                return Response.status(Response.Status.BAD_REQUEST)
+                    .entity("Message cannot be null")
+                    .build();
             }
 
             NatsPublisher<String> stringPublisher = new NatsPublisher<>(
@@ -111,38 +112,35 @@ public class TypedPublisherResource {
             );
             stringPublisher.publishCloudEvent(message, null, null);
 
-            // Generate metadata for response
-            String ceId = java.util.UUID.randomUUID().toString();
-            String ceTime = java.time.Instant.now().toString();
-            String ceSource = getDefaultSource();
-
-            return new CloudEventsResponse(
-                "published",
-                "Message published successfully",
+            // Return metadata for verification
+            var ceMetadata = new CloudEventsMetadata(
                 String.class.getCanonicalName(),
-                ceSource,
-                ceId,
-                ceTime
+                getDefaultSource(),
+                java.util.UUID.randomUUID().toString(),
+                java.time.Instant.now().toString()
             );
-        } catch (IllegalArgumentException e) {
-            return new CloudEventsResponse("error", e.getMessage(), null, null, null, null);
+
+            return Response.ok(ceMetadata).build();
         } catch (Exception e) {
-            return new CloudEventsResponse("error", "Failed to publish: " + e.getMessage(), null, null, null, null);
+            return Response.serverError().entity(e.getMessage()).build();
         }
     }
 
     /**
      * Publish a TestOrder payload with CloudEvents metadata headers to NATS.
+     * Returns 200 OK with CloudEvents metadata, 400 on null, 500 on error.
      *
      * @param order the order object to publish
-     * @return the CloudEvents publish result with generated metadata
+     * @return 200 OK with CloudEvents metadata if successful, 400 if null, 500 if error
      */
     @POST
     @Path("/order-cloudevents")
-    public CloudEventsResponse publishOrderCloudEvents(TestOrder order) {
+    public Response publishOrderCloudEvents(TestOrder order) {
         try {
             if (order == null) {
-                return new CloudEventsResponse("error", "Order cannot be null", null, null, null, null);
+                return Response.status(Response.Status.BAD_REQUEST)
+                    .entity("Order cannot be null")
+                    .build();
             }
 
             NatsPublisher<TestOrder> orderPublisher = new NatsPublisher<>(
@@ -151,23 +149,17 @@ public class TypedPublisherResource {
             );
             orderPublisher.publishCloudEvent(order, null, null);
 
-            // Generate metadata for response
-            String ceId = java.util.UUID.randomUUID().toString();
-            String ceTime = java.time.Instant.now().toString();
-            String ceSource = getDefaultSource();
-
-            return new CloudEventsResponse(
-                "published",
-                "Order published successfully",
+            // Return metadata for verification
+            var ceMetadata = new CloudEventsMetadata(
                 TestOrder.class.getCanonicalName(),
-                ceSource,
-                ceId,
-                ceTime
+                getDefaultSource(),
+                java.util.UUID.randomUUID().toString(),
+                java.time.Instant.now().toString()
             );
-        } catch (IllegalArgumentException e) {
-            return new CloudEventsResponse("error", e.getMessage(), null, null, null, null);
+
+            return Response.ok(ceMetadata).build();
         } catch (Exception e) {
-            return new CloudEventsResponse("error", "Failed to publish: " + e.getMessage(), null, null, null, null);
+            return Response.serverError().entity(e.getMessage()).build();
         }
     }
 
@@ -184,39 +176,16 @@ public class TypedPublisherResource {
     }
 
     /**
-     * Response for simple publishing.
+     * CloudEvents metadata returned in response body.
      */
-    public static class PublishResponse {
-        public String status;
-        public String message;
-
-        public PublishResponse(String status, String message) {
-            this.status = status;
-            this.message = message;
-        }
-    }
-
-    /**
-     * Response for CloudEvents publishing.
-     */
-    public static class CloudEventsResponse {
-        public String status;
-        public String message;
+    @RegisterForReflection
+    public static class CloudEventsMetadata {
         public String ceType;
         public String ceSource;
         public String ceId;
         public String ceTime;
 
-        public CloudEventsResponse(
-            String status,
-            String message,
-            String ceType,
-            String ceSource,
-            String ceId,
-            String ceTime
-        ) {
-            this.status = status;
-            this.message = message;
+        public CloudEventsMetadata(String ceType, String ceSource, String ceId, String ceTime) {
             this.ceType = ceType;
             this.ceSource = ceSource;
             this.ceId = ceId;

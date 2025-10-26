@@ -36,8 +36,7 @@ public class BasicPublisherTest {
             .get("/publish/health")
             .then()
             .statusCode(200)
-            .body("status", equalTo("ok"))
-            .body("message", containsString("NatsPublisher"));
+            .body(containsString("ok"));
     }
 
     /**
@@ -51,8 +50,7 @@ public class BasicPublisherTest {
             .when()
             .get("/publish/message")
             .then()
-            .statusCode(200)
-            .body("status", equalTo("success"));
+            .statusCode(204);
     }
 
     /**
@@ -71,9 +69,8 @@ public class BasicPublisherTest {
             .server("nats://localhost:4222")
             .userInfo("guest", "guest")
             .build();
-        var connection = Nats.connect(options);
 
-        try {
+        try (var connection = Nats.connect(options)) {
             JetStream js = connection.jetStream();
 
             // Subscribe to the "test" subject - pull consumer style
@@ -86,8 +83,7 @@ public class BasicPublisherTest {
                 .when()
                 .get("/publish/message")
                 .then()
-                .statusCode(200)
-                .body("status", equalTo("success"));
+                .statusCode(204);
 
             // Use Awaitility to wait for message with polling (NEVER use Thread.sleep)
             await()
@@ -103,8 +99,6 @@ public class BasicPublisherTest {
                     // Acknowledge the message
                     msg.ack();
                 });
-        } finally {
-            connection.close();
         }
     }
 }
