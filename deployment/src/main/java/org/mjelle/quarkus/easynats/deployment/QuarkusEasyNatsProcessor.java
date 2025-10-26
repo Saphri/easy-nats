@@ -12,6 +12,7 @@ import io.quarkus.deployment.annotations.Record;
 import io.quarkus.deployment.builditem.CombinedIndexBuildItem;
 import io.quarkus.deployment.builditem.ExtensionSslNativeSupportBuildItem;
 import io.quarkus.deployment.builditem.FeatureBuildItem;
+import io.quarkus.deployment.builditem.nativeimage.ReflectiveClassBuildItem;
 import io.quarkus.deployment.builditem.nativeimage.RuntimeInitializedClassBuildItem;
 import jakarta.enterprise.inject.spi.DefinitionException;
 import java.util.List;
@@ -64,6 +65,23 @@ class QuarkusEasyNatsProcessor {
         } catch (IllegalArgumentException e) {
             errors.produce(new ValidationPhaseBuildItem.ValidationErrorBuildItem(
                     new DefinitionException("Subscriber validation error: " + e.getMessage())));
+        }
+    }
+
+    @BuildStep
+    void registerSubscribersForReflection(
+            List<SubscriberBuildItem> subscriberBuildItems,
+            BuildProducer<ReflectiveClassBuildItem> reflectiveClasses) {
+        for (SubscriberBuildItem item : subscriberBuildItems) {
+            SubscriberMetadata metadata = item.getMetadata();
+
+            // Register the class that declares the subscriber method
+            reflectiveClasses.produce(ReflectiveClassBuildItem.builder(metadata.declaringBeanClass()).methods().build());
+
+            // Register the parameter types of the subscriber method
+            for (String paramType : metadata.parameterTypes()) {
+                reflectiveClasses.produce(ReflectiveClassBuildItem.builder(paramType).build());
+            }
         }
     }
 

@@ -65,12 +65,18 @@ public class SubscriberDiscoveryProcessor {
             // Validate method signature
             validateMethodSignature(method, declaringClass);
 
+            List<String> parameterTypes = method.parameterTypes().stream()
+                .map(Type::name)
+                .map(DotName::toString)
+                .toList();
+
             SubscriberMetadata metadata =
                     new SubscriberMetadata(
                             subject,
                             method.declaringClass().name().toString(),
                             method.name(),
-                            declaringClass.name().toString());
+                            declaringClass.name().toString(),
+                            parameterTypes);
 
             subscribers.add(metadata);
 
