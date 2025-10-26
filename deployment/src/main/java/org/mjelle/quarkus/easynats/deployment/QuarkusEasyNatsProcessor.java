@@ -1,11 +1,14 @@
 package org.mjelle.quarkus.easynats.deployment;
 
 import io.quarkus.arc.deployment.AdditionalBeanBuildItem;
+import io.quarkus.arc.deployment.UnremovableBeanBuildItem;
 import io.quarkus.arc.deployment.ValidationPhaseBuildItem;
 import io.quarkus.arc.processor.BeanInfo;
 import io.quarkus.arc.processor.InjectionPointInfo;
 import io.quarkus.deployment.annotations.BuildProducer;
 import io.quarkus.deployment.annotations.BuildStep;
+import io.quarkus.deployment.annotations.ExecutionTime;
+import io.quarkus.deployment.annotations.Record;
 import io.quarkus.deployment.builditem.CombinedIndexBuildItem;
 import io.quarkus.deployment.builditem.ExtensionSslNativeSupportBuildItem;
 import io.quarkus.deployment.builditem.FeatureBuildItem;
@@ -18,9 +21,11 @@ import org.mjelle.quarkus.easynats.NatsConnectionManager;
 import org.mjelle.quarkus.easynats.NatsPublisher;
 import org.mjelle.quarkus.easynats.NatsSubject;
 import org.mjelle.quarkus.easynats.deployment.build.SubscriberBuildItem;
+import org.mjelle.quarkus.easynats.deployment.build.SubscribersCollectionBuildItem;
 import org.mjelle.quarkus.easynats.deployment.processor.SubscriberDiscoveryProcessor;
 import org.mjelle.quarkus.easynats.runtime.NatsPublisherRecorder;
 import org.mjelle.quarkus.easynats.runtime.SubscriberRegistry;
+import org.mjelle.quarkus.easynats.runtime.SubscriberRegistryRecorder;
 import org.mjelle.quarkus.easynats.runtime.metadata.SubscriberMetadata;
 import org.mjelle.quarkus.easynats.runtime.startup.SubscriberInitializer;
 
@@ -62,6 +67,35 @@ class QuarkusEasyNatsProcessor {
         }
     }
 
+    @BuildStep
+    void markSubscriberBeansAsUnremovable(
+            List<SubscriberBuildItem> subscriberBuildItems,
+            BuildProducer<UnremovableBeanBuildItem> unremovableBeans) {
+        // Mark all beans containing @NatsSubscriber methods as unremovable
+        // This prevents Arc from removing them as "unused" since they're accessed via reflection
+        subscriberBuildItems.stream()
+                .map(item -> item.getMetadata().declaringBeanClass())
+                .distinct()
+                .forEach(beanClassName -> {
+                    unremovableBeans.produce(UnremovableBeanBuildItem.beanClassNames(beanClassName));
+                });
+    }
+
+    @BuildStep
+    SubscribersCollectionBuildItem aggregateSubscribers(List<SubscriberBuildItem> subscriberBuildItems) {
+        List<SubscriberMetadata> metadata = subscriberBuildItems.stream()
+                .map(SubscriberBuildItem::getMetadata)
+                .toList();
+        return new SubscribersCollectionBuildItem(metadata);
+    }
+
+    @BuildStep
+    @Record(ExecutionTime.RUNTIME_INIT)
+    void registerSubscribers(
+            SubscribersCollectionBuildItem subscribersCollection,
+            SubscriberRegistryRecorder recorder) {
+        recorder.registerSubscribers(subscribersCollection.getSubscribers());
+    }
 
     @BuildStep
     void validateNatsSubjectInjectionPoints(ValidationPhaseBuildItem validationPhase,

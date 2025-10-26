@@ -1,16 +1,18 @@
 package org.mjelle.quarkus.easynats.runtime.startup;
 
+import io.nats.client.ConsumerContext;
 import io.nats.client.JetStream;
-import io.nats.client.JetStreamSubscription;
-import io.nats.client.Message;
+import io.nats.client.JetStreamManagement;
+import io.nats.client.api.ConsumerConfiguration;
+import io.quarkus.arc.Arc;
 import io.quarkus.runtime.StartupEvent;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Observes;
 import java.lang.reflect.Method;
-import java.time.Duration;
 import org.jboss.logging.Logger;
 import org.mjelle.quarkus.easynats.NatsConnectionManager;
 import org.mjelle.quarkus.easynats.runtime.SubscriberRegistry;
+import org.mjelle.quarkus.easynats.runtime.consumer.EphemeralConsumerFactory;
 import org.mjelle.quarkus.easynats.runtime.handler.DefaultMessageHandler;
 import org.mjelle.quarkus.easynats.runtime.metadata.SubscriberMetadata;
 
@@ -81,10 +83,9 @@ public class SubscriberInitializer {
                 "Initializing subscription: subject=%s, method=%s",
                 metadata.subject(), metadata.methodName());
 
-        JetStream js = connectionManager.getJetStream();
-
-        // Create the ephemeral subscriber (consumer)
-        JetStreamSubscription subscription = js.subscribe(metadata.subject());
+        // Resolve the stream name for the subject
+        String streamName = resolveStreamName(metadata.subject());
+        LOGGER.debugf("Resolved stream name: %s for subject: %s", streamName, metadata.subject());
 
         // Get the bean instance and method from the registry
         Object bean = getBeanInstance(metadata);
@@ -93,70 +94,74 @@ public class SubscriberInitializer {
         // Create the message handler
         DefaultMessageHandler handler = new DefaultMessageHandler(metadata, bean, method);
 
-        // Start a thread to listen for messages on this subscription
-        startSubscriberThread(subscription, handler, metadata);
+        // Create ephemeral consumer configuration
+        ConsumerConfiguration consumerConfig = EphemeralConsumerFactory.createEphemeralConsumerConfig();
+
+        // Create the ephemeral consumer using JetStreamManagement
+        JetStreamManagement jsm = connectionManager.getConnection().jetStreamManagement();
+        io.nats.client.api.ConsumerInfo consumerInfo = jsm.addOrUpdateConsumer(streamName, consumerConfig);
+
+        // Get the consumer context and start consuming
+        JetStream js = connectionManager.getJetStream();
+        ConsumerContext consumerContext = js.getConsumerContext(streamName, consumerInfo.getName());
+
+        // Start consuming messages using the ConsumerContext API
+        consumerContext.consume(handler::handle);
 
         LOGGER.infof(
-                "Successfully created subscription: subject=%s, method=%s.%s",
+                "Successfully created subscription: subject=%s, stream=%s, method=%s.%s",
                 metadata.subject(),
+                streamName,
                 metadata.declaringBeanClass(),
                 metadata.methodName());
-    }
-
-    /**
-     * Starts a daemon thread to listen for messages on a subscription.
-     *
-     * @param subscription the subscription to listen on
-     * @param handler the message handler
-     * @param metadata the subscriber metadata
-     */
-    private void startSubscriberThread(
-            JetStreamSubscription subscription,
-            DefaultMessageHandler handler,
-            SubscriberMetadata metadata) {
-        Thread thread =
-                new Thread(
-                        () -> {
-                            try {
-                                while (!Thread.currentThread().isInterrupted()) {
-                                    Message message = subscription.nextMessage(Duration.ofSeconds(1));
-                                    if (message != null) {
-                                        handler.handle(message);
-                                    }
-                                }
-                            } catch (InterruptedException e) {
-                                Thread.currentThread().interrupt();
-                                LOGGER.infof(
-                                        "Subscriber thread interrupted for subject=%s",
-                                        metadata.subject());
-                            } catch (Exception e) {
-                                LOGGER.errorf(
-                                        e,
-                                        "Error in subscriber thread for subject=%s",
-                                        metadata.subject());
-                            }
-                        });
-        thread.setName("NATS-Subscriber-" + metadata.subject());
-        thread.setDaemon(true);
-        thread.start();
     }
 
     /**
      * Gets the bean instance for a subscriber.
      *
      * <p>
-     * This is a placeholder that would normally look up the bean from the CDI container. For
-     * now, this should be populated by the build processor.
+     * Looks up the CDI bean from the Arc container using the class name from the metadata.
      * </p>
      *
      * @param metadata the subscriber metadata
      * @return the bean instance
+     * @throws ClassNotFoundException if the bean class cannot be loaded
      */
-    private Object getBeanInstance(SubscriberMetadata metadata) {
-        // This would be populated by the build processor with actual bean instances
-        // For now, we throw an error as a placeholder
-        throw new UnsupportedOperationException(
-                "Bean lookup not yet implemented. This should be populated by build processor.");
+    private Object getBeanInstance(SubscriberMetadata metadata) throws ClassNotFoundException {
+        String className = metadata.declaringBeanClass();
+        ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+        Class<?> beanClass = classLoader.loadClass(className);
+        return Arc.container().instance(beanClass).get();
+    }
+
+    /**
+     * Resolves the stream name for a given subject.
+     *
+     * <p>
+     * Uses the JetStream management API to find which stream contains the subject.
+     * Fails fast if no stream or multiple streams are found.
+     * </p>
+     *
+     * @param subject the NATS subject
+     * @return the stream name
+     * @throws IllegalStateException if no stream or multiple streams are found
+     */
+    private String resolveStreamName(String subject) throws Exception {
+        JetStreamManagement jsm = connectionManager.getConnection().jetStreamManagement();
+        java.util.List<String> streams = jsm.getStreamNames(subject);
+
+        if (streams.isEmpty()) {
+            throw new IllegalStateException(
+                    "No JetStream stream found for subject: " + subject);
+        }
+
+        if (streams.size() > 1) {
+            throw new IllegalStateException(
+                    "Multiple streams found for subject '" + subject + "': " + streams
+                            + ". Cannot determine which stream to use.");
+        }
+
+        return streams.get(0);
     }
 
     /**

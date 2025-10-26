@@ -3,8 +3,8 @@ package org.mjelle.quarkus.easynats.it;
 import static org.assertj.core.api.Assertions.*;
 import static org.awaitility.Awaitility.*;
 
+import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
-import io.quarkus.test.junit.QuarkusIntegrationTest;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.time.Duration;
@@ -13,7 +13,6 @@ import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mjelle.quarkus.easynats.NatsConnectionManager;
 import org.mjelle.quarkus.easynats.NatsPublisher;
 import org.mjelle.quarkus.easynats.NatsSubject;
 import org.mjelle.quarkus.easynats.NatsSubscriber;
@@ -27,10 +26,11 @@ import org.mjelle.quarkus.easynats.NatsSubscriber;
  * </p>
  */
 @QuarkusTest
+@QuarkusTestResource(NatsStreamTestResource.class)
 class NatsSubscriberTest {
 
     @Inject
-    @NatsSubject("basic-test-subject")
+    @NatsSubject("test.subscriber.basic")
     NatsPublisher publisher;
 
     @Inject
@@ -141,7 +141,7 @@ class NatsSubscriberTest {
         private int errorCount = 0;
         private boolean errorMode = false;
 
-        @NatsSubscriber("basic-test-subject")
+        @NatsSubscriber("test.subscriber.basic")
         public void onMessage(String message) {
             if (errorMode) {
                 errorCount++;
@@ -150,7 +150,7 @@ class NatsSubscriberTest {
             messages.add(message);
         }
 
-        @NatsSubscriber("basic-test-subject")
+        @NatsSubscriber("test.subscriber.basic")
         public void onSecondaryMessage(String message) {
             secondaryMessages.add(message);
         }

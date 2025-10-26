@@ -1,5 +1,6 @@
 package org.mjelle.quarkus.easynats.runtime;
 
+import io.quarkus.arc.Arc;
 import io.quarkus.runtime.annotations.Recorder;
 import java.util.List;
 import org.mjelle.quarkus.easynats.runtime.metadata.SubscriberMetadata;
@@ -17,11 +18,13 @@ public class SubscriberRegistryRecorder {
 
     /**
      * Registers subscriber metadata with the registry.
+     * <p>
+     * The registry is looked up from the Arc container at runtime.
      *
-     * @param registry the subscriber registry instance
      * @param subscribers the list of discovered subscribers
      */
-    public void registerSubscribers(SubscriberRegistry registry, List<SubscriberMetadata> subscribers) {
+    public void registerSubscribers(List<SubscriberMetadata> subscribers) {
+        SubscriberRegistry registry = Arc.container().instance(SubscriberRegistry.class).get();
         for (SubscriberMetadata metadata : subscribers) {
             registry.register(metadata);
         }

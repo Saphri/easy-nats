@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.nats.client.Connection;
 import io.nats.client.Message;
 import io.nats.client.api.ConsumerConfiguration;
+import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -22,6 +23,7 @@ import static org.mjelle.quarkus.easynats.it.NatsTestUtils.purgeStream;
  * Tests typed publishing and CloudEvents publishing via REST endpoints.
  */
 @QuarkusTest
+@QuarkusTestResource(NatsStreamTestResource.class)
 public class TypedPublisherTest {
 
     private static final String STRING_SUBJECT = "test.typed_publisher.string";

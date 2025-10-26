@@ -2,6 +2,7 @@ package org.mjelle.quarkus.easynats.it;
 
 import static org.assertj.core.api.Assertions.*;
 
+import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.enterprise.context.ApplicationScoped;
 import java.lang.annotation.Retention;
@@ -19,6 +20,7 @@ import org.mjelle.quarkus.easynats.NatsSubscriber;
  * </p>
  */
 @QuarkusTest
+@QuarkusTestResource(NatsStreamTestResource.class)
 class AnnotationContractTest {
 
     @Test
@@ -28,7 +30,7 @@ class AnnotationContractTest {
         NatsSubscriber annotation = method.getAnnotation(NatsSubscriber.class);
 
         assertThat(annotation).isNotNull();
-        assertThat(annotation.value()).isEqualTo("test-subject");
+        assertThat(annotation.value()).isEqualTo("test.annotation.subject");
     }
 
     @Test
@@ -44,7 +46,7 @@ class AnnotationContractTest {
      */
     @ApplicationScoped
     public static class TestSubscriber {
-        @NatsSubscriber("test-subject")
+        @NatsSubscriber("test.annotation.subject")
         public void onMessage(String message) {
             // Test method
         }

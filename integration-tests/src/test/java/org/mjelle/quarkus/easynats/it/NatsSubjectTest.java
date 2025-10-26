@@ -4,6 +4,7 @@ import io.nats.client.Connection;
 import io.nats.client.JetStream;
 import io.nats.client.JetStreamSubscription;
 import io.nats.client.Message;
+import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
@@ -19,6 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mjelle.quarkus.easynats.it.NatsTestUtils.purgeStream;
 
 @QuarkusTest
+@QuarkusTestResource(NatsStreamTestResource.class)
 public class NatsSubjectTest {
 
     private static final String SUBJECT = "test.nats_subject";

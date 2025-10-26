@@ -70,4 +70,14 @@ public class NatsConnectionManager {
     public JetStream getJetStream() {
         return jetStream;
     }
+
+    /**
+     * Returns the shared NATS connection.
+     * Do not close this connection; lifecycle is managed by Quarkus.
+     *
+     * @return the NATS connection
+     */
+    public Connection getConnection() {
+        return connection;
+    }
 }

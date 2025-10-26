@@ -2,6 +2,7 @@ package org.mjelle.quarkus.easynats.it;
 
 import static org.assertj.core.api.Assertions.*;
 
+import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
 import jakarta.enterprise.context.ApplicationScoped;
 import org.junit.jupiter.api.Test;
@@ -16,6 +17,7 @@ import org.mjelle.quarkus.easynats.NatsSubscriber;
  * </p>
  */
 @QuarkusTest
+@QuarkusTestResource(NatsStreamTestResource.class)
 class ValidationTest {
 
     /**
@@ -36,7 +38,7 @@ class ValidationTest {
      */
     @ApplicationScoped
     public static class ValidSubscriber {
-        @NatsSubscriber("valid-subject")
+        @NatsSubscriber("test.validation.message")
         public void onMessage(String message) {
             // Valid subscriber method
         }
