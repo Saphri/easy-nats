@@ -26,3 +26,9 @@ The project can be built using Maven. The following commands can be used to buil
 The project follows the standard conventions for Quarkus extensions. The code is written in Java and uses Maven for dependency management and building.
 
 The project uses the standard Quarkus testing framework for integration tests. The tests are located in the `integration-tests` module.
+
+## Active Technologies
+- Java 21 + Quarkus 3.27.0, NATS JetStream client (003-nats-subject)
+
+## Recent Changes
+- 003-nats-subject: Added Java 21 + Quarkus 3.27.0, NATS JetStream client

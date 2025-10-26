@@ -61,7 +61,7 @@ public class QuarkusEasyNatsResource {
                     .entity("Message cannot be null")
                     .build();
             }
-            publisher.publish(message);
+            publisher.publish("test.quarkus_easy_nats", message);
             return Response.noContent().build();
         } catch (Exception e) {
             return Response.serverError().entity(e.getMessage()).build();

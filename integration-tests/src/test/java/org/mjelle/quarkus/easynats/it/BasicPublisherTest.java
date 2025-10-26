@@ -1,10 +1,11 @@
 package org.mjelle.quarkus.easynats.it;
 
-import io.nats.client.Nats;
+import io.nats.client.Connection;
+import io.nats.client.JetStreamSubscription;
 import io.nats.client.Message;
 import io.nats.client.JetStream;
-import io.nats.client.Options;
 import io.quarkus.test.junit.QuarkusTest;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
@@ -14,6 +15,7 @@ import static io.restassured.RestAssured.given;
 import static org.assertj.core.api.Assertions.*;
 import static org.awaitility.Awaitility.*;
 import static org.hamcrest.Matchers.*;
+import static org.mjelle.quarkus.easynats.it.NatsTestUtils.purgeStream;
 
 /**
  * Base test class for NatsPublisher integration testing.
@@ -24,6 +26,19 @@ import static org.hamcrest.Matchers.*;
  */
 @QuarkusTest
 public class BasicPublisherTest {
+
+    private static final String SUBJECT = "test.basic_publisher";
+
+    private Connection nc;
+    private JetStreamSubscription sub;
+
+    @BeforeEach
+    void setUp() throws Exception {
+        nc = NatsTestUtils.getConnection();
+        purgeStream();
+        JetStream js = nc.jetStream();
+        sub = js.subscribe(SUBJECT);
+    }
 
     /**
      * Test that the publisher resource health endpoint is available.
@@ -46,6 +61,7 @@ public class BasicPublisherTest {
     @Test
     public void testPublisherPublishesMessage() {
         given()
+            .queryParam("subject", SUBJECT)
             .queryParam("message", "test message")
             .when()
             .get("/publish/message")
@@ -63,42 +79,30 @@ public class BasicPublisherTest {
      * 4. Verifies the received message matches the published content
      */
     @Test
-    public void testMessageAppearsOnBroker() throws Exception {
-        // Connect to the same NATS broker with credentials
-        var options = new Options.Builder()
-            .server("nats://localhost:4222")
-            .userInfo("guest", "guest")
-            .build();
+    public void testMessageAppearsOnBroker() {
+        // Publish test message via REST endpoint
+        String testMessage = "hello world";
+        given()
+            .queryParam("subject", SUBJECT)
+            .queryParam("message", testMessage)
+            .when()
+            .get("/publish/message")
+            .then()
+            .statusCode(204);
 
-        try (var connection = Nats.connect(options)) {
-            JetStream js = connection.jetStream();
+        // Use Awaitility to wait for message with polling (NEVER use Thread.sleep)
+        await()
+            .atMost(Duration.ofSeconds(5))
+            .pollInterval(Duration.ofMillis(100))
+            .untilAsserted(() -> {
+                Message msg = sub.nextMessage(Duration.ofMillis(500));
+                assertThat(msg).isNotNull();
 
-            // Subscribe to the "test" subject - pull consumer style
-            var subscription = js.subscribe("test");
+                String receivedMessage = new String(msg.getData(), StandardCharsets.UTF_8);
+                assertThat(receivedMessage).isEqualTo(testMessage);
 
-            // Publish test message via REST endpoint
-            String testMessage = "hello world";
-            given()
-                .queryParam("message", testMessage)
-                .when()
-                .get("/publish/message")
-                .then()
-                .statusCode(204);
-
-            // Use Awaitility to wait for message with polling (NEVER use Thread.sleep)
-            await()
-                .atMost(Duration.ofSeconds(5))
-                .pollInterval(Duration.ofMillis(100))
-                .untilAsserted(() -> {
-                    Message msg = subscription.nextMessage(Duration.ofMillis(500));
-                    assertThat(msg).isNotNull();
-
-                    String receivedMessage = new String(msg.getData(), StandardCharsets.UTF_8);
-                    assertThat(receivedMessage).isEqualTo(testMessage);
-
-                    // Acknowledge the message
-                    msg.ack();
-                });
-        }
+                // Acknowledge the message
+                msg.ack();
+            });
     }
 }

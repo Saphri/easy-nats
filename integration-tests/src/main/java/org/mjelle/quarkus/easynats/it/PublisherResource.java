@@ -38,17 +38,21 @@ public class PublisherResource {
      * Publish a message to NATS.
      * Returns 204 No Content on success, 500 on error.
      *
+     * @param subject the NATS subject to publish to
      * @param message the message to publish
      * @return 204 No Content if successful, 500 if error
      */
     @GET
     @Path("/message")
-    public Response publishMessage(@QueryParam("message") String message) {
+    public Response publishMessage(@QueryParam("subject") String subject, @QueryParam("message") String message) {
         try {
+            if (subject == null || subject.trim().isEmpty()) {
+                subject = "test";
+            }
             if (message == null || message.trim().isEmpty()) {
                 message = "test";
             }
-            publisher.publish(message);
+            publisher.publish(subject, message);
             return Response.noContent().build();
         } catch (Exception e) {
             return Response.serverError().entity(e.getMessage()).build();

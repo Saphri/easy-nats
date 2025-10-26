@@ -1,10 +1,11 @@
 package org.mjelle.quarkus.easynats.it;
 
-import io.nats.client.Nats;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.nats.client.Connection;
 import io.nats.client.Message;
-import io.nats.client.JetStream;
-import io.nats.client.Options;
+import io.nats.client.api.ConsumerConfiguration;
 import io.quarkus.test.junit.QuarkusTest;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
@@ -12,8 +13,9 @@ import java.time.Duration;
 
 import static io.restassured.RestAssured.given;
 import static org.assertj.core.api.Assertions.*;
-import static org.awaitility.Awaitility.*;
 import static org.hamcrest.Matchers.*;
+import static org.mjelle.quarkus.easynats.it.NatsTestUtils.STREAM_NAME;
+import static org.mjelle.quarkus.easynats.it.NatsTestUtils.purgeStream;
 
 /**
  * Integration tests for TypedPublisherResource.
@@ -21,6 +23,18 @@ import static org.hamcrest.Matchers.*;
  */
 @QuarkusTest
 public class TypedPublisherTest {
+
+    private static final String STRING_SUBJECT = "test.typed_publisher.string";
+    private static final String ORDER_SUBJECT = "test.typed_publisher.order";
+
+    private Connection nc;
+
+    @BeforeEach
+    void setUp() throws Exception {
+        nc = NatsTestUtils.getConnection();
+        purgeStream();
+    }
+
 
     /**
      * Test that String publishing works.
@@ -61,39 +75,34 @@ public class TypedPublisherTest {
      */
     @Test
     public void testPublishedStringAppearsOnBroker() throws Exception {
-        var options = new Options.Builder()
-            .server("nats://localhost:4222")
-            .userInfo("guest", "guest")
-            .build();
+        final var jsm = nc.jetStreamManagement();
+        final var js = nc.jetStream();
+        jsm.addOrUpdateConsumer(NatsTestUtils.STREAM_NAME, ConsumerConfiguration.builder()
+            .filterSubjects(STRING_SUBJECT)
+            .name("STRING_CONSUMER")
+            .build());
 
-        try (var connection = Nats.connect(options)) {
-            JetStream js = connection.jetStream();
-            var subscription = js.subscribe("test");
+        var ctx = js.getConsumerContext(STREAM_NAME, "STRING_CONSUMER");
+        
+        // Publish via REST endpoint
+        String testMessage = "integration-test-message";
+        given()
+            .contentType("application/json")
+            .body(testMessage)
+            .when()
+            .post("/typed-publisher/string")
+            .then()
+            .statusCode(204);
 
-            // Publish via REST endpoint
-            String testMessage = "integration-test-message";
-            given()
-                .contentType("application/json")
-                .body("\"" + testMessage + "\"")
-                .when()
-                .post("/typed-publisher/string")
-                .then()
-                .statusCode(204);
+        // Wait for message on broker
+        Message msg = ctx.next(Duration.ofSeconds(5L));
+        assertThat(msg).isNotNull();
+        msg.ack();
 
-            // Wait for message on broker
-            await()
-                .atMost(Duration.ofSeconds(5))
-                .pollInterval(Duration.ofMillis(100))
-                .untilAsserted(() -> {
-                    Message msg = subscription.nextMessage(Duration.ofMillis(500));
-                    assertThat(msg).isNotNull();
+        String receivedMessage = new String(msg.getData(), StandardCharsets.UTF_8);
+        assertThat(receivedMessage).isEqualTo(testMessage);
 
-                    String receivedMessage = new String(msg.getData(), StandardCharsets.UTF_8);
-                    assertThat(receivedMessage).isEqualTo(testMessage);
-
-                    msg.ack();
-                });
-        }
+        jsm.deleteConsumer(NatsTestUtils.STREAM_NAME, "STRING_CONSUMER");
     }
 
     /**
@@ -134,5 +143,44 @@ public class TypedPublisherTest {
             .body("ceId", notNullValue())
             .body("ceTime", notNullValue())
             .body("ceType", notNullValue());
+    }
+
+    /**
+     * Test that published TestOrder appears on NATS broker.
+     * Uses JetStream subscription to verify message delivery.
+     */
+    @Test
+    public void testPublishedOrderAppearsOnBroker() throws Exception {
+        final var jsm = nc.jetStreamManagement();
+        final var js = nc.jetStream();
+        jsm.addOrUpdateConsumer(NatsTestUtils.STREAM_NAME, ConsumerConfiguration.builder()
+            .filterSubjects(ORDER_SUBJECT)
+            .name("ORDER_CONSUMER")
+            .build());
+
+        var ctx = js.getConsumerContext(STREAM_NAME, "ORDER_CONSUMER");
+
+        // Publish via REST endpoint
+        TestOrder testOrder = new TestOrder("ORD-789", 250);
+        given()
+            .contentType("application/json")
+            .body(testOrder)
+            .when()
+            .post("/typed-publisher/order")
+            .then()
+            .statusCode(204);
+
+        // Wait for message on broker
+        Message msg = ctx.next(Duration.ofSeconds(5L));
+        assertThat(msg).isNotNull();
+        msg.ack();
+
+        // Deserialize the message payload
+        ObjectMapper objectMapper = new ObjectMapper();
+        TestOrder receivedOrder = objectMapper.readValue(msg.getData(), TestOrder.class);
+        assertThat(receivedOrder.orderId()).isEqualTo(testOrder.orderId());
+        assertThat(receivedOrder.amount()).isEqualTo(testOrder.amount());
+
+        jsm.deleteConsumer(NatsTestUtils.STREAM_NAME, "ORDER_CONSUMER");
     }
 }
