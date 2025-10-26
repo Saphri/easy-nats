@@ -25,7 +25,7 @@ public class NatsPublisher<T> {
      * @param connectionManager the NATS connection manager (injected by Quarkus)
      * @param objectMapper the Jackson ObjectMapper (injected by Quarkus)
      */
-    NatsPublisher(NatsConnectionManager connectionManager, ObjectMapper objectMapper) {
+    public NatsPublisher(NatsConnectionManager connectionManager, ObjectMapper objectMapper) {
         this.connectionManager = connectionManager;
         this.objectMapper = objectMapper;
     }
