@@ -16,33 +16,53 @@
 */
 package org.mjelle.quarkus.easynats.it;
 
-import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.inject.Inject;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
-import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import org.mjelle.quarkus.easynats.NatsPublisher;
 
+/**
+ * REST endpoints for basic EasyNATS functionality.
+ * Returns proper HTTP status codes: 200 OK, 204 No Content, 400 Bad Request, 500 Internal Server Error.
+ */
 @Path("/quarkus-easy-nats")
-@ApplicationScoped
 public class QuarkusEasyNatsResource {
 
-    @Inject
-    NatsPublisher publisher;
+    private final NatsPublisher publisher;
 
-    @GET
-    public String hello() {
-        return "Hello quarkus-easy-nats";
+    QuarkusEasyNatsResource(NatsPublisher publisher) {
+        this.publisher = publisher;
     }
 
+    /**
+     * Health check endpoint.
+     *
+     * @return 200 OK with status message
+     */
+    @GET
+    public Response hello() {
+        return Response.ok("Hello quarkus-easy-nats").build();
+    }
+
+    /**
+     * Publish a message to NATS.
+     * Returns 204 No Content on success, 400 on null message, 500 on error.
+     *
+     * @param message the message to publish
+     * @return 204 No Content if successful, 400 if message is null, 500 if error
+     */
     @POST
     @Path("/publish")
     public Response publish(String message) {
         try {
+            if (message == null) {
+                return Response.status(Response.Status.BAD_REQUEST)
+                    .entity("Message cannot be null")
+                    .build();
+            }
             publisher.publish(message);
-            return Response.ok("Published: " + message).build();
+            return Response.noContent().build();
         } catch (Exception e) {
             return Response.serverError().entity(e.getMessage()).build();
         }

@@ -5,6 +5,7 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 import org.mjelle.quarkus.easynats.NatsPublisher;
 
 /**
@@ -29,53 +30,28 @@ public class PublisherResource {
      */
     @GET
     @Path("/health")
-    public HealthResponse health() {
-        return new HealthResponse("ok", "NatsPublisher is available");
+    public Response health() {
+        return Response.ok("ok").build();
     }
 
     /**
      * Publish a message to NATS.
+     * Returns 204 No Content on success, 500 on error.
      *
      * @param message the message to publish
-     * @return the publish result
+     * @return 204 No Content if successful, 500 if error
      */
     @GET
     @Path("/message")
-    public PublishResponse publishMessage(@QueryParam("message") String message) {
+    public Response publishMessage(@QueryParam("message") String message) {
         try {
             if (message == null || message.trim().isEmpty()) {
                 message = "test";
             }
             publisher.publish(message);
-            return new PublishResponse("success", "Message published: " + message);
+            return Response.noContent().build();
         } catch (Exception e) {
-            return new PublishResponse("error", "Failed to publish: " + e.getMessage());
-        }
-    }
-
-    /**
-     * Health response DTO.
-     */
-    public static class HealthResponse {
-        public String status;
-        public String message;
-
-        public HealthResponse(String status, String message) {
-            this.status = status;
-            this.message = message;
-        }
-    }
-
-    /**
-     * Publish response DTO.
-     */
-    public static class PublishResponse {
-        public String status;
-        public String message;
-
-        public PublishResponse(String status, String message) {
-            this.status = status;
-            this.message = message;
+            return Response.serverError().entity(e.getMessage()).build();
         }
     }
 }

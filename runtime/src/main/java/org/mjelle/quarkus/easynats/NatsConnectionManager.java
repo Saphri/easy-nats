@@ -9,25 +9,26 @@ import io.quarkus.runtime.StartupEvent;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Observes;
 import java.io.IOException;
+import java.util.logging.Logger;
 
 /**
  * Manages the singleton NATS JetStream connection for the entire application.
  *
- * Initialization: Connects to NATS broker on application startup.
+ * Initialization: Connects to NATS broker on application startup (or logs warning if unavailable).
  * Shutdown: Gracefully closes the connection on application shutdown.
  */
 @ApplicationScoped // Note: @ApplicationScoped provides singleton semantics in Quarkus
 public class NatsConnectionManager {
 
+    private static final Logger LOGGER = Logger.getLogger(NatsConnectionManager.class.getName());
     private Connection connection;
     private JetStream jetStream;
 
     /**
      * Initializes the NATS connection on application startup.
-     * Fails fast if unable to connect to the broker.
+     * Logs a warning if unable to connect to the broker instead of failing startup.
      *
      * @param startupEvent the startup event
-     * @throws RuntimeException if connection fails
      */
     void onStartup(@Observes StartupEvent startupEvent) {
         try {
@@ -38,8 +39,10 @@ public class NatsConnectionManager {
 
             this.connection = Nats.connect(options);
             this.jetStream = connection.jetStream();
+            LOGGER.info("Connected to NATS broker at nats://localhost:4222");
         } catch (IOException | InterruptedException e) {
-            throw new RuntimeException("Failed to connect to NATS broker at nats://localhost:4222", e);
+            LOGGER.warning("Failed to connect to NATS broker at nats://localhost:4222. " +
+                    "NatsPublisher will not be functional until broker is available: " + e.getMessage());
         }
     }
 

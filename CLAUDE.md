@@ -233,6 +233,7 @@ Add Awaitility to `integration-tests/pom.xml`:
 ## Active Technologies
 - Java 21 (enforced per Principle IV) (001-basic-publisher-api)
 - N/A (publisher only; no persistence in this MVP) (001-basic-publisher-api)
+- N/A (messaging extension, no persistent storage) (002-typed-publisher)
 
 ## Recent Changes
 - 001-basic-publisher-api: Added Java 21 (enforced per Principle IV)

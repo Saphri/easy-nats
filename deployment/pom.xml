@@ -16,6 +16,10 @@
             <artifactId>quarkus-arc-deployment</artifactId>
         </dependency>
         <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-jackson-deployment</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.mjelle.quarkus.easynats</groupId>
             <artifactId>quarkus-easy-nats</artifactId>
             <version>${project.version}</version>
