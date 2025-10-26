@@ -124,9 +124,9 @@ class NatsSubscriberTest {
                 .atMost(Duration.ofSeconds(5))
                 .pollInterval(Duration.ofMillis(100))
                 .untilAsserted(() -> {
-                    // Both subscribers should have received their respective messages
-                    assertThat(testSubscriber.getMessages()).contains(msg1);
-                    assertThat(testSubscriber.getSecondaryMessages()).contains(msg2);
+                    // Both subscribers should receive all messages (fan-out)
+                    assertThat(testSubscriber.getMessages()).containsExactlyInAnyOrder(msg1, msg2);
+                    assertThat(testSubscriber.getSecondaryMessages()).containsExactlyInAnyOrder(msg1, msg2);
                 });
     }
 

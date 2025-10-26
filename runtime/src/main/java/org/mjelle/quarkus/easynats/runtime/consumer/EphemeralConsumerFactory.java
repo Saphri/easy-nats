@@ -14,9 +14,13 @@ import org.jboss.logging.Logger;
  * instances.
  * </p>
  */
-public class EphemeralConsumerFactory {
+public final class EphemeralConsumerFactory {
 
     private static final Logger LOGGER = Logger.getLogger(EphemeralConsumerFactory.class);
+
+    private EphemeralConsumerFactory() {
+        // Utility class
+    }
 
     /**
      * Creates an ephemeral consumer configuration.
