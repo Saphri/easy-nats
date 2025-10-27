@@ -26,6 +26,12 @@ As a developer, I want to configure a durable consumer in my application propert
 - What happens if the durable consumer name in `@NatsSubscriber` does not exist in the configuration? The application should fail to start with a clear error message.
 - How does the system handle NATS connection errors? The subscriber should attempt to reconnect according to the configured policy.
 
+## Assumptions
+
+- A NATS server is running.
+- A NATS JetStream stream has been defined.
+- A durable consumer has been preconfigured on the stream.
+
 ## Requirements *(mandatory)*
 
 ### Functional Requirements
