@@ -21,13 +21,20 @@ import org.mjelle.quarkus.easynats.runtime.metadata.SubscriberMetadata;
  * Initializes subscriber consumers at application startup.
  *
  * <p>
- * This bean listens for the {@link StartupEvent} and creates ephemeral consumers for all
- * subscriber methods discovered at build time. It registers message handlers via the
- * {@code consumerContext.consume()} API.
+ * This bean listens for the {@link StartupEvent} and initializes consumers for all
+ * subscriber methods discovered at build time. It supports two modes:
+ * </p>
+ * <ul>
+ * <li><strong>Ephemeral</strong>: Creates ephemeral consumers dynamically for subjects</li>
+ * <li><strong>Durable</strong>: Verifies that pre-configured durable consumers exist on NATS server</li>
+ * </ul>
+ *
+ * <p>
+ * Registers message handlers via the {@code consumerContext.consume()} API for both modes.
  * </p>
  *
  * <p>
- * If any consumer creation fails, the application startup fails with a clear error message.
+ * If any consumer creation or verification fails, the application startup fails with a clear error message.
  * </p>
  */
 @ApplicationScoped
@@ -67,8 +74,12 @@ public class SubscriberInitializer {
             try {
                 initializeSubscriber(metadata);
             } catch (Exception e) {
+                String errorContext = metadata.isDurableConsumer() ?
+                        String.format("durable consumer: stream=%s, consumer=%s",
+                                metadata.stream(), metadata.consumer()) :
+                        String.format("subject: %s", metadata.subject());
                 throw new IllegalStateException(
-                        "Failed to initialize subscriber for subject: " + metadata.subject(), e);
+                        "Failed to initialize subscriber for " + errorContext, e);
             }
         }
 
@@ -81,17 +92,10 @@ public class SubscriberInitializer {
      * Initializes a single subscriber.
      *
      * @param metadata the subscriber metadata
-     * @throws Exception if consumer creation or handler registration fails
+     * @throws Exception if consumer creation, verification, or handler registration fails
      */
     private void initializeSubscriber(SubscriberMetadata metadata)
             throws Exception, ClassNotFoundException {
-        LOGGER.infof(
-                "Initializing subscription: subject=%s, method=%s",
-                metadata.subject(), metadata.methodName());
-
-        // Resolve the stream name for the subject
-        String streamName = resolveStreamName(metadata.subject());
-        LOGGER.debugf("Resolved stream name: %s for subject: %s", streamName, metadata.subject());
 
         // Get the bean instance and method from the registry
         Object bean = getBeanInstance(metadata);
@@ -101,26 +105,68 @@ public class SubscriberInitializer {
         DefaultMessageHandler handler = new DefaultMessageHandler(metadata, bean, method,
                 objectMapper);
 
-        // Create ephemeral consumer configuration
-        ConsumerConfiguration consumerConfig = EphemeralConsumerFactory.createEphemeralConsumerConfig(metadata.subject());
-
-        // Create the ephemeral consumer using JetStreamManagement
         JetStreamManagement jsm = connectionManager.getConnection().jetStreamManagement();
-        io.nats.client.api.ConsumerInfo consumerInfo = jsm.addOrUpdateConsumer(streamName, consumerConfig);
-
-        // Get the consumer context and start consuming
         JetStream js = connectionManager.getJetStream();
+        String streamName;
+        io.nats.client.api.ConsumerInfo consumerInfo;
+
+        if (metadata.isDurableConsumer()) {
+            // Durable mode: verify consumer exists on NATS server
+            LOGGER.infof(
+                    "Initializing durable subscription: stream=%s, consumer=%s, method=%s",
+                    metadata.stream(), metadata.consumer(), metadata.methodName());
+
+            streamName = metadata.stream();
+            try {
+                consumerInfo = jsm.getConsumerInfo(metadata.stream(), metadata.consumer());
+                LOGGER.infof("Verified durable consumer: stream=%s, consumer=%s",
+                        metadata.stream(), metadata.consumer());
+            } catch (io.nats.client.JetStreamApiException e) {
+                throw new IllegalStateException(
+                        String.format("""
+                                Failed to verify durable consumer: Stream '%s' does not contain consumer '%s'.
+                                Please ensure the consumer is pre-configured on the NATS server.""",
+                                metadata.stream(), metadata.consumer()), e);
+            }
+        } else {
+            // Ephemeral mode: create ephemeral consumer dynamically
+            LOGGER.infof(
+                    "Initializing ephemeral subscription: subject=%s, method=%s",
+                    metadata.subject(), metadata.methodName());
+
+            // Resolve the stream name for the subject
+            streamName = resolveStreamName(metadata.subject());
+            LOGGER.debugf("Resolved stream name: %s for subject: %s", streamName, metadata.subject());
+
+            // Create ephemeral consumer configuration
+            ConsumerConfiguration consumerConfig =
+                    EphemeralConsumerFactory.createEphemeralConsumerConfig(metadata.subject());
+
+            // Create the ephemeral consumer using JetStreamManagement
+            consumerInfo = jsm.addOrUpdateConsumer(streamName, consumerConfig);
+        }
+
+        // Both paths: get ConsumerContext and consume
         ConsumerContext consumerContext = js.getConsumerContext(streamName, consumerInfo.getName());
 
         // Start consuming messages using the ConsumerContext API
         consumerContext.consume(handler::handle);
 
-        LOGGER.infof(
-                "Successfully created subscription: subject=%s, stream=%s, method=%s.%s",
-                metadata.subject(),
-                streamName,
-                metadata.declaringBeanClass(),
-                metadata.methodName());
+        if (metadata.isDurableConsumer()) {
+            LOGGER.infof(
+                    "Successfully initialized durable subscription: stream=%s, consumer=%s, method=%s.%s",
+                    metadata.stream(),
+                    metadata.consumer(),
+                    metadata.declaringBeanClass(),
+                    metadata.methodName());
+        } else {
+            LOGGER.infof(
+                    "Successfully initialized ephemeral subscription: subject=%s, stream=%s, method=%s.%s",
+                    metadata.subject(),
+                    streamName,
+                    metadata.declaringBeanClass(),
+                    metadata.methodName());
+        }
     }
 
     /**

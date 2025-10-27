@@ -1,6 +1,7 @@
 # Feature Specification: @NatsSubscriber Annotation (MVP)
 
 **Feature Branch**: `004-nats-subscriber-mvp`
+**Continues**: `003-nats-subject`
 **Created**: 2025-10-26
 **Status**: Draft
 **Input**: "as a developer I want to get the @NatsSubscriber working. focus on mvp. implicit empheral consumer in this slice and basic string payload"

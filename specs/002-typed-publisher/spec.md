@@ -2,6 +2,7 @@
 
 **Feature Branch**: `002-typed-publisher`
 **Created**: 2025-10-26
+**Continues**: `001-basic-publisher-api`
 **Status**: Draft
 **Input**: Add typed support to NatsPublisher with JSON payloads using Jackson and CloudEvents headers
 

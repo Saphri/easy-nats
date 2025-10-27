@@ -15,6 +15,17 @@ import java.lang.annotation.Target;
  * </p>
  *
  * <p>
+ * The annotation supports two modes:
+ * </p>
+ * <ul>
+ * <li><strong>Ephemeral Mode</strong>: Use the {@code value()} property to subscribe to a subject.
+ * The consumer is created dynamically and does not survive restarts.</li>
+ * <li><strong>Durable Mode</strong>: Use {@code stream()} and {@code consumer()} properties to bind
+ * to a pre-configured durable consumer. The consumer must exist on the NATS server and will preserve
+ * messages across application restarts.</li>
+ * </ul>
+ *
+ * <p>
  * Message acknowledgment is handled implicitly:
  * </p>
  * <ul>
@@ -23,7 +34,7 @@ import java.lang.annotation.Target;
  * </ul>
  *
  * <p>
- * Example:
+ * Example (Ephemeral Mode):
  * </p>
  *
  * <pre>
@@ -38,15 +49,60 @@ import java.lang.annotation.Target;
  * }
  * </pre>
  *
+ * <p>
+ * Example (Durable Mode):
+ * </p>
+ *
+ * <pre>
+ * {@code
+ * @ApplicationScoped
+ * public class MyDurableConsumer {
+ *     @NatsSubscriber(stream = "orders", consumer = "processor")
+ *     public void onOrder(String orderData) {
+ *         System.out.println("Processing order: " + orderData);
+ *     }
+ * }
+ * }
+ * </pre>
+ *
  * @see NatsConnectionManager
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
 public @interface NatsSubscriber {
     /**
-     * The NATS subject to subscribe to.
+     * The NATS subject to subscribe to (ephemeral mode).
      *
-     * @return the subject name (must not be empty)
+     * <p>
+     * Use this property for ephemeral consumers. Cannot be combined with {@code stream()} or
+     * {@code consumer()}.
+     * </p>
+     *
+     * @return the subject name (must be non-empty for ephemeral mode)
      */
-    String value();
+    String value() default "";
+
+    /**
+     * The NATS JetStream stream name (durable mode).
+     *
+     * <p>
+     * Use this property with {@code consumer()} for durable consumers. The stream must exist on the
+     * NATS server. Cannot be combined with {@code value()}.
+     * </p>
+     *
+     * @return the stream name (must be non-empty and paired with consumer())
+     */
+    String stream() default "";
+
+    /**
+     * The NATS JetStream durable consumer name (durable mode).
+     *
+     * <p>
+     * Use this property with {@code stream()} for durable consumers. The consumer must be
+     * pre-configured on the NATS server. Cannot be combined with {@code value()}.
+     * </p>
+     *
+     * @return the consumer name (must be non-empty and paired with stream())
+     */
+    String consumer() default "";
 }

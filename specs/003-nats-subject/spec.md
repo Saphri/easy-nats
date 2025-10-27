@@ -1,4 +1,5 @@
 # Specification: @NatsSubject Annotation
+**Continues**: `002-typed-publisher`
 
 ## 1. Overview
 

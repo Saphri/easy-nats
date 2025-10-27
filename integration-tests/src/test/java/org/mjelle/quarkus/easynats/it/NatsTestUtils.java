@@ -1,9 +1,11 @@
 package org.mjelle.quarkus.easynats.it;
 
 import io.nats.client.Connection;
+import io.nats.client.JetStream;
 import io.nats.client.JetStreamManagement;
 import io.nats.client.Nats;
 import io.nats.client.Options;
+import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.api.StorageType;
 import io.nats.client.api.StreamConfiguration;
 import io.nats.client.api.StreamInfo;
@@ -13,6 +15,7 @@ import java.util.concurrent.atomic.AtomicReference;
 public class NatsTestUtils {
 
     public static final String STREAM_NAME = "test-stream";
+    public static final String DURABLE_CONSUMER_NAME = "test-consumer";
     private static final AtomicReference<Connection> connectionRef = new AtomicReference<>();
 
     public static Connection getConnection() throws Exception {
@@ -24,8 +27,13 @@ public class NatsTestUtils {
             Connection nc = Nats.connect(options);
             connectionRef.set(nc);
             createStreamIfNotExists(nc);
+            createDurableConsumerIfNotExists(nc);
         }
         return connectionRef.get();
+    }
+
+    public static JetStream getJetStream() throws Exception {
+        return getConnection().jetStream();
     }
 
     private static void createStreamIfNotExists(Connection nc) throws Exception {
@@ -42,6 +50,17 @@ public class NatsTestUtils {
                 .storageType(StorageType.Memory)
                 .build();
         jsm.addStream(streamConfig);
+    }
+
+    private static void createDurableConsumerIfNotExists(Connection nc) throws Exception {
+        JetStreamManagement jsm = nc.jetStreamManagement();
+
+        // Create durable consumer
+        ConsumerConfiguration consumerConfig = ConsumerConfiguration.builder()
+                .durable(DURABLE_CONSUMER_NAME)
+                .filterSubject("test.>")
+                .build();
+        jsm.addOrUpdateConsumer(STREAM_NAME, consumerConfig);
     }
 
     public static void purgeStream() throws Exception {

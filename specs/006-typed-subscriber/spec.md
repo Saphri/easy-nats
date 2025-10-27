@@ -1,6 +1,7 @@
 # Feature Specification: Typed Subscriber with @NatsSubscriber Annotation
 
 **Feature Branch**: `006-typed-subscriber`
+**Continues**: `005-transparent-cloudevents`
 **Created**: 2025-10-27
 **Status**: Draft
 **Input**: User description: "as a developer I want to receive typed objects with @NatsSubscriber annotated methods"
