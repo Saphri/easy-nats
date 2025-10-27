@@ -151,6 +151,34 @@ To build the extension from source, clone the repository and run the following c
 ./mvnw clean install
 ```
 
+## Documentation
+
+📖 **[Full Documentation Index](docs/INDEX.md)** - Start here for complete documentation
+
+### Quick Links
+
+**Getting Started**
+- [Quick Start Guide](docs/QUICKSTART.md) - 5-minute introduction
+
+**Type System**
+- [Jackson Compatibility Guide](docs/JACKSON_COMPATIBILITY_GUIDE.md) - Supported types & best practices
+- [Wrapper Pattern Guide](docs/WRAPPER_PATTERN.md) - Wrapping primitives and arrays
+- [Jackson Annotations Guide](docs/JACKSON_ANNOTATIONS_GUIDE.md) - Customization with annotations
+
+**Troubleshooting**
+- [Error Troubleshooting Guide](docs/ERROR_TROUBLESHOOTING.md) - Common errors & solutions
+
+**Architecture**
+- [Feature Specification](specs/007-typed-serialization/spec.md) - Requirements & design
+- [Implementation Tasks](specs/007-typed-serialization/tasks.md) - Status & metrics
+
+**Key Concepts**
+- Publish and subscribe to strongly-typed Java objects
+- Automatic JSON serialization/deserialization via Jackson
+- CloudEvents support for event metadata
+- Type validation at build-time (subscribers) and runtime (publishers)
+- Clear error messages guide you to solutions
+
 ## Running Integration Tests
 
 To run the integration tests, use the `it` profile:

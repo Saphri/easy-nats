@@ -2,7 +2,7 @@ package org.mjelle.quarkus.easynats.runtime.subscriber;
 
 import static org.assertj.core.api.Assertions.*;
 
-import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -10,7 +10,16 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-@DisplayName("MessageDeserializer - Complex Types")
+/**
+ * Unit tests for MessageDeserializer - Jackson-only deserialization.
+ *
+ * Tests cover:
+ * - Simple POJO deserialization
+ * - Nested POJO deserialization
+ * - Generic type deserialization (List<T>, Map<K,V>)
+ * - Error handling and exceptions
+ */
+@DisplayName("MessageDeserializer - Jackson-Only Deserialization")
 class MessageDeserializerComplexTypesTest {
 
     private ObjectMapper objectMapper;
@@ -26,9 +35,10 @@ class MessageDeserializerComplexTypesTest {
         // Given
         String json = "{\"userId\":\"USER-001\",\"name\":\"John Doe\",\"email\":\"john@example.com\"}";
         byte[] data = json.getBytes(StandardCharsets.UTF_8);
+        JavaType userType = objectMapper.getTypeFactory().constructType(TestUser.class);
 
         // When
-        TestUser result = MessageDeserializer.deserialize(data, TestUser.class, objectMapper);
+        TestUser result = MessageDeserializer.deserialize(data, userType, objectMapper);
 
         // Then
         assertThat(result).isNotNull();
@@ -43,9 +53,10 @@ class MessageDeserializerComplexTypesTest {
         // Given
         String json = "{\"orderId\":\"ORD-123\",\"customerId\":\"CUST-456\",\"items\":[{\"sku\":\"ITEM-001\",\"quantity\":2},{\"sku\":\"ITEM-002\",\"quantity\":1}]}";
         byte[] data = json.getBytes(StandardCharsets.UTF_8);
+        JavaType orderType = objectMapper.getTypeFactory().constructType(TestOrder.class);
 
         // When
-        TestOrder result = MessageDeserializer.deserialize(data, TestOrder.class, objectMapper);
+        TestOrder result = MessageDeserializer.deserialize(data, orderType, objectMapper);
 
         // Then
         assertThat(result).isNotNull();
@@ -64,12 +75,11 @@ class MessageDeserializerComplexTypesTest {
         // Given
         String json = "[{\"userId\":\"USER-001\",\"name\":\"John\",\"email\":\"john@example.com\"},{\"userId\":\"USER-002\",\"name\":\"Jane\",\"email\":\"jane@example.com\"}]";
         byte[] data = json.getBytes(StandardCharsets.UTF_8);
+        JavaType listUserType = objectMapper.getTypeFactory()
+                .constructParametricType(List.class, TestUser.class);
 
         // When
-        List<TestUser> result = MessageDeserializer.deserialize(
-                data,
-                new TypeReference<List<TestUser>>() {},
-                objectMapper);
+        List<TestUser> result = MessageDeserializer.deserialize(data, listUserType, objectMapper);
 
         // Then
         assertThat(result).hasSize(2);
@@ -85,22 +95,24 @@ class MessageDeserializerComplexTypesTest {
         // Given
         String json = "{\"wrongField\":\"value\"}";
         byte[] data = json.getBytes(StandardCharsets.UTF_8);
+        JavaType userType = objectMapper.getTypeFactory().constructType(TestUser.class);
 
         // When / Then
-        assertThatThrownBy(() -> MessageDeserializer.deserialize(data, TestUser.class, objectMapper))
+        assertThatThrownBy(() -> MessageDeserializer.deserialize(data, userType, objectMapper))
                 .isInstanceOf(DeserializationException.class)
                 .hasMessageContaining("Failed to deserialize");
     }
 
     @Test
     @DisplayName("should deserialize POJO even with missing optional field (Jackson allows it)")
-    void testMissingRequiredField() {
+    void testMissingRequiredField() throws Exception {
         // Given - missing 'userId' field (Jackson allows this and sets to null)
         String json = "{\"name\":\"John\",\"email\":\"john@example.com\"}";
         byte[] data = json.getBytes(StandardCharsets.UTF_8);
+        JavaType userType = objectMapper.getTypeFactory().constructType(TestUser.class);
 
         // When
-        TestUser result = MessageDeserializer.deserialize(data, TestUser.class, objectMapper);
+        TestUser result = MessageDeserializer.deserialize(data, userType, objectMapper);
 
         // Then
         assertThat(result).isNotNull();
@@ -114,9 +126,10 @@ class MessageDeserializerComplexTypesTest {
     void testMalformedJson() {
         // Given
         byte[] data = "{invalid json}".getBytes(StandardCharsets.UTF_8);
+        JavaType userType = objectMapper.getTypeFactory().constructType(TestUser.class);
 
         // When / Then
-        assertThatThrownBy(() -> MessageDeserializer.deserialize(data, TestUser.class, objectMapper))
+        assertThatThrownBy(() -> MessageDeserializer.deserialize(data, userType, objectMapper))
                 .isInstanceOf(DeserializationException.class)
                 .hasMessageContaining("Failed to deserialize");
     }
@@ -128,9 +141,10 @@ class MessageDeserializerComplexTypesTest {
         ObjectMapper customMapper = new ObjectMapper();
         String json = "{\"userId\":\"USER-001\",\"name\":\"John\",\"email\":\"john@example.com\"}";
         byte[] data = json.getBytes(StandardCharsets.UTF_8);
+        JavaType userType = customMapper.getTypeFactory().constructType(TestUser.class);
 
         // When
-        TestUser result = MessageDeserializer.deserialize(data, TestUser.class, customMapper);
+        TestUser result = MessageDeserializer.deserialize(data, userType, customMapper);
 
         // Then
         assertThat(result).isNotNull();
@@ -143,12 +157,11 @@ class MessageDeserializerComplexTypesTest {
         // Given
         String json = "[{\"orderId\":\"ORD-001\",\"customerId\":\"CUST-001\",\"items\":[{\"sku\":\"SKU-001\",\"quantity\":1}]},{\"orderId\":\"ORD-002\",\"customerId\":\"CUST-002\",\"items\":[{\"sku\":\"SKU-002\",\"quantity\":2}]}]";
         byte[] data = json.getBytes(StandardCharsets.UTF_8);
+        JavaType listOrderType = objectMapper.getTypeFactory()
+                .constructParametricType(List.class, TestOrder.class);
 
         // When
-        List<TestOrder> result = MessageDeserializer.deserialize(
-                data,
-                new TypeReference<List<TestOrder>>() {},
-                objectMapper);
+        List<TestOrder> result = MessageDeserializer.deserialize(data, listOrderType, objectMapper);
 
         // Then
         assertThat(result).hasSize(2);
@@ -159,10 +172,127 @@ class MessageDeserializerComplexTypesTest {
     }
 
     @Test
-    @DisplayName("should throw DeserializationException when ObjectMapper returns null")
-    void testNullResultFromDeserialization() {
-        // This is tricky to test naturally, but we can verify the behavior exists
-        // by testing with a valid JSON that could theoretically return null
-        // For now, we'll skip this as it requires special ObjectMapper configuration
+    @DisplayName("should throw DeserializationException for empty payload")
+    void testEmptyPayload() {
+        // Given
+        byte[] data = "".getBytes(StandardCharsets.UTF_8);
+        JavaType userType = objectMapper.getTypeFactory().constructType(TestUser.class);
+
+        // When / Then
+        assertThatThrownBy(() -> MessageDeserializer.deserialize(data, userType, objectMapper))
+                .isInstanceOf(DeserializationException.class)
+                .hasMessageContaining("Data cannot be null or empty");
+    }
+
+    // Test helper classes
+
+    static class TestUser {
+        private String userId;
+        private String name;
+        private String email;
+
+        public TestUser() {
+            // Default constructor for Jackson
+        }
+
+        public TestUser(String userId, String name, String email) {
+            this.userId = userId;
+            this.name = name;
+            this.email = email;
+        }
+
+        public String getUserId() {
+            return userId;
+        }
+
+        public void setUserId(String userId) {
+            this.userId = userId;
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        public void setName(String name) {
+            this.name = name;
+        }
+
+        public String getEmail() {
+            return email;
+        }
+
+        public void setEmail(String email) {
+            this.email = email;
+        }
+    }
+
+    static class TestOrder {
+        private String orderId;
+        private String customerId;
+        private List<OrderItem> items;
+
+        public TestOrder() {
+            // Default constructor for Jackson
+        }
+
+        public TestOrder(String orderId, String customerId, List<OrderItem> items) {
+            this.orderId = orderId;
+            this.customerId = customerId;
+            this.items = items;
+        }
+
+        public String getOrderId() {
+            return orderId;
+        }
+
+        public void setOrderId(String orderId) {
+            this.orderId = orderId;
+        }
+
+        public String getCustomerId() {
+            return customerId;
+        }
+
+        public void setCustomerId(String customerId) {
+            this.customerId = customerId;
+        }
+
+        public List<OrderItem> getItems() {
+            return items;
+        }
+
+        public void setItems(List<OrderItem> items) {
+            this.items = items;
+        }
+    }
+
+    static class OrderItem {
+        private String sku;
+        private int quantity;
+
+        public OrderItem() {
+            // Default constructor for Jackson
+        }
+
+        public OrderItem(String sku, int quantity) {
+            this.sku = sku;
+            this.quantity = quantity;
+        }
+
+        public String getSku() {
+            return sku;
+        }
+
+        public void setSku(String sku) {
+            this.sku = sku;
+        }
+
+        public int getQuantity() {
+            return quantity;
+        }
+
+        public void setQuantity(int quantity) {
+            this.quantity = quantity;
+        }
     }
 }
