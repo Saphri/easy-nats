@@ -223,6 +223,7 @@ public class SubscriberDiscoveryProcessor {
             return stringValue != null ? stringValue : "";
         } catch (Exception e) {
             // Property doesn't exist or can't be extracted; default to empty
+            LOGGER.warnf(e, "Could not extract annotation property '%s'. Defaulting to an empty string.", propertyName);
             return "";
         }
     }

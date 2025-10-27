@@ -121,11 +121,12 @@ public class SubscriberInitializer {
                 consumerInfo = jsm.getConsumerInfo(metadata.stream(), metadata.consumer());
                 LOGGER.infof("Verified durable consumer: stream=%s, consumer=%s",
                         metadata.stream(), metadata.consumer());
-            } catch (Exception e) {
+            } catch (io.nats.client.JetStreamApiException e) {
                 throw new IllegalStateException(
-                        "Failed to verify durable consumer: Stream '" + metadata.stream() +
-                        "' does not contain consumer '" + metadata.consumer() +
-                        "'. Please ensure the consumer is pre-configured on the NATS server.", e);
+                        String.format("""
+                                Failed to verify durable consumer: Stream '%s' does not contain consumer '%s'.
+                                Please ensure the consumer is pre-configured on the NATS server.""",
+                                metadata.stream(), metadata.consumer()), e);
             }
         } else {
             // Ephemeral mode: create ephemeral consumer dynamically
