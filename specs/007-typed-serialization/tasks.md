@@ -305,8 +305,10 @@ This document defines implementation tasks for the **Typed Serialization with Ja
 3. Document that annotations work transparently
 
 **Independent Test Criteria**:
-- CloudEvents wrapping preserves Jackson annotation behavior
-- Types with `@JsonProperty`, `@JsonIgnore`, `@JsonDeserialize` pass through unchanged
+- Serialized JSON respects `@JsonProperty` (fields use renamed JSON keys)
+- Serialized JSON respects `@JsonIgnore` (annotated fields missing from JSON)
+- Deserialized objects respect `@JsonDeserialize` (custom deserializers invoked)
+- CloudEvents wrapping doesn't interfere with Jackson's annotation processing
 - Error messages suggest annotations for customization needs
 - Documentation shows Jackson annotation examples work
 - No regression when using annotated types
@@ -319,12 +321,14 @@ This document defines implementation tasks for the **Typed Serialization with Ja
   - Regular field for baseline comparison
   - Document: "This shows Jackson annotations work with the library"
 
-- [ ] T042 [US3] Add smoke test to TypedSerializationTest: `testAnnotatedTypesPassThroughUnchanged()`
-  - Publish AnnotatedOrderData → CloudEvents wraps it → JSON serialized with annotations respected
-  - Subscribe and deserialize → Jackson annotations applied
-  - Verify: @JsonProperty field has renamed JSON key, @JsonIgnore field is missing from JSON
-  - Purpose: Verify library doesn't interfere with Jackson's annotation processing
-  - **Note**: Not testing that annotations work (Jackson does that); testing that library doesn't break them
+- [ ] T042 [US3] Add smoke test to TypedSerializationTest: `testAnnotatedTypesSerializationRoundtrip()`
+  - Serialize AnnotatedOrderData → Jackson processes annotations → JSON produced
+  - Verify serialized JSON: @JsonProperty field uses renamed key, @JsonIgnore field absent
+  - Wrap JSON in CloudEvents → transmit → unwrap to get JSON
+  - Deserialize JSON → Jackson processes annotations → object reconstructed correctly
+  - Verify deserialized object matches original (accounting for @JsonIgnore fields being default values)
+  - Purpose: Verify CloudEvents wrapping doesn't interfere with Jackson's annotation processing
+  - **Note**: We don't test that Jackson's annotations work (Jackson's own tests do that); we test that wrapping/unwrapping in CloudEvents doesn't break them
 
 - [ ] T043 [US3] Update error messages to suggest Jackson annotations:
   - When type fails validation, suggest using `@JsonProperty` for field mapping
@@ -333,22 +337,24 @@ This document defines implementation tasks for the **Typed Serialization with Ja
   - Files to update: ErrorMessageFormatter.java
 
 - [ ] T044 [US3] Create documentation: `specs/007-typed-serialization/JACKSON_ANNOTATIONS_GUIDE.md`
-  - Section 1: "Using Jackson Annotations" - Brief intro that library respects standard Jackson annotations
-  - Section 2: "@JsonProperty" - Rename fields in JSON (with example)
-  - Section 3: "@JsonIgnore" - Exclude fields from serialization (with example)
-  - Section 4: "@JsonDeserialize" - Custom deserialization logic (with example)
-  - Section 5: "@JsonSerialize" - Custom serialization logic (with example)
-  - Include note: "These are standard Jackson annotations; the library doesn't add anything special"
+  - Section 1: "Standard Jackson Annotations Work" - Library delegates to Jackson, so all standard annotations work transparently
+  - Section 2: "@JsonProperty" - Customize JSON field names (example: field `id` → JSON key `order_id`)
+  - Section 3: "@JsonIgnore" - Exclude fields from JSON serialization (example: password field not sent)
+  - Section 4: "@JsonDeserialize" - Custom deserialization logic (example: date parsing with custom format)
+  - Section 5: "@JsonSerialize" - Custom serialization logic (example: custom date formatting)
+  - Include clear note: "These are standard Jackson annotations. The library doesn't add anything - it just uses Jackson's ObjectMapper directly, so all Jackson features work out of the box"
 
-- [ ] T045 [US3] Run smoke tests: `./mvnw -pl integration-tests clean test -Dtest=TypedSerializationTest#testAnnotatedTypesPassThroughUnchanged`
-  - Verify annotated types work without regression
-  - No library-specific changes needed
+- [ ] T045 [US3] Run smoke test: `./mvnw -pl integration-tests clean test -Dtest=TypedSerializationTest#testAnnotatedTypesSerializationRoundtrip`
+  - Verify annotated types serialize/deserialize correctly through library
+  - JSON carries annotations' effects (renamed fields, missing ignored fields)
+  - CloudEvents wrapping doesn't interfere with Jackson annotation processing
+  - No regression when using annotated types
 
 - [ ] T046 [US3] Review Phase 5 completion:
-  - Smoke test passes (library doesn't break annotations)
-  - Error messages guide users to annotations
-  - Documentation shows annotation examples
-  - Verify: This is not "feature we added" but "standard Jackson works transparently"
+  - Smoke test passes (CloudEvents wrapping doesn't break annotations)
+  - Error messages guide users to annotations for customization
+  - Documentation clearly states library delegates to Jackson
+  - Verify: "Standard Jackson annotations work transparently because library uses ObjectMapper directly"
 
 ---
 
