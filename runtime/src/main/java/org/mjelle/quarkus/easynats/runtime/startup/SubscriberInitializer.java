@@ -1,5 +1,6 @@
 package org.mjelle.quarkus.easynats.runtime.startup;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.nats.client.ConsumerContext;
 import io.nats.client.JetStream;
 import io.nats.client.JetStreamManagement;
@@ -36,17 +37,21 @@ public class SubscriberInitializer {
 
     private final SubscriberRegistry subscriberRegistry;
     private final NatsConnectionManager connectionManager;
+    private final ObjectMapper objectMapper;
 
     /**
      * Creates a new subscriber initializer.
      *
      * @param subscriberRegistry the subscriber registry containing build-time metadata
      * @param connectionManager the NATS connection manager
+     * @param objectMapper the Jackson ObjectMapper for typed deserialization
      */
     public SubscriberInitializer(
-            SubscriberRegistry subscriberRegistry, NatsConnectionManager connectionManager) {
+            SubscriberRegistry subscriberRegistry, NatsConnectionManager connectionManager,
+            ObjectMapper objectMapper) {
         this.subscriberRegistry = subscriberRegistry;
         this.connectionManager = connectionManager;
+        this.objectMapper = objectMapper;
     }
 
     /**
@@ -92,8 +97,9 @@ public class SubscriberInitializer {
         Object bean = getBeanInstance(metadata);
         Method method = getSubscriberMethod(bean, metadata);
 
-        // Create the message handler
-        DefaultMessageHandler handler = new DefaultMessageHandler(metadata, bean, method);
+        // Create the message handler with ObjectMapper for typed deserialization
+        DefaultMessageHandler handler = new DefaultMessageHandler(metadata, bean, method,
+                objectMapper);
 
         // Create ephemeral consumer configuration
         ConsumerConfiguration consumerConfig = EphemeralConsumerFactory.createEphemeralConsumerConfig();
@@ -168,15 +174,38 @@ public class SubscriberInitializer {
     /**
      * Gets the subscriber method from a bean.
      *
+     * <p>
+     * Looks up the method by name and parameter count. This avoids needing to load
+     * parameter types which may not be available at runtime (e.g., user-defined classes
+     * from integration tests). The actual parameter type is determined at runtime from
+     * the Method's generic type information.
+     * </p>
+     *
      * @param bean the bean instance
      * @param metadata the subscriber metadata
      * @return the subscriber method
      * @throws NoSuchMethodException if the method is not found
+     * @throws ClassNotFoundException if the bean class cannot be loaded
      */
     private Method getSubscriberMethod(Object bean, SubscriberMetadata metadata)
             throws NoSuchMethodException, ClassNotFoundException {
         ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
         Class<?> beanClass = classLoader.loadClass(metadata.declaringBeanClass());
-        return beanClass.getMethod(metadata.methodName(), String.class);
+
+        // Find method by name and parameter count only
+        // Avoid loading parameter types which may not be available at runtime
+        int expectedParamCount = metadata.parameterTypes().size();
+
+        for (Method method : beanClass.getDeclaredMethods()) {
+            if (method.getName().equals(metadata.methodName()) &&
+                method.getParameterCount() == expectedParamCount) {
+                method.setAccessible(true);
+                return method;
+            }
+        }
+
+        throw new NoSuchMethodException(
+                "Method " + metadata.methodName() + " with " + expectedParamCount +
+                " parameter(s) not found in class " + metadata.declaringBeanClass());
     }
 }

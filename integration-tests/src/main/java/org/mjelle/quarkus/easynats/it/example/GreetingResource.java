@@ -8,6 +8,8 @@ import jakarta.ws.rs.core.MediaType;
 import org.mjelle.quarkus.easynats.NatsPublisher;
 import org.mjelle.quarkus.easynats.NatsSubject;
 
+import io.smallrye.common.annotation.RunOnVirtualThread;
+
 /**
  * Example REST endpoint that demonstrates publishing messages to NATS.
  *
@@ -22,6 +24,7 @@ import org.mjelle.quarkus.easynats.NatsSubject;
  * </pre>
  */
 @Path("/example/greeting")
+@RunOnVirtualThread
 public class GreetingResource {
 
     @Inject
