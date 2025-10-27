@@ -12,8 +12,6 @@ import org.mjelle.quarkus.easynats.PublishingException;
 import io.quarkus.runtime.annotations.RegisterForReflection;
 import io.smallrye.common.annotation.RunOnVirtualThread;
 
-import io.smallrye.common.annotation.RunOnVirtualThread;
-
 /**
  * Example REST endpoint that demonstrates publishing messages to NATS.
  *
