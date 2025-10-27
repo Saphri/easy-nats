@@ -1,10 +1,9 @@
 package org.mjelle.quarkus.easynats;
 
 import io.nats.client.impl.Headers;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.time.Instant;
 import java.util.UUID;
+import org.eclipse.microprofile.config.ConfigProvider;
 
 /**
  * Factory for generating CloudEvents 1.0 specification-compliant metadata.
@@ -81,17 +80,26 @@ public class CloudEventsHeaders {
     /**
      * Generate a CloudEvents source identifier.
      *
-     * Attempts to get the local hostname, falls back to app name or localhost.
+     * Attempts to read the quarkus.application.name property, falls back to the local hostname,
+     * then to system property "app.name", and finally to localhost.
      *
      * @return a source identifier string
      */
     public static String generateSource() {
+        // Try to get quarkus.application.name from configuration
         try {
-            return InetAddress.getLocalHost().getHostName();
-        } catch (UnknownHostException e) {
-            String appName = System.getProperty("app.name");
-            return appName != null ? appName : "localhost";
+            String appName = ConfigProvider.getConfig()
+                .getOptionalValue("quarkus.application.name", String.class)
+                .orElse(null);
+            if (appName != null && !appName.isEmpty()) {
+                return appName;
+            }
+        } catch (Exception e) {
+            // Config not available, continue to fallback
         }
+
+        // Fall back to unknown
+        return "unknown";
     }
 
     /**

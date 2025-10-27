@@ -230,10 +230,59 @@ Add Awaitility to `integration-tests/pom.xml`:
 
 ---
 
+### Custom Exceptions
+
+- **Define Custom Exceptions for Domain Errors**: Create specific exception classes for domain-specific errors
+- **PublishingException Example**: Custom exception for NATS publishing failures that wraps lower-level NATS exceptions
+- **Rationale**: Provides cleaner API boundaries and allows callers to handle domain errors specifically
+
+**Example (CORRECT)**:
+```java
+public class PublishingException extends Exception {
+    public PublishingException(String message) {
+        super(message);
+    }
+
+    public PublishingException(String message, Throwable cause) {
+        super(message, cause);
+    }
+}
+
+// In publish method:
+try {
+    jetStream.publish(subject, headers, payload);
+} catch (IOException | JetStreamApiException e) {
+    throw new PublishingException("Failed to publish message", e);
+}
+```
+
+### Configuration Management
+
+- **Use MicroProfile Config API**: Access Quarkus configuration via `org.eclipse.microprofile.config.ConfigProvider`
+- **Graceful Fallbacks**: Always provide sensible fallbacks for optional configuration
+- **Try-Catch for Config Access**: Wrap config access in try-catch since it may not be available at all times
+
+**Example (CORRECT)**:
+```java
+String appName = ConfigProvider.getConfig()
+    .getOptionalValue("quarkus.application.name", String.class)
+    .orElse(null);
+if (appName != null && !appName.isEmpty()) {
+    return appName;
+}
+// Fall back to hostname or other default
+```
+
+---
+
 ## Active Technologies
 - Java 21 (enforced per Principle IV) (001-basic-publisher-api)
-- N/A (publisher only; no persistence in this MVP) (001-basic-publisher-api)
-- N/A (messaging extension, no persistent storage) (002-typed-publisher)
+- Quarkus 3.27.0 LTS (extension framework)
+- CloudEvents 1.0 (transparent event format) (005-transparent-cloudevents)
+- NATS JetStream (messaging broker)
+- Jackson Databind (serialization)
 
 ## Recent Changes
+- 005-transparent-cloudevents: Implemented transparent CloudEvent wrapping in NatsPublisher with custom PublishingException
+- 002-typed-publisher: Implemented generic typed publisher with CloudEvents and REST improvements
 - 001-basic-publisher-api: Added Java 21 (enforced per Principle IV)
