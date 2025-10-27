@@ -49,10 +49,23 @@ nb-configuration.xml
 
 # Local environment
 .env
+.env.local
+*.env
 
 # Plugin directory
 /.quarkus/cli/plugins/
 # TLS Certificates
 .certs/
 .quarkus/
+
+# Test outputs
+coverage/
+junit-reports/
+test-results/
+
+# Native image build
+*-runner
+*.so
+*.dll
+*.dylib
 

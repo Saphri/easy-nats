@@ -108,22 +108,17 @@ public class NatsPublisher<T> {
 
 
     /**
-     * Encode a payload using the appropriate encoder strategy.
+     * Encode a payload to JSON using Jackson.
+     *
+     * Only Jackson-compatible types (POJOs, records, generic types) are supported.
+     * Primitives and arrays must be wrapped in Jackson-compatible POJOs by users.
      *
      * @param payload the object to encode
-     * @return the encoded byte array
+     * @return the JSON-encoded byte array
      * @throws SerializationException if Jackson encoding fails
      */
     private byte[] encodePayload(T payload) throws SerializationException {
-        Class<?> payloadClass = payload.getClass();
-        TypedPayloadEncoder.PayloadEncoderStrategy strategy =
-            TypedPayloadEncoder.resolveEncoder(payloadClass);
-
-        if (strategy == TypedPayloadEncoder.PayloadEncoderStrategy.NATIVE_ENCODER) {
-            return TypedPayloadEncoder.encodeNatively(payload);
-        } else {
-            return TypedPayloadEncoder.encodeWithJackson(payload, objectMapper);
-        }
+        return TypedPayloadEncoder.encodeWithJackson(payload, objectMapper);
     }
 
     /**

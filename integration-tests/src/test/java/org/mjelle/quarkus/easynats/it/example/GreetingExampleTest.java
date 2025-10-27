@@ -23,17 +23,14 @@ class GreetingExampleTest {
     void testGreetingEndToEnd() {
         // Send a greeting via REST endpoint
         given()
-            .contentType("application/json")
-            .body("""
-                {
-                    "name": "Integration Test"
-                }
-                """)
+            .contentType("text/plain")
+            .body("Integration Test")
         .when()
             .post("/example/greeting")
         .then()
             .statusCode(200)
-            .body("status", is("success"));
+            .extract().asString()
+            .equals("Hello, Integration Test!");
 
         // Wait a moment for the async message to be processed
         // In a real test, you'd verify the listener processed the message

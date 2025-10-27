@@ -12,7 +12,6 @@ import org.mjelle.quarkus.easynats.runtime.metadata.SubscriberMetadata;
 import org.mjelle.quarkus.easynats.runtime.subscriber.CloudEventException;
 import org.mjelle.quarkus.easynats.runtime.subscriber.CloudEventUnwrapper;
 import org.mjelle.quarkus.easynats.runtime.subscriber.DeserializationException;
-import org.mjelle.quarkus.easynats.runtime.subscriber.MessageDeserializer;
 
 /**
  * Default implementation of {@link MessageHandler}.
@@ -30,14 +29,12 @@ import org.mjelle.quarkus.easynats.runtime.subscriber.MessageDeserializer;
 public class DefaultMessageHandler implements MessageHandler {
 
     private static final Logger LOGGER = Logger.getLogger(DefaultMessageHandler.class);
-    private static final String STRING_TYPE_NAME = "java.lang.String";
 
     private final SubscriberMetadata metadata;
     private final Object bean;
     private final Method method;
     private final ObjectMapper objectMapper;
     private final JavaType parameterType;
-    private final boolean isStringType;
 
     /**
      * Creates a new message handler.
@@ -58,9 +55,6 @@ public class DefaultMessageHandler implements MessageHandler {
         // This avoids needing to Class.forName() user types which aren't available at runtime
         Type genericParamType = method.getGenericParameterTypes()[0];
         this.parameterType = objectMapper.getTypeFactory().constructType(genericParamType);
-
-        // Check if it's a String type
-        this.isStringType = STRING_TYPE_NAME.equals(parameterType.getRawClass().getName());
     }
 
     @Override
@@ -68,37 +62,40 @@ public class DefaultMessageHandler implements MessageHandler {
         try {
             Object payload;
 
-            if (isStringType) {
-                // 004-nats-subscriber-mvp: String-only payload (backward compatibility)
-                payload = new String(message.getData(), StandardCharsets.UTF_8);
-            } else {
-                // 006-typed-subscriber: CloudEvent unwrap + typed deserialization
-                try {
-                    // Step 1: Unwrap CloudEvent (binary-mode)
-                    byte[] eventData = CloudEventUnwrapper.unwrapData(message);
+            // 006-typed-subscriber: CloudEvent unwrap + typed deserialization
+            byte[] eventData = null;
+            try {
+                // Step 1: Unwrap CloudEvent (binary-mode)
+                eventData = CloudEventUnwrapper.unwrapData(message);
 
-                    // Step 2: Deserialize to typed object using JavaType
-                    // This handles complex types, generics, and user-defined classes
-                    try {
-                        payload = objectMapper.readValue(eventData, parameterType);
-                    } catch (Exception e) {
-                        throw new DeserializationException(
-                                "Failed to deserialize to type " + parameterType.getTypeName(), e);
-                    }
-                } catch (CloudEventException e) {
-                    LOGGER.errorf(
-                            "CloudEvent validation failed for subject=%s, method=%s, cause=%s",
-                            metadata.subject(), metadata.methodName(), e.getMessage());
-                    nakMessage(message);
-                    return;
-                } catch (DeserializationException e) {
-                    LOGGER.errorf(
-                            "Message deserialization failed for subject=%s, method=%s, type=%s, cause=%s",
-                            metadata.subject(), metadata.methodName(), parameterType.getTypeName(),
-                            e.getMessage());
-                    nakMessage(message);
-                    return;
+                // Step 2: Deserialize to typed object using JavaType
+                // This handles complex types, generics, and user-defined classes
+                try {
+                    payload = objectMapper.readValue(eventData, parameterType);
+                } catch (Exception e) {
+                    throw new DeserializationException(
+                            "Failed to deserialize to type " + parameterType.getTypeName(), e);
                 }
+            } catch (CloudEventException e) {
+                LOGGER.errorf(
+                        "CloudEvent validation failed for subject=%s, method=%s, cause=%s",
+                        metadata.subject(), metadata.methodName(), e.getMessage());
+                nakMessage(message);
+                return;
+            } catch (DeserializationException e) {
+                // Log with detailed context for debugging
+                String payloadPreview = truncatePayload(
+                    eventData != null ? new String(eventData, StandardCharsets.UTF_8) : "[no data]",
+                    500
+                );
+                LOGGER.errorf(
+                        "Message deserialization failed for subject=%s, method=%s, type=%s\n" +
+                        "  Root cause: %s\n" +
+                        "  Raw payload: %s",
+                        metadata.subject(), metadata.methodName(), parameterType.getTypeName(),
+                        e.getMessage(), payloadPreview);
+                nakMessage(message);
+                return;
             }
 
             // Step 3: Invoke method with payload
@@ -152,5 +149,22 @@ public class DefaultMessageHandler implements MessageHandler {
                     metadata.subject(),
                     metadata.methodName());
         }
+    }
+
+    /**
+     * Truncates a payload string to a maximum length for logging.
+     *
+     * @param payload the payload string
+     * @param maxLength the maximum length
+     * @return truncated payload with ellipsis if needed
+     */
+    private String truncatePayload(String payload, int maxLength) {
+        if (payload == null) {
+            return "[null]";
+        }
+        if (payload.length() > maxLength) {
+            return payload.substring(0, maxLength) + "... [truncated]";
+        }
+        return payload;
     }
 }
