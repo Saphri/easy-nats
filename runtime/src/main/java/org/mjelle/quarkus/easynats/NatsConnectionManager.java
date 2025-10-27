@@ -9,7 +9,9 @@ import io.quarkus.runtime.StartupEvent;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Observes;
 import java.io.IOException;
+import java.util.concurrent.ExecutorService;
 import java.util.logging.Logger;
+import io.quarkus.virtual.threads.VirtualThreads;
 
 /**
  * Manages the singleton NATS JetStream connection for the entire application.
@@ -21,8 +23,15 @@ import java.util.logging.Logger;
 public class NatsConnectionManager {
 
     private static final Logger LOGGER = Logger.getLogger(NatsConnectionManager.class.getName());
+
+    private final ExecutorService executorService;
+
     private Connection connection;
     private JetStream jetStream;
+
+    public NatsConnectionManager(@VirtualThreads ExecutorService executorService) {
+        this.executorService = executorService;
+    }
 
     /**
      * Initializes the NATS connection on application startup.
@@ -35,6 +44,7 @@ public class NatsConnectionManager {
             Options options = new Options.Builder()
                     .server("nats://localhost:4222")
                     .userInfo("guest", "guest")
+                    .executor(executorService)
                     .build();
 
             this.connection = Nats.connect(options);

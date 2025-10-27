@@ -43,10 +43,10 @@ class TypedPayloadEncoderTest {
     @DisplayName("encodeWithJackson serializes record type to JSON bytes")
     void testEncodeWithJacksonForRecord() throws Exception {
         // Given - Use a simple record-like test class
-        OrderTestRecord record = new OrderTestRecord("ORD-001", "CUST-001", 150.00);
+        OrderTestRecord testRecord = new OrderTestRecord("ORD-001", "CUST-001", 150.00);
 
         // When
-        byte[] result = TypedPayloadEncoder.encodeWithJackson(record, objectMapper);
+        byte[] result = TypedPayloadEncoder.encodeWithJackson(testRecord, objectMapper);
 
         // Then
         assertThat(result).isNotEmpty();
@@ -93,7 +93,6 @@ class TypedPayloadEncoderTest {
     @DisplayName("encodeWithJackson throws SerializationException for non-serializable object")
     void testEncodeWithJacksonThrowsSerializationExceptionForInvalidObject() {
         // Given - a class that Jackson cannot serialize (infinite recursion)
-        Object cyclicRef = new Object();
         TestPojoWithCycle pojo = new TestPojoWithCycle("test", 1);
         pojo.cyclic = pojo;  // Create cycle
 

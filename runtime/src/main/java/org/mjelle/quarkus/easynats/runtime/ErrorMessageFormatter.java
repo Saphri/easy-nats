@@ -39,6 +39,7 @@ public class ErrorMessageFormatter {
     public static String formatArrayTypeError(Class<?> type) {
         String typeName = type.getSimpleName();
         String elementTypeName = type.getComponentType().getSimpleName();
+        String capitalizedElement = capitalizeFirstLetter(elementTypeName);
         return String.format("""
             Array type '%s' is not supported. Wrap it in a POJO:
             public class %sList {
@@ -48,8 +49,8 @@ public class ErrorMessageFormatter {
             }
 
             Then use TypedPublisher<%sList> instead of TypedPublisher<%s>""",
-            typeName, elementTypeName, typeName, elementTypeName, elementTypeName,
-            typeName, elementTypeName, typeName
+            typeName, capitalizedElement, elementTypeName, capitalizedElement, capitalizedElement,
+            elementTypeName, capitalizedElement, typeName
         );
     }
 
@@ -143,7 +144,10 @@ public class ErrorMessageFormatter {
               1. Ensure type '%s' has a no-arg constructor
               2. Check JSON structure matches type fields
               3. Use @JsonProperty for custom field name mapping
-              4. Use @JsonDeserialize for custom deserialization logic""",
+              4. Use @JsonDeserialize for custom deserialization logic
+              5. Use @JsonAlias to accept multiple JSON field names
+
+            Note: Jackson annotations work transparently - the library delegates directly to ObjectMapper""",
             typeName, rootCause, truncatedPayload, typeName
         );
     }
@@ -162,9 +166,12 @@ public class ErrorMessageFormatter {
 
             Common fixes:
               1. Check for circular object references
-              2. Use @JsonIgnore for transient fields
-              3. Use @JsonSerialize for custom serialization
-              4. Ensure all fields are Jackson-serializable""",
+              2. Use @JsonIgnore for transient or internal fields
+              3. Use @JsonSerialize for custom serialization logic
+              4. Use @JsonProperty to customize field names in JSON
+              5. Ensure all fields are Jackson-serializable
+
+            Note: Jackson annotations work transparently - the library delegates directly to ObjectMapper""",
             typeName, rootCause
         );
     }
@@ -191,5 +198,12 @@ public class ErrorMessageFormatter {
             return payload.substring(0, maxLength) + "... [truncated]";
         }
         return payload;
+    }
+
+    private static String capitalizeFirstLetter(String str) {
+        if (str == null || str.isEmpty()) {
+            return str;
+        }
+        return str.substring(0, 1).toUpperCase() + str.substring(1);
     }
 }

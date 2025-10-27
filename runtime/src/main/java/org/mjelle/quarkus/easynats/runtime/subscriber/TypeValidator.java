@@ -1,8 +1,5 @@
 package org.mjelle.quarkus.easynats.runtime.subscriber;
 
-import com.fasterxml.jackson.databind.JavaType;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 /**
  * Validates Java types for Jackson serialization/deserialization compatibility.
  *
@@ -11,12 +8,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  * that cannot be instantiated by Jackson.
  */
 public class TypeValidator {
-
-    private final ObjectMapper objectMapper;
-
-    public TypeValidator(ObjectMapper objectMapper) {
-        this.objectMapper = objectMapper;
-    }
 
     /**
      * Validates a type for Jackson compatibility.
@@ -46,8 +37,6 @@ public class TypeValidator {
 
         // Try to construct Jackson type to validate introspection
         try {
-            JavaType jacksonType = objectMapper.getTypeFactory().constructType(type);
-
             // Check if type has a no-arg constructor (for non-records)
             if (!isRecord(type) && !validateNoArgConstructor(type)) {
                 return createMissingNoArgCtorError(type);
@@ -120,13 +109,13 @@ public class TypeValidator {
     private TypeValidationResult createPrimitiveTypeError(Class<?> type) {
         String typeName = type.getName();
         String wrapper = getWrapperClassName(typeName);
-        String message = String.format(
-            "Primitive type '%s' is not supported. Wrap it in a POJO:\n" +
-            "public class %sValue {\n" +
-            "    public %s value;\n" +
-            "    public %sValue() {}\n" +
-            "    public %sValue(%s value) { this.value = value; }\n" +
-            "}",
+        String message = String.format("""
+            Primitive type '%s' is not supported. Wrap it in a POJO:
+            public class %sValue {
+                public %s value;
+                public %sValue() {}
+                public %sValue(%s value) { this.value = value; }
+            }""",
             typeName, wrapper, typeName, wrapper, wrapper, typeName
         );
         return new TypeValidationResult(false, typeName, message, ValidationErrorType.PRIMITIVE_TYPE);
@@ -135,26 +124,26 @@ public class TypeValidator {
     private TypeValidationResult createArrayTypeError(Class<?> type) {
         String typeName = type.getSimpleName();
         String elementTypeName = type.getComponentType().getSimpleName();
-        String message = String.format(
-            "Array type '%s' is not supported. Wrap it in a POJO:\n" +
-            "public class %sList {\n" +
-            "    public %s[] items;\n" +
-            "    public %sList() {}\n" +
-            "    public %sList(%s[] items) { this.items = items; }\n" +
-            "}",
+        String message = String.format("""
+            Array type '%s' is not supported. Wrap it in a POJO:
+            public class %sList {
+                public %s[] items;
+                public %sList() {}
+                public %sList(%s[] items) { this.items = items; }
+            }""",
             typeName, elementTypeName, typeName, elementTypeName, elementTypeName, typeName
         );
         return new TypeValidationResult(false, typeName, message, ValidationErrorType.ARRAY_TYPE);
     }
 
     private TypeValidationResult createMissingNoArgCtorError(Class<?> type) {
-        String message = String.format(
-            "Type '%s' requires a no-arg constructor for Jackson deserialization.\n" +
-            "Add a no-arg constructor or use @JsonDeserialize with a custom deserializer.\n" +
-            "Example:\n" +
-            "public class %s {\n" +
-            "    public %s() {}  // Add this no-arg constructor\n" +
-            "}",
+        String message = String.format("""
+            Type '%s' requires a no-arg constructor for Jackson deserialization.
+            Add a no-arg constructor or use @JsonDeserialize with a custom deserializer.
+            Example:
+            public class %s {
+                public %s() {}  // Add this no-arg constructor
+            }""",
             type.getSimpleName(), type.getSimpleName(), type.getSimpleName()
         );
         return new TypeValidationResult(

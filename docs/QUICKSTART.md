@@ -416,24 +416,16 @@ public class Order {
 ## Full Documentation
 
 ### Type Support & Compatibility
-- **[Jackson Compatibility Guide](./JACKSON_COMPATIBILITY_GUIDE.md)** - Which types are supported, POJOs, Records, Generics, and Jackson annotations overview
+- **[Jackson Compatibility Guide](JACKSON_COMPATIBILITY_GUIDE.md)** - Which types are supported, POJOs, Records, Generics, and Jackson annotations overview
 
 ### Handling Unsupported Types
-- **[Wrapper Pattern Guide](./WRAPPER_PATTERN.md)** - How to wrap primitives, arrays, and types without no-arg constructors with complete examples
+- **[Wrapper Pattern Guide](WRAPPER_PATTERN.md)** - How to wrap primitives, arrays, and types without no-arg constructors with complete examples
 
 ### Troubleshooting
-- **[Error Troubleshooting Guide](./ERROR_TROUBLESHOOTING.md)** - Common errors, their causes, and step-by-step solutions with code examples
+- **[Error Troubleshooting Guide](ERROR_TROUBLESHOOTING.md)** - Common errors, their causes, and step-by-step solutions with code examples
 
 ### Advanced Topics
-- **[Jackson Annotations Deep Dive](./JACKSON_ANNOTATIONS_GUIDE.md)** - Comprehensive guide to using Jackson annotations (@JsonProperty, @JsonIgnore, @JsonDeserialize, @JsonSerialize, etc.) for customization
-
-## API & Architecture
-
-- Read the **[Typed Publisher Contract](./contracts/typed-publisher.md)** for detailed API documentation
-- Read the **[Typed Subscriber Contract](./contracts/typed-subscriber.md)** for error handling details
-- Read the **[Error Handling Contract](./contracts/errors.md)** for exception details
-- Check the **[Data Model](./data-model.md)** for type validation rules
-- See **[Feature Specification](./spec.md)** for complete requirements
+- **[Jackson Annotations Deep Dive](JACKSON_ANNOTATIONS_GUIDE.md)** - Comprehensive guide to using Jackson annotations (@JsonProperty, @JsonIgnore, @JsonDeserialize, @JsonSerialize, etc.) for customization
 
 ---
 
@@ -451,4 +443,3 @@ public class Order {
 - Don't rely on field order in JSON (use named parameters)
 - Don't use custom ObjectMapper (library provides one CDI bean)
 - Don't catch exceptions in subscriber expecting message ACK (will NAK instead)
-

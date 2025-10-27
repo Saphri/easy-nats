@@ -1,10 +1,7 @@
 package org.mjelle.quarkus.easynats.deployment.processor;
 
-import com.fasterxml.jackson.databind.type.TypeFactory;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import org.jboss.jandex.AnnotationInstance;
 import org.jboss.jandex.AnnotationTarget;
 import org.jboss.jandex.ClassInfo;
@@ -29,30 +26,6 @@ public class SubscriberDiscoveryProcessor {
 
     private static final DotName NATS_SUBSCRIBER =
             DotName.createSimple("org.mjelle.quarkus.easynats.NatsSubscriber");
-
-    // Primitive wrapper types and supported native types
-    private static final Set<DotName> SUPPORTED_NATIVE_TYPES = new HashSet<>();
-
-    static {
-        SUPPORTED_NATIVE_TYPES.add(DotName.createSimple(String.class));
-        SUPPORTED_NATIVE_TYPES.add(DotName.createSimple(Integer.class));
-        SUPPORTED_NATIVE_TYPES.add(DotName.createSimple(Long.class));
-        SUPPORTED_NATIVE_TYPES.add(DotName.createSimple(Double.class));
-        SUPPORTED_NATIVE_TYPES.add(DotName.createSimple(Float.class));
-        SUPPORTED_NATIVE_TYPES.add(DotName.createSimple(Boolean.class));
-        SUPPORTED_NATIVE_TYPES.add(DotName.createSimple(Short.class));
-        SUPPORTED_NATIVE_TYPES.add(DotName.createSimple(Character.class));
-        SUPPORTED_NATIVE_TYPES.add(DotName.createSimple(Byte.class));
-        SUPPORTED_NATIVE_TYPES.add(DotName.createSimple(byte[].class));
-        SUPPORTED_NATIVE_TYPES.add(DotName.createSimple(int[].class));
-        SUPPORTED_NATIVE_TYPES.add(DotName.createSimple(long[].class));
-        SUPPORTED_NATIVE_TYPES.add(DotName.createSimple(double[].class));
-        SUPPORTED_NATIVE_TYPES.add(DotName.createSimple(float[].class));
-        SUPPORTED_NATIVE_TYPES.add(DotName.createSimple(boolean[].class));
-        SUPPORTED_NATIVE_TYPES.add(DotName.createSimple(short[].class));
-        SUPPORTED_NATIVE_TYPES.add(DotName.createSimple(char[].class));
-        SUPPORTED_NATIVE_TYPES.add(DotName.createSimple(String[].class));
-    }
 
     /**
      * Discovers all methods annotated with {@code @NatsSubscriber}.
@@ -120,9 +93,7 @@ public class SubscriberDiscoveryProcessor {
      * <p>
      * Validates that:
      * 1. Method has exactly 1 parameter
-     * 2. Parameter type is either:
-     *    - A native supported type (String, Integer, Long, byte[], int[], etc.)
-     *    - A Jackson-deserializable complex type (POJO, record, generic)
+     * 2. Parameter type is Jackson-compatible (not primitive, not array, has no-arg constructor)
      * </p>
      *
      * @param method the method to validate
@@ -141,92 +112,90 @@ public class SubscriberDiscoveryProcessor {
         Type parameterType = method.parameterType(0);
         DotName paramTypeName = parameterType.name();
 
-        // Check if it's a supported native type (including native arrays)
-        if (SUPPORTED_NATIVE_TYPES.contains(paramTypeName)) {
-            LOGGER.debugf(
-                    "Parameter type %s is a supported native type for method %s.%s",
-                    paramTypeName, declaringClass.name(), method.name());
-            return;
-        }
+        // Validate Jackson compatibility: reject primitives and arrays at build time
+        validateJacksonCompatibility(parameterType, paramTypeName, method, declaringClass);
 
-        // Check for primitive types (not allowed, use wrapper types instead)
-        if (isPrimitive(paramTypeName)) {
+        LOGGER.debugf(
+                "Parameter type %s is Jackson-compatible for method %s.%s",
+                paramTypeName, declaringClass.name(), method.name());
+    }
+
+    /**
+     * Validates that a parameter type is Jackson-compatible.
+     *
+     * <p>
+     * Rejects:
+     * - Primitive types (int, long, double, etc.)
+     * - Array types (int[], String[], etc.)
+     * </p>
+     *
+     * For complex types that might not have no-arg constructors,
+     * validation will happen at runtime during subscriber initialization.
+     *
+     * @param parameterType the parameter type to validate
+     * @param paramTypeName the DotName of the parameter type
+     * @param method the method being validated
+     * @param declaringClass the class declaring the method
+     * @throws IllegalArgumentException if the type is not Jackson-compatible
+     */
+    private void validateJacksonCompatibility(
+            Type parameterType,
+            DotName paramTypeName,
+            MethodInfo method,
+            ClassInfo declaringClass) {
+        // Check for primitive types
+        if (isPrimitiveType(paramTypeName)) {
             throw new IllegalArgumentException(
                     String.format(
-                            "@NatsSubscriber method %s.%s parameter %s is a raw primitive; use wrapper type %s instead",
-                            declaringClass.name(), method.name(), paramTypeName,
-                            getPrimitiveWrapperType(paramTypeName)));
+                            "Primitive type '%s' is not supported for @NatsSubscriber parameter in method %s.%s. " +
+                            "Wrap it in a POJO: public class %sValue { public %s value; public %sValue() {}; }",
+                            paramTypeName,
+                            declaringClass.name(), method.name(),
+                            getPrimitiveWrapperName(paramTypeName),
+                            paramTypeName,
+                            getPrimitiveWrapperName(paramTypeName)));
         }
 
-        // For complex types, validate with Jackson TypeFactory if possible
-        // Skip validation if the class cannot be loaded at build time (e.g., integration test classes)
-        String typeString = paramTypeName.toString();
-        Class<?> typeClass;
-        try {
-            typeClass = Class.forName(typeString);
-        } catch (ClassNotFoundException e) {
-            // Type not available at build time - this is expected for integration test classes
-            // Trust that the user type is properly Jackson-deserializable
-            LOGGER.debugf(
-                    "Parameter type %s not available at build time; skipping deserialization validation for method %s.%s",
-                    paramTypeName, declaringClass.name(), method.name());
-            return;
-        }
-
-        // Check if it's a record - records are inherently Jackson-deserializable
-        if (typeClass.isRecord()) {
-            LOGGER.debugf(
-                    "Parameter type %s is a Java record (Jackson-deserializable) for method %s.%s",
-                    paramTypeName, declaringClass.name(), method.name());
-            return;
-        }
-
-        // For non-record complex types, validate with Jackson TypeFactory
-        try {
-            TypeFactory typeFactory = TypeFactory.defaultInstance();
-            typeFactory.constructType(typeClass);
-            LOGGER.debugf(
-                    "Parameter type %s is Jackson-deserializable for method %s.%s",
-                    paramTypeName, declaringClass.name(), method.name());
-        } catch (Exception e) {
+        // Check for array types
+        if (parameterType.kind() == Type.Kind.ARRAY) {
+            Type componentType = parameterType.asArrayType().componentType();
             throw new IllegalArgumentException(
                     String.format(
-                            "@NatsSubscriber method %s.%s parameter %s is not Jackson-deserializable; ensure it has a no-arg constructor or @JsonCreator annotation. Details: %s",
-                            declaringClass.name(), method.name(), paramTypeName, e.getMessage()),
-                    e);
+                            "Array type '%s' is not supported for @NatsSubscriber parameter in method %s.%s. " +
+                            "Wrap it in a POJO: public class %sList { public %s[] items; public %sList() {}; }",
+                            paramTypeName,
+                            declaringClass.name(), method.name(),
+                            componentType.name(),
+                            componentType.name(),
+                            componentType.name()));
         }
     }
 
     /**
-     * Checks if a type is a primitive type (int, long, boolean, etc.).
-     *
-     * @param typeName the type name
-     * @return true if the type is a primitive type
+     * Checks if a type name represents a primitive type.
      */
-    private boolean isPrimitive(DotName typeName) {
+    private boolean isPrimitiveType(DotName typeName) {
         String name = typeName.toString();
-        return name.equals("int") || name.equals("long") || name.equals("boolean")
-                || name.equals("double") || name.equals("float") || name.equals("short")
-                || name.equals("char") || name.equals("byte");
+        return name.equals("int") || name.equals("long") || name.equals("double") ||
+                name.equals("float") || name.equals("boolean") || name.equals("byte") ||
+                name.equals("short") || name.equals("char");
     }
 
     /**
-     * Gets the wrapper type name for a primitive type.
-     *
-     * @param primitiveTypeName the primitive type name
-     * @return the wrapper type name
+     * Gets the wrapper class name for a primitive type.
      */
-    private String getPrimitiveWrapperType(DotName primitiveTypeName) {
-        return switch (primitiveTypeName.toString()) {
-            case "int" -> "Integer";
+    private String getPrimitiveWrapperName(DotName primitiveType) {
+        String name = primitiveType.toString();
+        return switch (name) {
+            case "int" -> "Int";
             case "long" -> "Long";
-            case "boolean" -> "Boolean";
             case "double" -> "Double";
             case "float" -> "Float";
-            case "short" -> "Short";
-            case "char" -> "Character";
+            case "boolean" -> "Boolean";
             case "byte" -> "Byte";
-            default -> "Object";
+            case "short" -> "Short";
+            case "char" -> "Char";
+            default -> "Value";
         };
     }
 }
