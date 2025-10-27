@@ -1,10 +1,17 @@
 # Feature Specification: Durable Consumers for @NatsSubscriber
 
-**Feature Branch**: `001-durable-nats-consumers`
+**Feature Branch**: `008-durable-nats-consumers`
 **Continues**: `007-typed-serialization`
 **Created**: 2025-10-27
 **Status**: Draft
 **Input**: User description: "as a developer I would like to use preconfigured durable consumers with my @NatsSubscriber"
+
+## Clarifications
+
+### Session 2025-10-27
+
+- Q: What should be the default values for the `stream` and `consumer` annotation properties? → A: No defaults; both are required parameters when using durable consumer mode.
+- Q: When using a durable consumer, what validation applies to the `subject` property? → A: Build fails if `subject` is non-empty when `stream` and `consumer` are provided.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -36,12 +43,13 @@ As a developer, I want to specify a stream and a durable consumer name in my `@N
 
 ### Functional Requirements
 
-- **FR-001**: The `@NatsSubscriber` annotation MUST include a `subject` property to specify the NATS subject to subscribe to, defaulting to `""`.
-- **FR-002**: The `@NatsSubscriber` annotation MUST include a `stream` property to specify the name of the NATS JetStream stream.
-- **FR-003**: The `@NatsSubscriber` annotation MUST include a `consumer` property to specify the name of the durable consumer to use.
-- **FR-004**: The annotation MUST enforce that either `subject` is provided, or both `stream` and `consumer` are provided, but not both sets.
-- **FR-005**: If a `consumer` is specified in `@NatsSubscriber`, the application MUST verify that the consumer exists on the specified `stream` on the NATS server at startup.
-- **FR-006**: If the specified durable consumer does not exist, the application MUST fail to start with a clear error message.
+- **FR-001**: The `@NatsSubscriber` annotation MUST include a `subject` property to specify the NATS subject to subscribe to, with no default value (required when using ephemeral consumer mode).
+- **FR-002**: The `@NatsSubscriber` annotation MUST include a `stream` property with no default value (required when using durable consumer mode).
+- **FR-003**: The `@NatsSubscriber` annotation MUST include a `consumer` property with no default value (required when using durable consumer mode).
+- **FR-004**: The annotation MUST enforce that either `subject` is provided (ephemeral consumer mode), or both `stream` and `consumer` are provided (durable consumer mode), but not both sets.
+- **FR-005**: The annotation MUST validate at build time that if `stream` and `consumer` are provided, the `subject` property MUST be empty; build fails if `subject` is non-empty in durable consumer mode.
+- **FR-006**: If a `consumer` is specified in `@NatsSubscriber`, the application MUST verify that the consumer exists on the specified `stream` on the NATS server at startup.
+- **FR-007**: If the specified durable consumer does not exist, the application MUST fail to start with a clear error message.
 
 ## Success Criteria *(mandatory)*
 

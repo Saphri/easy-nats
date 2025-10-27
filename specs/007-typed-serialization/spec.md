@@ -112,7 +112,7 @@ Library documentation explicitly lists what makes a type Jackson-compatible and 
 - **FR-002**: System MUST automatically deserialize received messages to the declared type when subscribing (using the default CDI-injected ObjectMapper)
 - **FR-003**: System MUST respect Jackson annotations (`@JsonProperty`, `@JsonIgnore`, `@JsonDeserialize`, etc.) during serialization/deserialization
 - **FR-004**: System MUST reject unsupported types (primitives, arrays, types without no-arg constructors) at publisher/subscriber registration using Jackson type introspection
-- **FR-005**: System MUST provide clear, actionable error messages when serialization/deserialization fails, logged as free-form human-readable text at ERROR level, including target type, Jackson root cause, and debugging context
+- **FR-005**: System MUST provide clear, actionable error messages when serialization/deserialization fails, logged as free-form human-readable text at ERROR level. The log message format MUST include: the action that failed (e.g., "deserialize"), the subscriber context (e.g., subject and consumer), the target message type, the root cause from the underlying Jackson exception, and a truncated snippet of the raw message payload for debugging.
 - **FR-006**: Documentation MUST define what types are Jackson-compatible and what are not (with examples)
 - **FR-007**: Documentation MUST provide a clear wrapper pattern for users with unsupported types
 

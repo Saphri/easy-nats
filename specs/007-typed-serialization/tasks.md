@@ -13,7 +13,7 @@ This document defines implementation tasks for the **Typed Serialization with Ja
 
 **Implementation Scope**:
 - 4 user stories (P1 + P2 priorities)
-- 45 implementation tasks
+- 64 implementation tasks
 - ~2-3 weeks estimated effort (serial execution)
 - Independent testing per story (can demo MVP after US1)
 
@@ -230,64 +230,64 @@ This document defines implementation tasks for the **Typed Serialization with Ja
 
 ### Tasks
 
-- [ ] T028 [US2] Implement type validation at publisher runtime validation:
+- [x] T028 [US2] Implement type validation at publisher runtime validation:
   - Add type validation in NatsPublisher.publish() method that extracts generic type T
   - Call `TypeValidator.validate(T)` before first serialization
   - If invalid: Throw `IllegalArgumentException` with clear error message
   - Type validation happens on first publish (fails fast when actually used)
   - Caches validation result to avoid repeated validation
 
-- [ ] T029 [US2] Implement type validation at subscriber registration in SubscriberDiscoveryProcessor:
+- [x] T029 [US2] Implement type validation at subscriber registration in SubscriberDiscoveryProcessor:
   - Update `validateMethodSignature()` in SubscriberDiscoveryProcessor to validate parameter types
   - Call `TypeValidator.validate(parameterType)` for each @NatsSubscriber method parameter
   - If invalid: Throw `IllegalArgumentException` with clear error message and fail build
   - Type validation happens at build time via Jandex inspection
   - Fail-fast: Application won't build if subscriber uses unsupported type
 
-- [ ] T030 [US2] Add unit test for primitive type rejection in `TypeValidatorTest`:
+- [x] T030 [US2] Add unit test for primitive type rejection in `TypeValidatorTest`:
   - Test: `testPrimitiveIntRejected()` - Verify `int` rejected with message about wrapper
   - Test: `testPrimitiveLongRejected()` - Verify `long` rejected
   - Test: `testPrimitiveDoubleRejected()` - Verify `double` rejected
   - All should return `TypeValidationResult` with `valid=false` and error type `PRIMITIVE_TYPE`
 
-- [ ] T031 [US2] Add unit test for array type rejection in `TypeValidatorTest`:
+- [x] T031 [US2] Add unit test for array type rejection in `TypeValidatorTest`:
   - Test: `testArrayIntRejected()` - Verify `int[]` rejected with message about wrapper
   - Test: `testArrayStringRejected()` - Verify `String[]` rejected
   - All should return `TypeValidationResult` with `valid=false` and error type `ARRAY_TYPE`
 
-- [ ] T032 [US2] Add unit test for missing no-arg constructor in `TypeValidatorTest`:
+- [x] T032 [US2] Add unit test for missing no-arg constructor in `TypeValidatorTest`:
   - Create test class `TypeWithoutNoArgCtor` (constructor only takes String)
   - Test: `testMissingNoArgCtorRejected()` - Verify rejected with message suggesting adding no-arg ctor
   - Should return `TypeValidationResult` with error type `MISSING_NO_ARG_CTOR`
 
-- [ ] T033 [US2] Create integration test model: `integration-tests/src/main/java/org/mjelle/quarkus/easynats/it/model/InvalidType.java`
+- [x] T033 [US2] Create integration test model: `integration-tests/src/main/java/org/mjelle/quarkus/easynats/it/model/InvalidType.java`
   - Type without no-arg constructor for testing rejection
   - Constructor takes required parameters
 
-- [ ] T034 [US2] Create integration test model: `integration-tests/src/main/java/org/mjelle/quarkus/easynats/it/model/UnsupportedType.java`
+- [x] T034 [US2] Create integration test model: `integration-tests/src/main/java/org/mjelle/quarkus/easynats/it/model/UnsupportedType.java`
   - Primitive wrapper (Integer) used as direct subscription type for testing rejection
 
-- [ ] T035 [US2] Add test to TypedSerializationTest: `testPrimitiveTypeRejectedAtRegistration()`
+- [x] T035 [US2] Add test to TypedSerializationTest: `testPrimitiveTypeRejectedAtRegistration()`
   - Attempt to inject `TypedPublisher<Integer>` with @NatsSubject
   - Verify application fails to start with clear error message about wrapper pattern
 
-- [ ] T036 [US2] Add test to TypedSerializationTest: `testArrayTypeRejectedAtRegistration()`
+- [x] T036 [US2] Add test to TypedSerializationTest: `testArrayTypeRejectedAtRegistration()`
   - Attempt to inject `TypedPublisher<String[]>` with @NatsSubject
   - Verify application fails to start with clear error message
 
-- [ ] T037 [US2] Add test to TypedSerializationTest: `testMissingNoArgCtorRejectedAtRegistration()`
+- [x] T037 [US2] Add test to TypedSerializationTest: `testMissingNoArgCtorRejectedAtRegistration()`
   - Attempt to inject `TypedPublisher<InvalidType>` where InvalidType has no no-arg ctor
   - Verify application fails to start with clear error message
 
-- [ ] T038 [US2] Add test to TypedSerializationTest: `testSubscriberTypeValidationFailsFast()`
+- [x] T038 [US2] Add test to TypedSerializationTest: `testSubscriberTypeValidationFailsFast()`
   - Create @NatsSubscriber method with unsupported type parameter
   - Verify application fails to start at subscriber registration
 
-- [ ] T039 [US2] Run integration tests and verify error messages are clear: `./mvnw -pl integration-tests clean test -Dtest=TypedSerializationTest`
+- [x] T039 [US2] Run integration tests and verify error messages are clear: `./mvnw -pl integration-tests clean test -Dtest=TypedSerializationTest`
   - All rejection tests pass
   - Error messages visible in test output
 
-- [ ] T040 [US2] Verify error messages include wrapper pattern examples in `ErrorMessageFormatterTest`:
+- [x] T040 [US2] Verify error messages include wrapper pattern examples in `ErrorMessageFormatterTest`:
   - Test: `testPrimitiveTypeErrorIncludes WrappingExample()`
   - Test: `testArrayTypeErrorIncludesWrappingExample()`
   - Verify each error message contains POJO example and explanation
@@ -318,13 +318,13 @@ This document defines implementation tasks for the **Typed Serialization with Ja
 
 ### Tasks
 
-- [ ] T041 [US3] Create annotated test model: `integration-tests/src/main/java/org/mjelle/quarkus/easynats/it/model/AnnotatedOrderData.java`
+- [x] T041 [US3] Create annotated test model: `integration-tests/src/main/java/org/mjelle/quarkus/easynats/it/model/AnnotatedOrderData.java`
   - Field with `@JsonProperty("order_id")` for renamed field in JSON
   - Field with `@JsonIgnore` to exclude from serialization
   - Regular field for baseline comparison
   - Document: "This shows Jackson annotations work with the library"
 
-- [ ] T042 [US3] Add smoke test to TypedSerializationTest: `testAnnotatedTypesSerializationRoundtrip()`
+- [x] T042 [US3] Add smoke test to TypedSerializationTest: `testAnnotatedTypesSerializationRoundtrip()`
   - Serialize AnnotatedOrderData → Jackson applies annotations → JSON produced (with renamed/ignored fields)
   - Wrap JSON in CloudEvents binary-mode → add separate headers + unchanged JSON body → transmission
   - Unwrap CloudEvents → extract JSON body unchanged
@@ -333,13 +333,13 @@ This document defines implementation tasks for the **Typed Serialization with Ja
   - Purpose: Regression test for typed serialization with annotations (no functionality regression)
   - **Note**: Jackson's annotation processing happens on the JSON body independent of CloudEvents headers. Binary-mode means headers and body are separate, so there's no interference possible. This test verifies the round-trip works end-to-end.
 
-- [ ] T043 [US3] Update error messages to suggest Jackson annotations:
+- [x] T043 [US3] Update error messages to suggest Jackson annotations:
   - When type fails validation, suggest using `@JsonProperty` for field mapping
   - When deserialization fails, suggest `@JsonDeserialize` for custom logic
   - When serialization fails, suggest `@JsonIgnore` for transient fields
   - Files to update: ErrorMessageFormatter.java
 
-- [ ] T044 [US3] Create documentation: `specs/007-typed-serialization/JACKSON_ANNOTATIONS_GUIDE.md`
+- [x] T044 [US3] Create documentation: `specs/007-typed-serialization/JACKSON_ANNOTATIONS_GUIDE.md`
   - Section 1: "Standard Jackson Annotations Work" - Library delegates to Jackson, so all standard annotations work transparently
   - Section 2: "@JsonProperty" - Customize JSON field names (example: field `id` → JSON key `order_id`)
   - Section 3: "@JsonIgnore" - Exclude fields from JSON serialization (example: password field not sent)
@@ -347,13 +347,13 @@ This document defines implementation tasks for the **Typed Serialization with Ja
   - Section 5: "@JsonSerialize" - Custom serialization logic (example: custom date formatting)
   - Include clear note: "These are standard Jackson annotations. The library doesn't add anything - it just uses Jackson's ObjectMapper directly, so all Jackson features work out of the box"
 
-- [ ] T045 [US3] Run smoke test: `./mvnw -pl integration-tests clean test -Dtest=TypedSerializationTest#testAnnotatedTypesSerializationRoundtrip`
+- [x] T045 [US3] Run smoke test: `./mvnw -pl integration-tests clean test -Dtest=TypedSerializationTest#testAnnotatedTypesSerializationRoundtrip`
   - Verify annotated types serialize/deserialize correctly through library
   - JSON carries annotations' effects (renamed fields, missing ignored fields)
   - CloudEvents wrapping doesn't interfere with Jackson annotation processing
   - No regression when using annotated types
 
-- [ ] T046 [US3] Review Phase 5 completion:
+- [x] T046 [US3] Review Phase 5 completion:
   - Smoke test passes (CloudEvents wrapping doesn't break annotations)
   - Error messages guide users to annotations for customization
   - Documentation clearly states library delegates to Jackson

@@ -1,6 +1,7 @@
 # Feature Specification: Transparent CloudEvent Publisher
 
 **Feature Branch**: `005-transparent-cloudevents`
+**Continues**: `004-nats-subscriber-mvp`
 **Created**: 2025-10-26
 **Status**: Draft
 **Input**: User description: "as a developer I want to send typed objects using NatsPublisher, that transparent to me, encodes the message in CloudEvent format... ie NatsPublisher.publish(payload) is sendt encoded as cloudevent, removing the need for NatsPublisher.publishCloudEvent methods. All required headers for cloudevent is just auto generated for me"

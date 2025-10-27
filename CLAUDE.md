@@ -462,6 +462,8 @@ if (appName != null && !appName.isEmpty()) {
 - N/A (messaging system, no data storage) (006-typed-subscriber)
 - Java 21 (enforced per Constitution Principle IV) + Jackson Databind (JSON serialization), NATS JetStream client, Quarkus Arc (CDI) (007-typed-serialization)
 - N/A (messaging system) (007-typed-serialization)
+- Java 21 (enforced per Constitution IV) + Quarkus 3.27.0, NATS JetStream client (io.nats:jnats), Jackson Databind (inherited from 007-typed-serialization) (001-durable-nats-consumers)
+- N/A (messages managed by NATS JetStream) (001-durable-nats-consumers)
 
 ## Recent Changes
 - 005-transparent-cloudevents: Implemented transparent CloudEvent wrapping in NatsPublisher with custom PublishingException
