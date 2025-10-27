@@ -1,13 +1,24 @@
 package org.mjelle.quarkus.easynats;
 
+import java.io.IOException;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.nats.client.JetStream;
+import io.nats.client.JetStreamApiException;
 import jakarta.enterprise.context.Dependent;
 
 /**
- * Generic injectable wrapper for publishing typed messages to NATS JetStream.
+ * Generic injectable wrapper for publishing typed messages to NATS JetStream as CloudEvents.
  *
- * Supports both primitive types (native encoding) and complex types (Jackson serialization).
+ * All messages published through this class are automatically wrapped in the CloudEvents 1.0 format.
+ * Supports both primitive types (native encoding) and complex types (Jackson serialization) for the
+ * payload. The CloudEvents metadata is generated automatically and includes:
+ * - ce-specversion: "1.0"
+ * - ce-type: The fully-qualified class name of the payload
+ * - ce-source: The application name (from quarkus.application.name), hostname, or "localhost"
+ * - ce-id: Auto-generated UUID
+ * - ce-time: Current timestamp in ISO 8601 UTC format
+ * - ce-datacontenttype: "application/json"
  *
  * @param <T> the type of payload to publish
  */
@@ -42,82 +53,60 @@ public class NatsPublisher<T> {
     }
 
     /**
-     * Publishes a typed payload to the default NATS subject.
+     * Publishes a typed payload to the default NATS subject as a CloudEvent.
      * The default subject must be configured via @NatsSubject.
      *
+     * The payload is automatically wrapped in CloudEvents 1.0 format with:
+     * - ce-specversion: "1.0"
+     * - ce-type: The fully-qualified class name of the payload
+     * - ce-source: The application name (from quarkus.application.name), hostname, or "localhost"
+     * - ce-id: Auto-generated UUID
+     * - ce-time: Current timestamp in ISO 8601 UTC format
+     * - ce-datacontenttype: "application/json"
+     *
      * @param payload the object to publish (must not be null)
-     * @throws IllegalStateException if the default subject is not configured
      * @throws IllegalArgumentException if payload is null
-     * @throws SerializationException if serialization fails
-     * @throws Exception if publication fails (connection error, broker unreachable, etc.)
+     * @throws PublishingException if the default subject is not configured or if publication fails
      */
-    public void publish(T payload) throws Exception {
+    public void publish(T payload) throws PublishingException {
         validateDefaultSubject();
         publish(this.subject, payload);
     }
 
     /**
-     * Publishes a typed payload to the specified NATS subject.
+     * Publishes a typed payload to the specified NATS subject as a CloudEvent.
+     *
+     * The payload is automatically wrapped in CloudEvents 1.0 format with:
+     * - ce-specversion: "1.0"
+     * - ce-type: The fully-qualified class name of the payload
+     * - ce-source: The application name (from quarkus.application.name), hostname, or "localhost"
+     * - ce-id: Auto-generated UUID
+     * - ce-time: Current timestamp in ISO 8601 UTC format
+     * - ce-datacontenttype: "application/json"
      *
      * @param subject the NATS subject to publish to
      * @param payload the object to publish (must not be null)
      * @throws IllegalArgumentException if payload is null
-     * @throws SerializationException if serialization fails
-     * @throws Exception if publication fails (connection error, broker unreachable, etc.)
+     * @throws PublishingException if publication fails (serialization error, connection error, broker unreachable, etc.)
      */
-    public void publish(String subject, T payload) throws Exception {
+    public void publish(String subject, T payload) throws PublishingException {
         if (payload == null) {
             throw new IllegalArgumentException("Cannot publish null object");
         }
 
-        byte[] encodedPayload = encodePayload(payload);
-        JetStream jetStream = connectionManager.getJetStream();
-        jetStream.publish(subject, encodedPayload);
-    }
+        try {
+            byte[] encodedPayload = encodePayload(payload);
+            CloudEventsHeaders.HeadersWithMetadata hwm = CloudEventsHeaders.createHeadersWithMetadata(
+                payload.getClass(), null, null);
 
-    /**
-     * Publishes a typed payload with CloudEvents metadata headers to the default subject.
-     *
-     * @param payload the object to publish (must not be null)
-     * @param ceType the CloudEvents type (nullable; auto-generated if null)
-     * @param ceSource the CloudEvents source (nullable; auto-generated if null)
-     * @return the CloudEventsMetadata that was published (includes generated ce-id and ce-time)
-     * @throws IllegalStateException if the default subject is not configured
-     * @throws IllegalArgumentException if payload is null
-     * @throws SerializationException if serialization fails
-     * @throws Exception if publication fails
-     */
-    public CloudEventsHeaders.CloudEventsMetadata publishCloudEvent(T payload, String ceType, String ceSource) throws Exception {
-        validateDefaultSubject();
-        return publishCloudEvent(this.subject, payload, ceType, ceSource);
-    }
-
-    /**
-     * Publishes a typed payload with CloudEvents metadata headers to the specified subject.
-     *
-     * @param subject the NATS subject to publish to
-     * @param payload the object to publish (must not be null)
-     * @param ceType the CloudEvents type (nullable; auto-generated if null)
-     * @param ceSource the CloudEvents source (nullable; auto-generated if null)
-     * @return the CloudEventsMetadata that was published (includes generated ce-id and ce-time)
-     * @throws IllegalArgumentException if payload is null
-     * @throws SerializationException if serialization fails
-     * @throws Exception if publication fails
-     */
-    public CloudEventsHeaders.CloudEventsMetadata publishCloudEvent(String subject, T payload, String ceType, String ceSource) throws Exception {
-        if (payload == null) {
-            throw new IllegalArgumentException("Cannot publish null object");
+            JetStream jetStream = connectionManager.getJetStream();
+            jetStream.publish(subject, hwm.headers, encodedPayload);
+        } catch (IOException | JetStreamApiException | SerializationException e) {
+            // Wrap other exceptions (NATS connection, broker errors, etc.)
+            throw new PublishingException("Failed to publish message to subject '" + subject + "'", e);
         }
-
-        byte[] encodedPayload = encodePayload(payload);
-        CloudEventsHeaders.HeadersWithMetadata hwm = CloudEventsHeaders.createHeadersWithMetadata(
-            payload.getClass(), ceType, ceSource);
-
-        JetStream jetStream = connectionManager.getJetStream();
-        jetStream.publish(subject, hwm.headers, encodedPayload);
-
-        return hwm.metadata;
     }
+
 
     /**
      * Encode a payload using the appropriate encoder strategy.
@@ -141,11 +130,11 @@ public class NatsPublisher<T> {
     /**
      * Validates that a default subject is configured for this publisher.
      *
-     * @throws IllegalStateException if the default subject is not configured
+     * @throws PublishingException if the default subject is not configured
      */
-    private void validateDefaultSubject() {
+    private void validateDefaultSubject() throws PublishingException {
         if (this.subject == null || this.subject.trim().isEmpty()) {
-            throw new IllegalStateException("Default NATS subject is not configured for this publisher. Use @NatsSubject or provide the subject dynamically.");
+            throw new PublishingException("Default NATS subject is not configured for this publisher. Use @NatsSubject or provide the subject dynamically.");
         }
     }
 }

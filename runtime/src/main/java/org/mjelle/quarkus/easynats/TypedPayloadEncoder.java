@@ -1,5 +1,6 @@
 package org.mjelle.quarkus.easynats;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
@@ -156,7 +157,7 @@ public class TypedPayloadEncoder {
     public static byte[] encodeWithJackson(Object value, ObjectMapper mapper) throws SerializationException {
         try {
             return mapper.writeValueAsBytes(value);
-        } catch (Exception e) {
+        } catch (JsonProcessingException e) {
             String className = value.getClass().getSimpleName();
             throw new SerializationException(
                 "Failed to serialize " + className + ": " + e.getMessage(), e

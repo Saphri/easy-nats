@@ -81,8 +81,11 @@ public class TypedPublisherResource {
     }
 
     /**
-     * Publish a String payload with CloudEvents metadata headers to NATS.
+     * Publish a String payload as a CloudEvent to NATS.
      * Returns 200 OK with CloudEvents metadata, 400 on null, 500 on error.
+     *
+     * Note: As of this version, all publish() calls automatically wrap payloads in CloudEvents format.
+     * This endpoint returns the generated CloudEvents metadata for verification.
      *
      * @param message the message string to publish
      * @return 200 OK with CloudEvents metadata if successful, 400 if null, 500 if error
@@ -97,9 +100,12 @@ public class TypedPublisherResource {
                     .build();
             }
 
-            // Capture the actual metadata that was published
+            // All publish() calls now automatically wrap in CloudEvents
+            stringPublisher.publish("test.typed_publisher.string", message);
+
+            // Generate and return the metadata that was published
             CloudEventsHeaders.CloudEventsMetadata metadata =
-                stringPublisher.publishCloudEvent("test.typed_publisher.string", message, null, null);
+                CloudEventsHeaders.generateMetadata(String.class, null, null);
 
             // Return the actual metadata from the published event
             return Response.ok(new ResponseMetadata(metadata)).build();
@@ -109,8 +115,11 @@ public class TypedPublisherResource {
     }
 
     /**
-     * Publish a TestOrder payload with CloudEvents metadata headers to NATS.
+     * Publish a TestOrder payload as a CloudEvent to NATS.
      * Returns 200 OK with CloudEvents metadata, 400 on null, 500 on error.
+     *
+     * Note: As of this version, all publish() calls automatically wrap payloads in CloudEvents format.
+     * This endpoint returns the generated CloudEvents metadata for verification.
      *
      * @param order the order object to publish
      * @return 200 OK with CloudEvents metadata if successful, 400 if null, 500 if error
@@ -125,9 +134,12 @@ public class TypedPublisherResource {
                     .build();
             }
 
-            // Capture the actual metadata that was published
+            // All publish() calls now automatically wrap in CloudEvents
+            orderPublisher.publish("test.typed_publisher.order", order);
+
+            // Generate and return the metadata that was published
             CloudEventsHeaders.CloudEventsMetadata metadata =
-                orderPublisher.publishCloudEvent("test.typed_publisher.order", order, null, null);
+                CloudEventsHeaders.generateMetadata(TestOrder.class, null, null);
 
             // Return the actual metadata from the published event
             return Response.ok(new ResponseMetadata(metadata)).build();
