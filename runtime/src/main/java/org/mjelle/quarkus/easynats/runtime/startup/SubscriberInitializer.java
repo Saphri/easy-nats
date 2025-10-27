@@ -102,7 +102,7 @@ public class SubscriberInitializer {
                 objectMapper);
 
         // Create ephemeral consumer configuration
-        ConsumerConfiguration consumerConfig = EphemeralConsumerFactory.createEphemeralConsumerConfig();
+        ConsumerConfiguration consumerConfig = EphemeralConsumerFactory.createEphemeralConsumerConfig(metadata.subject());
 
         // Create the ephemeral consumer using JetStreamManagement
         JetStreamManagement jsm = connectionManager.getConnection().jetStreamManagement();
