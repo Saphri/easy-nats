@@ -43,7 +43,7 @@ As a developer, I want to publish a Plain Old Java Object (POJO) using a simple 
 - **FR-003**: The framework MUST automatically generate all mandatory CloudEvents attributes:
     - `specversion`: MUST be "1.0".
     - `id`: MUST be a unique identifier (e.g., UUID).
-    - `source`: MUST be configurable via `quarkus.easynats.cloudevents.source`. If not set, it MUST default to the value of `quarkus.application.name`.
+    - `source`: MUST be the value of `quarkus.application.name`.
     - `type`: MUST be determined by the payload's class. For complex POJOs, it is the fully qualified class name (e.g., `com.example.User`). For native types, it is the simple class name (e.g., `byte[]`, `java.lang.String`).
     - `datacontenttype`: MUST be `application/json` for POJOs. For native types, it MUST be `text/plain`, with the payload encoded as a string (or Base64 for `byte[]`).
 - **FR-004**: The framework MUST use the logic from `TypedPayloadEncoder` to differentiate between native types and complex POJOs to determine the correct encoding and `type`/`datacontenttype` headers.

@@ -1,8 +1,6 @@
 package org.mjelle.quarkus.easynats;
 
 import io.nats.client.impl.Headers;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.time.Instant;
 import java.util.UUID;
 import org.eclipse.microprofile.config.ConfigProvider;

@@ -116,9 +116,9 @@ class NatsPublisherTest {
     }
 
     @Test
-    void testPublishNullThrowsIllegalArgumentException() throws Exception {
+    void testPublishNullThrowsPublishingException() throws Exception {
         assertThatThrownBy(() -> stringPublisher.publish("test", null))
-            .isInstanceOf(IllegalArgumentException.class)
+            .isInstanceOf(PublishingException.class)
             .hasMessage("Cannot publish null object");
 
         verify(jetStream, never()).publish(anyString(), any(byte[].class));

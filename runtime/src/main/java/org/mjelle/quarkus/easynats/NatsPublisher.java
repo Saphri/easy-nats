@@ -86,12 +86,11 @@ public class NatsPublisher<T> {
      *
      * @param subject the NATS subject to publish to
      * @param payload the object to publish (must not be null)
-     * @throws IllegalArgumentException if payload is null
-     * @throws PublishingException if publication fails (serialization error, connection error, broker unreachable, etc.)
+     * @throws PublishingException if publication fails (payload is null, serialization error, connection error, broker unreachable, etc.)
      */
     public void publish(String subject, T payload) throws PublishingException {
         if (payload == null) {
-            throw new IllegalArgumentException("Cannot publish null object");
+            throw new PublishingException("Cannot publish null object");
         }
 
         try {
