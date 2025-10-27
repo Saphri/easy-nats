@@ -20,10 +20,11 @@ description: "Task list template for feature implementation"
 
 ## Path Conventions
 
-- **Single project**: `src/`, `tests/` at repository root
-- **Web app**: `backend/src/`, `frontend/src/`
-- **Mobile**: `api/src/`, `ios/src/` or `android/src/`
-- Paths shown below assume single project - adjust based on plan.md structure
+- **Runtime code**: `runtime/src/main/java/org/mjelle/quarkus/easynats/`
+- **Runtime tests**: `runtime/src/test/java/org/mjelle/quarkus/easynats/`
+- **Deployment code**: `deployment/src/main/java/org/mjelle/quarkus/easynats/deployment/`
+- **Integration tests**: `integration-tests/src/test/java/org/mjelle/quarkus/easynats/it/`
+- Paths shown below assume this structure - adjust based on plan.md structure
 
 <!-- 
   ============================================================================

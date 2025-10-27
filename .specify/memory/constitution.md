@@ -1,23 +1,20 @@
 <!--
-SYNC IMPACT REPORT (v0.1.11 → v0.1.12 Developer Experience MVP Deferral)
+SYNC IMPACT REPORT (v0.1.12 → v0.2.0 Typed Publisher Integration)
 ================================================================
-- Version: 0.1.11 → 0.1.12 (MINOR: Clarified MVP scope for Principle VI)
+- Version: 0.1.12 → v0.2.0 (MINOR: Principle VI fully adopted, MVP limitation removed)
 - Modified Principles:
-  - VI. Developer Experience First: Clarified MVP 001 defers @NatsSubject annotation and generic types to future MVP
-- Added Sections:
-  - Principle VI subsection "MVP 001 Scope Limitation": Documents untyped publisher with hardcoded subject
+  - VI. Developer Experience First: Removed "MVP 001 Scope Limitation" section. The typed publisher (`NatsPublisher<T>`) and `@NatsSubject` annotation are now considered implemented.
+- Removed Sections:
+  - Principle VI subsection "MVP 001 Scope Limitation"
 - Amendment Rationale:
-  - MVP 001 validates core extension architecture (CDI injection, connection management, basic publishing)
-  - Type-safe annotations (@NatsSubject) and generic types (NatsPublisher<T>) deferred to MVP 002+
-  - Decision: Simpler MVP 001 reduces risk; typed patterns follow as incremental enhancement
-  - This deferral allows MVP 001 to ship quickly while preserving Principle VI vision for future
+  - The typed publisher and annotation-driven features previously deferred are now implemented, bringing the extension in line with the full vision of Principle VI.
 - Template Status:
-  ✅ plan-template.md - no changes required (MVP scope documented)
-  ✅ spec-template.md - no changes required (MVP scope matches specification)
-  ✅ tasks-template.md - no changes required (MVP tasks validated against spec)
-  ✅ CLAUDE.md - no changes required (architecture unchanged)
-- Deferred Items: @NatsSubject annotation pattern, generic type parameter NatsPublisher<T>, typed publish operations
-- Follow-up: Plan MVP 002 to introduce annotations and generic types per Principle VI
+  ✅ plan-template.md - updated
+  ✅ spec-template.md - no changes required
+  ✅ tasks-template.md - updated
+  ✅ README.md - no changes required (already reflects typed publisher)
+- Deferred Items: None
+- Follow-up: None
 -->
 
 # Quarkus EasyNATS Extension Constitution
@@ -184,19 +181,6 @@ concerns. However, advanced use cases requiring direct NATS API access MUST be s
 via injection. The no-op close() guarantee allows developers to use standard patterns
 (try-with-resources) safely while preventing accidental connection shutdown bugs.
 
-**MVP 001 Scope Limitation**:
-MVP 001 (Basic NatsPublisher) implements a simplified, non-generic publisher to validate
-core extension architecture (CDI injection, connection management, basic publishing). This MVP
-defers the full Principle VI vision:
-- ❌ MVP 001 does NOT implement `@NatsSubject` annotation pattern
-- ❌ MVP 001 does NOT implement generic types (`NatsPublisher<T>`)
-- ❌ MVP 001 provides only hardcoded subject `test` and untyped `publish(String)` method
-
-This intentional scope reduction allows rapid MVP delivery and architecture validation.
-Type-safe annotation-driven patterns (`@NatsSubject`, generics, `@NatsSubscriber`) WILL be
-introduced in MVP 002+, fulfilling the complete vision of Principle VI. The deferred features
-are documented in `specs/001-basic-publisher-api/deferred-error-handling.md` for future work.
-
 ---
 
 ### VII. Observability First
@@ -337,4 +321,4 @@ This constitution is the authoritative guide for all development decisions.
 - Runtime developers reference CLAUDE.md for build commands and architecture patterns
 - Extension users reference generated Quarkus docs for API usage
 
-**Version**: 0.1.12 | **Ratified**: 2025-10-25 | **Last Amended**: 2025-10-26
+**Version**: 0.2.0 | **Ratified**: 2025-10-25 | **Last Amended**: 2025-10-27
