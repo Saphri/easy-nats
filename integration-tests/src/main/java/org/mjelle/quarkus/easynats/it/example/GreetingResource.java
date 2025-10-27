@@ -1,13 +1,15 @@
 package org.mjelle.quarkus.easynats.it.example;
 
-import jakarta.inject.Inject;
+import jakarta.ws.rs.InternalServerErrorException;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import org.mjelle.quarkus.easynats.NatsPublisher;
 import org.mjelle.quarkus.easynats.NatsSubject;
+import org.mjelle.quarkus.easynats.PublishingException;
 
+import io.quarkus.runtime.annotations.RegisterForReflection;
 import io.smallrye.common.annotation.RunOnVirtualThread;
 
 /**
@@ -20,16 +22,18 @@ import io.smallrye.common.annotation.RunOnVirtualThread;
  * <pre>
  * curl -X POST http://localhost:8080/example/greeting \
  *      -H "Content-Type: application/json" \
- *      -d '{"name": "World"}'
+ *      -d 'World'
  * </pre>
  */
 @Path("/example/greeting")
 @RunOnVirtualThread
 public class GreetingResource {
 
-    @Inject
-    @NatsSubject("test.example.greetings")
-    NatsPublisher<String> publisher;
+    private final NatsPublisher<GreetingRequest> publisher;
+
+    public GreetingResource(@NatsSubject("test.example.greetings") NatsPublisher<GreetingRequest> publisher) {
+        this.publisher = publisher;
+    }
 
     /**
      * Sends a greeting message to NATS.
@@ -41,31 +45,21 @@ public class GreetingResource {
      * @return a response indicating the message was sent
      */
     @POST
-    @Produces(MediaType.APPLICATION_JSON)
-    public GreetingResponse sendGreeting(GreetingRequest request) {
+    @Produces(MediaType.TEXT_PLAIN)
+    public String sendGreeting(String name) {
         try {
-            String message = String.format("Hello, %s!", request.name);
-            publisher.publish(message);
+            String message = String.format("Hello, %s!", name);
+            publisher.publish(new GreetingRequest(message));
 
-            return new GreetingResponse(
-                "success",
-                String.format("Greeting sent: %s", message)
-            );
-        } catch (Exception e) {
-            return new GreetingResponse(
-                "error",
-                String.format("Failed to send greeting: %s", e.getMessage())
-            );
+            return String.format("Greeting sent: %s", message);
+        } catch (PublishingException e) {
+            throw new InternalServerErrorException(e);
         }
     }
 
     /**
      * Request body for greeting endpoint.
      */
+    @RegisterForReflection
     public record GreetingRequest(String name) {}
-
-    /**
-     * Response body for greeting endpoint.
-     */
-    public record GreetingResponse(String status, String message) {}
 }
