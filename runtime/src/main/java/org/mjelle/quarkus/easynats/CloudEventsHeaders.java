@@ -100,14 +100,8 @@ public class CloudEventsHeaders {
             // Config not available, continue to fallback
         }
 
-        // Fall back to hostname
-        try {
-            return InetAddress.getLocalHost().getHostName();
-        } catch (UnknownHostException e) {
-            // Fall back to system property
-            String sysAppName = System.getProperty("app.name");
-            return sysAppName != null ? sysAppName : "localhost";
-        }
+        // Fall back to unknown
+        return "unknown";
     }
 
     /**
