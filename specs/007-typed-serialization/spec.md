@@ -1,6 +1,7 @@
 # Feature Specification: Typed Serialization with Jackson Integration
 
 **Feature Branch**: `007-typed-serialization`
+**Continues**: `006-typed-subscriber`
 **Created**: 2025-10-27
 **Status**: Draft
 **Input**: User description: "as a library maintainer I want to simplify the decoding/encoding of messages, so its less magic for users. Only typed objects will be supported. If it cant be used with Jackson its not supported, and documentation should suggest the user create a wrapper if they have the need"

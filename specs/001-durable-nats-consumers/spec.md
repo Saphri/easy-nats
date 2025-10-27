@@ -1,6 +1,7 @@
 # Feature Specification: Durable Consumers for @NatsSubscriber
 
 **Feature Branch**: `001-durable-nats-consumers`
+**Continues**: `007-typed-serialization`
 **Created**: 2025-10-27
 **Status**: Draft
 **Input**: User description: "as a developer I would like to use preconfigured durable consumers with my @NatsSubscriber"
@@ -24,7 +25,6 @@ As a developer, I want to configure a durable consumer in my application propert
 ### Edge Cases
 
 - What happens if the durable consumer name in `@NatsSubscriber` does not exist in the configuration? The application should fail to start with a clear error message.
-- How does the system handle NATS connection errors? The subscriber should attempt to reconnect according to the configured policy.
 
 ## Assumptions
 
@@ -36,17 +36,13 @@ As a developer, I want to configure a durable consumer in my application propert
 
 ### Functional Requirements
 
-- **FR-001**: The system MUST allow developers to define one or more durable consumer configurations in `application.properties`.
 - **FR-002**: The `@NatsSubscriber` annotation MUST include a property to specify the name of the durable consumer configuration to use.
 - **FR-003**: If a durable consumer is specified in `@NatsSubscriber` but not defined in the configuration, the application MUST fail to start.
 - **FR-004**: The extension MUST ensure the durable consumer exists on the NATS JetStream server on application startup.
-- **FR-005**: The subscriber MUST automatically acknowledge messages after they have been processed successfully by the annotated method.
-- **FR-006**: If the processing of a message fails (i.e., the annotated method throws an exception), the message MUST NOT be acknowledged, allowing for redelivery.
 
 ## Success Criteria *(mandatory)*
 
 ### Measurable Outcomes
 
-- **SC-001**: A developer can implement a durable message subscriber by adding 3-5 lines of configuration in `application.properties` and one annotation property.
 - **SC-002**: In end-to-end tests, a 100% message processing guarantee is maintained across application restarts.
 - **SC-003**: The configuration model for durable consumers is clearly documented and easy to understand, resulting in minimal configuration-related support questions.
