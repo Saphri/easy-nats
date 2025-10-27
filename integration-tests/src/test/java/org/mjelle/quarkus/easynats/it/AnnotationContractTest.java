@@ -2,9 +2,6 @@ package org.mjelle.quarkus.easynats.it;
 
 import static org.assertj.core.api.Assertions.*;
 
-import io.quarkus.test.common.QuarkusTestResource;
-import io.quarkus.test.junit.QuarkusTest;
-import jakarta.enterprise.context.ApplicationScoped;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.reflect.Method;
@@ -16,11 +13,9 @@ import org.mjelle.quarkus.easynats.NatsSubscriber;
  *
  * <p>
  * This test ensures the annotation contract is correctly defined and can be discovered via
- * reflection.
+ * reflection. Does not require Quarkus runtime since it only uses reflection.
  * </p>
  */
-@QuarkusTest
-@QuarkusTestResource(NatsStreamTestResource.class)
 class AnnotationContractTest {
 
     @Test
@@ -42,9 +37,9 @@ class AnnotationContractTest {
     }
 
     /**
-     * Test bean with a subscriber method.
+     * Test class with a subscriber method.
+     * Not a CDI bean - just for annotation contract testing via reflection.
      */
-    @ApplicationScoped
     public static class TestSubscriber {
         @NatsSubscriber("test.annotation.subject")
         public void onMessage(String message) {

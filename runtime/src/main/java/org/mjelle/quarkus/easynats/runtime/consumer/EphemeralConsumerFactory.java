@@ -2,6 +2,9 @@ package org.mjelle.quarkus.easynats.runtime.consumer;
 
 import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.api.DeliverPolicy;
+
+import java.util.List;
+
 import org.jboss.logging.Logger;
 
 /**
@@ -36,10 +39,11 @@ public final class EphemeralConsumerFactory {
      *
      * @return a consumer configuration for ephemeral consumption
      */
-    public static ConsumerConfiguration createEphemeralConsumerConfig() {
+    public static ConsumerConfiguration createEphemeralConsumerConfig(String subject) {
         LOGGER.debug("Creating ephemeral consumer configuration");
         return ConsumerConfiguration.builder()
                 .deliverPolicy(DeliverPolicy.New)
+                .filterSubjects(List.of(subject))
                 .build();
     }
 }

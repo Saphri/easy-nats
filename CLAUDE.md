@@ -65,6 +65,130 @@ The `QuarkusEasyNatsProcessor` class is minimal and only registers a feature bui
 
 Integration tests are in a separate module and use the `-Pit` profile to activate them. These tests validate that the extension works correctly when embedded in a Quarkus application.
 
+#### Integration Test Structure and Conventions
+
+This project uses a **two-tier test structure** to enable both fast JVM testing and production-ready native image validation:
+
+**Test Naming and Annotations:**
+- **`*Test` classes** (e.g., `CloudEventTest.java`, `ValidationTest.java`):
+  - Use `@QuarkusTest` annotation
+  - Run on JVM (Surefire plugin, fast feedback during development)
+  - Located in `integration-tests/src/test/java/org/mjelle/quarkus/easynats/it/`
+  - Contains all test methods (assertions, setup, teardown)
+
+- **`*IT` classes** (e.g., `CloudEventIT.java`):
+  - Use `@QuarkusIntegrationTest` annotation
+  - Run as native image tests (Failsafe plugin, validates production readiness)
+  - Located in same package as `*Test` classes
+  - **Extend their corresponding `*Test` class** to reuse all test methods
+  - Minimal boilerplate (typically just class declaration and inheritance)
+  - Not all test classes have an `*IT` pair (e.g., `ValidationTest` runs on JVM only)
+
+**Example Pattern** (from `CloudEventTest.java` and `CloudEventIT.java`):
+
+The key principle: **Never use `@Inject` field injection in base test classes**. Instead:
+- Use RestAssured to call REST endpoints (the extension's functionality)
+- Use static utility methods to access NATS connections
+
+
+```java
+// CloudEventTest.java - Contains actual test methods with @QuarkusTest
+@QuarkusTest
+@DisplayName("CloudEvent Binary-Mode Integration Tests")
+class CloudEventTest {
+
+    @Test
+    @DisplayName("Valid CloudEvent binary-mode with POJO data is unwrapped and deserialized")
+    void testValidCloudEventBinaryMode() {
+        // Given
+        OrderData orderData = new OrderData("ORD-001", "CUST-001", 150.00);
+
+        // When - Publish CloudEvent with REST endpoint
+        given()
+            .contentType(ContentType.JSON)
+            .body(orderData)
+            .when()
+            .post("/publish/order")
+            .then()
+            .statusCode(204);
+
+        // Then - Verify order was received and deserialized by subscriber
+        await()
+            .atMost(Duration.ofSeconds(5))
+            .pollInterval(Duration.ofMillis(100))
+            .untilAsserted(() -> {
+                OrderData result = given()
+                    .when()
+                    .get("/subscribe/last-order")
+                    .then()
+                    .statusCode(200)
+                    .extract()
+                    .as(OrderData.class);
+
+                assertThat(result).isEqualTo(orderData);
+            });
+    }
+}
+
+// CloudEventIT.java - Reuses all test methods in native image context
+@QuarkusIntegrationTest
+public class CloudEventIT extends CloudEventTest {
+    // Inherits all test methods from CloudEventTest
+    // ✓ Works because base class has no @Inject fields
+}
+```
+
+**Package Structure:**
+```
+integration-tests/
+├── src/test/java/org/mjelle/quarkus/easynats/it/
+│   ├── CloudEventTest.java           (JVM tests with @QuarkusTest)
+│   ├── CloudEventIT.java             (Native tests with @QuarkusIntegrationTest)
+│   ├── AnnotationContractTest.java   (JVM tests only)
+│   ├── ValidationTest.java           (JVM tests only)
+│   ├── StartupValidationTest.java    (JVM tests only)
+│   ├── NatsStreamTestResource.java   (Quarkus test resource for NATS setup)
+│   └── NatsTestUtils.java            (Static utilities for accessing NATS connections)
+└── src/main/java/org/mjelle/quarkus/easynats/it/
+    ├── OrderListener.java             (Subscriber bean with @NatsSubscriber method)
+    ├── OrderPublisherResource.java    (REST endpoint for publishing)
+    ├── OrderSubscriberResource.java   (REST endpoint for retrieving received messages)
+    ├── model/
+    │   └── OrderData.java             (Record type for testing typed subscribers)
+    └── example/
+        ├── GreetingListener.java      (Example subscriber bean)
+        └── GreetingResource.java      (Example REST endpoints)
+```
+
+**Running Tests:**
+```bash
+# Run all tests (JVM only, no native compilation)
+./mvnw clean test
+
+# Run tests for integration-tests module (JVM only)
+./mvnw -pl integration-tests clean test
+
+# Run JVM + native integration tests (requires GraalVM)
+./mvnw clean install -Pit
+
+# Run a single test class (JVM)
+./mvnw test -Dtest=CloudEventTest
+
+# Run specific test method (JVM)
+./mvnw test -Dtest=CloudEventTest#testValidCloudEventBinaryMode
+
+# Run tests excluding native (*IT) tests
+./mvnw test -pl integration-tests
+```
+
+**Dependencies:**
+Integration tests require NATS JetStream running. The project uses Docker Compose for automated NATS setup (see `docker-compose-devservices.yml`). This is automatically started by Quarkus when running tests with the `@QuarkusTest` or `@QuarkusIntegrationTest` annotations.
+
+**Rationale:**
+- **JVM tests** (`*Test` with `@QuarkusTest`): Fast feedback loop during development (seconds vs minutes)
+- **Native IT tests** (`*IT` with `@QuarkusIntegrationTest`): Validates the extension works correctly in native image mode (catches native-specific issues early)
+- **Code reuse**: Single set of test methods validated in both JVM and native contexts, ensuring consistency
+
 ### Java Version
 
 The project targets Java 21 (`maven.compiler.release=21`). All code must be compatible with Java 21 features.
@@ -114,6 +238,59 @@ public class NatsPublisher {
     @Inject NatsConnectionManager connectionManager;  // ❌ NEVER in production code
 }
 ```
+
+### Integration Test Dependency Injection (CRITICAL)
+
+- **NEVER use `@Inject` field injection in integration test classes**: This breaks `@QuarkusIntegrationTest` inheritance
+- **Why it breaks**: `@QuarkusIntegrationTest` doesn't support field injection the same way as `@QuarkusTest`; when `*IT` extends `*Test`, injected fields are not properly initialized in the native context
+- **Workaround**: Access beans through REST endpoints using RestAssured, or use static utility methods
+- **Rationale**: Keeps integration tests compatible with both JVM and native image testing
+
+**Example (WRONG - NEVER DO THIS)**:
+```java
+@QuarkusTest
+public class PublisherTest {
+    @Inject NatsPublisher publisher;  // ❌ BREAKS @QuarkusIntegrationTest inheritance
+
+    @Test
+    void testPublisher() throws Exception {
+        publisher.publish("test.subject", "hello");
+    }
+}
+
+@QuarkusIntegrationTest
+public class PublisherIT extends PublisherTest {
+    // ❌ publisher field won't be initialized properly in native context
+}
+```
+
+**Example (CORRECT)**:
+```java
+@QuarkusTest
+@QuarkusTestResource(NatsStreamTestResource.class)
+public class PublisherTest {
+    // ✓ No @Inject fields
+
+    @Test
+    void testPublisher() throws Exception {
+        // Access bean through REST endpoint
+        given()
+            .queryParam("subject", "test.subject")
+            .queryParam("message", "hello")
+            .when()
+            .get("/publish/message")
+            .then()
+            .statusCode(204);
+    }
+}
+
+@QuarkusIntegrationTest
+public class PublisherIT extends PublisherTest {
+    // ✓ Works - no injected fields to inherit
+}
+```
+
+---
 
 ### Testing Assertions
 
@@ -281,6 +458,8 @@ if (appName != null && !appName.isEmpty()) {
 - CloudEvents 1.0 (transparent event format) (005-transparent-cloudevents)
 - NATS JetStream (messaging broker)
 - Jackson Databind (serialization)
+- Java 21 (enforced per Constitution Principle IV) (006-typed-subscriber)
+- N/A (messaging system, no data storage) (006-typed-subscriber)
 
 ## Recent Changes
 - 005-transparent-cloudevents: Implemented transparent CloudEvent wrapping in NatsPublisher with custom PublishingException

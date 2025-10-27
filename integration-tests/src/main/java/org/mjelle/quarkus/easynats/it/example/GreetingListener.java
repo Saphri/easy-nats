@@ -3,6 +3,7 @@ package org.mjelle.quarkus.easynats.it.example;
 import jakarta.enterprise.context.ApplicationScoped;
 import org.jboss.logging.Logger;
 import org.mjelle.quarkus.easynats.NatsSubscriber;
+import org.mjelle.quarkus.easynats.it.example.GreetingResource.GreetingRequest;
 
 /**
  * Example listener that demonstrates the @NatsSubscriber annotation.
@@ -25,8 +26,8 @@ public class GreetingListener {
      * @param message the greeting message received from NATS
      */
     @NatsSubscriber("test.example.greetings")
-    public void onGreeting(String message) {
-        LOGGER.infof("📩 Received greeting: %s", message);
+    public void onGreeting(GreetingRequest message) {
+        LOGGER.infof("📩 Received greeting: %s", message.name());
 
         // You can add your business logic here
         // The message is automatically ack'd if this method completes successfully
