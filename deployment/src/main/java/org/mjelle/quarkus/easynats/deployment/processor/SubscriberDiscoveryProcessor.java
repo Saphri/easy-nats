@@ -52,14 +52,13 @@ public class SubscriberDiscoveryProcessor {
             MethodInfo method = target.asMethod();
             ClassInfo declaringClass = method.declaringClass();
 
-            // Validate subject value
-            String subject = annotation.value().asString();
-            if (subject == null || subject.isEmpty()) {
-                throw new IllegalArgumentException(
-                        String.format(
-                                "Empty or null subject for @NatsSubscriber on method %s.%s",
-                                declaringClass.name(), method.name()));
-            }
+            // Extract annotation properties
+            String subject = getAnnotationValue(annotation, "value");
+            String stream = getAnnotationValue(annotation, "stream");
+            String consumer = getAnnotationValue(annotation, "consumer");
+
+            // Validate annotation properties (mutual exclusivity and required pairing)
+            validateAnnotationProperties(subject, stream, consumer, declaringClass, method);
 
             // Validate method signature
             validateMethodSignature(method, declaringClass);
@@ -72,6 +71,8 @@ public class SubscriberDiscoveryProcessor {
             SubscriberMetadata metadata =
                     new SubscriberMetadata(
                             subject,
+                            stream,
+                            consumer,
                             method.declaringClass().name().toString(),
                             method.name(),
                             declaringClass.name().toString(),
@@ -79,9 +80,15 @@ public class SubscriberDiscoveryProcessor {
 
             subscribers.add(metadata);
 
-            LOGGER.infof(
-                    "Discovered subscriber: subject=%s, method=%s.%s",
-                    subject, declaringClass.name(), method.name());
+            if (!subject.isEmpty()) {
+                LOGGER.infof(
+                        "Discovered subscriber (ephemeral): subject=%s, method=%s.%s",
+                        subject, declaringClass.name(), method.name());
+            } else {
+                LOGGER.infof(
+                        "Discovered subscriber (durable): stream=%s, consumer=%s, method=%s.%s",
+                        stream, consumer, declaringClass.name(), method.name());
+            }
         }
 
         return subscribers;
@@ -197,5 +204,88 @@ public class SubscriberDiscoveryProcessor {
             case "char" -> "Char";
             default -> "Value";
         };
+    }
+
+    /**
+     * Extracts a string value from an annotation, returning empty string if not present.
+     *
+     * @param annotation the annotation instance
+     * @param propertyName the name of the property to extract
+     * @return the property value or empty string if not set
+     */
+    private String getAnnotationValue(AnnotationInstance annotation, String propertyName) {
+        try {
+            var value = annotation.value(propertyName);
+            if (value == null) {
+                return "";
+            }
+            String stringValue = value.asString();
+            return stringValue != null ? stringValue : "";
+        } catch (Exception e) {
+            // Property doesn't exist or can't be extracted; default to empty
+            return "";
+        }
+    }
+
+    /**
+     * Validates that annotation properties follow mutual exclusivity and required pairing rules.
+     *
+     * <p>
+     * Rules:
+     * - Either `subject` (ephemeral) OR `stream+consumer` (durable) must be provided
+     * - Cannot have both `subject` and `stream/consumer`
+     * - If `stream` is provided, `consumer` must also be provided (and vice versa)
+     * - All three cannot be empty
+     * </p>
+     *
+     * @param subject the subject value
+     * @param stream the stream value
+     * @param consumer the consumer value
+     * @param declaringClass the class declaring the subscriber
+     * @param method the method being validated
+     * @throws IllegalArgumentException if validation fails
+     */
+    private void validateAnnotationProperties(
+            String subject, String stream, String consumer,
+            ClassInfo declaringClass, MethodInfo method) {
+
+        boolean hasSubject = subject != null && !subject.isEmpty();
+        boolean hasStream = stream != null && !stream.isEmpty();
+        boolean hasConsumer = consumer != null && !consumer.isEmpty();
+
+        // Rule 1: Cannot have both subject and stream/consumer
+        if (hasSubject && (hasStream || hasConsumer)) {
+            throw new IllegalArgumentException(
+                    String.format(
+                            "@NatsSubscriber on method %s.%s cannot specify both 'subject' and 'stream'/'consumer' properties. " +
+                            "Use 'subject' for ephemeral mode or 'stream'/'consumer' for durable mode.",
+                            declaringClass.name(), method.name()));
+        }
+
+        // Rule 2: stream and consumer must both be provided or both be empty
+        if (hasStream && !hasConsumer) {
+            throw new IllegalArgumentException(
+                    String.format(
+                            "@NatsSubscriber on method %s.%s specifies 'stream' but missing 'consumer'. " +
+                            "For durable mode, both 'stream' and 'consumer' must be provided.",
+                            declaringClass.name(), method.name()));
+        }
+
+        if (hasConsumer && !hasStream) {
+            throw new IllegalArgumentException(
+                    String.format(
+                            "@NatsSubscriber on method %s.%s specifies 'consumer' but missing 'stream'. " +
+                            "For durable mode, both 'stream' and 'consumer' must be provided.",
+                            declaringClass.name(), method.name()));
+        }
+
+        // Rule 3: At least one mode must be specified
+        if (!hasSubject && !hasStream && !hasConsumer) {
+            throw new IllegalArgumentException(
+                    String.format(
+                            "@NatsSubscriber on method %s.%s must specify either 'subject' (ephemeral mode) " +
+                            "or 'stream'/'consumer' (durable mode). At least one property must be non-empty.",
+                            declaringClass.name(), method.name()));
+        }
     }
 }
