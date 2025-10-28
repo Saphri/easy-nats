@@ -39,11 +39,11 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T003 [P] Create `NatsMessage<T>` interface in `runtime/src/main/java/org/mjelle/quarkus/easynats/runtime/message/NatsMessage.java` with methods: `payload()`, `ack()`, `nak(Duration)`, `term()`, `headers()`, `subject()`, `metadata()`
-- [ ] T004 [P] Implement `NatsMessage<T>` class in `runtime/src/main/java/org/mjelle/quarkus/easynats/runtime/message/NatsMessageImpl.java` wrapping io.nats.client.Message with type-safe deserialization
-- [ ] T005 [P] Update `SubscriberMethodRegistry` in `runtime/src/main/java/org/mjelle/quarkus/easynats/runtime/subscriber/SubscriberMethodRegistry.java` to detect `NatsMessage<T>` parameter type and determine explicit mode (auto-ack disabled)
-- [ ] T006 [P] Modify subscriber invocation logic in `runtime/src/main/java/org/mjelle/quarkus/easynats/runtime/subscriber/SubscriberInvoker.java` to create `NatsMessage<T>` wrapper when parameter is explicit mode
-- [ ] T007 Update exception handling in `runtime/src/main/java/org/mjelle/quarkus/easynats/runtime/subscriber/SubscriberInvoker.java` to NOT call auto-ack/nak when explicit mode detected (parameter is NatsMessage<T>)
+- [ ] T003 [P] Create `NatsMessage<T>` interface in `runtime/src/main/java/org/mjelle/quarkus/easynats/NatsMessage.java` with methods: `payload()`, `ack()`, `nak()`, `nakWithDelay(Duration)`, `term()`, `headers()`, `subject()`, `metadata()`
+- [ ] T004 [P] Implement `DefaultNatsMessage<T>` class in `runtime/src/main/java/org/mjelle/quarkus/easynats/runtime/subscriber/DefaultNatsMessage.java` wrapping io.nats.client.Message.
+- [ ] T005 [P] Update `DefaultMessageHandler` in `runtime/src/main/java/org/mjelle/quarkus/easynats/runtime/handler/DefaultMessageHandler.java` to detect `NatsMessage<T>` parameter type and determine explicit mode.
+- [ ] T006 [P] Modify invocation logic in `DefaultMessageHandler.java` to create `DefaultNatsMessage<T>` wrapper when in explicit mode.
+- [ ] T007 Update exception handling in `DefaultMessageHandler.java` to skip auto-ack/nak when in explicit mode.
 
 **Checkpoint**: NatsMessage<T> infrastructure ready; explicit ack/nak control enabled
 
