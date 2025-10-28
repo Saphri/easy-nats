@@ -98,12 +98,34 @@ A developer wants to use Java's try-with-resources statement when working with t
 
 ---
 
+### User Story 6 - Configuration via Environment Variables and application.properties (Priority: P1)
+
+A developer wants to configure the NATS connection using standard Quarkus configuration mechanisms (environment variables and application.properties file), including NATS server addresses, authentication credentials, and SSL settings.
+
+**Why this priority**: Configuration of the NATS connection is fundamental and critical. Without it, developers cannot connect to different NATS servers for different environments (dev, staging, prod). This is essential for any production application and is equally critical as establishing the connection itself.
+
+**Independent Test**: Can be tested by verifying that a developer can configure a NATS connection using environment variables, that the same configuration works via application.properties, and that the configured servers/credentials are actually used when establishing the connection.
+
+**Acceptance Scenarios**:
+
+1. **Given** a developer configures NATS servers via environment variable `QUARKUS_EASYNATS_SERVERS`, **When** the application starts, **Then** the connection uses the configured servers.
+2. **Given** a developer configures authentication via `QUARKUS_EASYNATS_USERNAME` and `QUARKUS_EASYNATS_PASSWORD`, **When** the application connects to NATS, **Then** the connection authenticates using the provided credentials.
+3. **Given** a developer configures SSL via `QUARKUS_EASYNATS_SSL_ENABLED=true`, **When** the application connects to NATS, **Then** the connection uses SSL/TLS for the transport (if available for testing).
+4. **Given** a developer uses application.properties file with `quarkus.easynats.servers`, **When** the application starts, **Then** the configuration is read and applied the same way as environment variables.
+5. **Given** multiple configuration sources (env vars override properties file), **When** both are defined, **Then** environment variables take precedence as per Quarkus standard configuration precedence.
+
+---
+
 ### Edge Cases
 
 - What happens if a developer tries to access the connection before the application is fully initialized?
 - How does the extension handle connection failures or reconnections while a developer is using the connection?
 - What mechanisms prevent a developer from accidentally closing the connection and breaking other subscriptions/publishers?
 - How does the feature handle multiple Quarkus applications running in the same JVM process?
+- What happens if no servers are configured or the configuration is empty?
+- How does the extension handle invalid server addresses (malformed URLs, non-existent hosts)?
+- What happens if authentication credentials are incomplete (username without password)?
+- How does the extension handle SSL configuration when the NATS server doesn't support SSL?
 
 ## Requirements *(mandatory)*
 
@@ -130,6 +152,15 @@ A developer wants to use Java's try-with-resources statement when working with t
 - **FR-014**: The `close()` method on the connection wrapper MUST be a safe no-op that does not affect the underlying connection or other application components
 - **FR-015**: The connection wrapper MUST transparently delegate all NATS operations to the underlying connection (no performance degradation)
 - **FR-016**: Extension MUST provide documentation showing common advanced use cases (custom subscriptions, push subscriptions, metadata access), try-with-resources examples, and explicitly warn against attempting to close the connection
+- **FR-017**: Extension MUST support configuration of NATS servers via property `quarkus.easynats.servers` in application.properties
+- **FR-018**: Extension MUST support configuration of NATS servers via environment variable `QUARKUS_EASYNATS_SERVERS`
+- **FR-019**: Extension MUST support configuration of authentication username via property `quarkus.easynats.username` and environment variable `QUARKUS_EASYNATS_USERNAME`
+- **FR-020**: Extension MUST support configuration of authentication password via property `quarkus.easynats.password` and environment variable `QUARKUS_EASYNATS_PASSWORD`
+- **FR-021**: Extension MUST support configuration of SSL/TLS via property `quarkus.easynats.ssl-enabled` and environment variable `QUARKUS_EASYNATS_SSL_ENABLED`
+- **FR-022**: Configuration via environment variables MUST take precedence over application.properties, following standard Quarkus configuration precedence rules
+- **FR-023**: The extension MUST apply all configured settings when establishing the connection to the NATS server
+- **FR-024**: The extension MUST provide clear error messages if NATS server connection fails due to configuration errors (invalid servers, authentication failure, etc.)
+- **FR-025**: The extension MUST provide configuration documentation including examples for all configurable properties
 
 ### Key Entities
 
@@ -137,6 +168,7 @@ A developer wants to use Java's try-with-resources statement when working with t
 - **Connection Wrapper**: A safe wrapper around the NATS connection that implements `AutoCloseable` for try-with-resources support, with a no-op `close()` method to prevent accidental connection closure.
 - **CDI Bean**: The extension registers the connection wrapper as a singleton CDI bean in the Quarkus application context, enabling standard dependency injection.
 - **Connection Manager**: The extension component (Quarkus build-time processor) responsible for registering the connection as a CDI bean and managing its lifecycle.
+- **Configuration**: Quarkus-managed configuration properties and environment variables that control NATS connection parameters (servers, credentials, SSL settings). Follows standard Quarkus configuration precedence.
 
 ## Success Criteria *(mandatory)*
 
@@ -153,6 +185,9 @@ A developer wants to use Java's try-with-resources statement when working with t
 - **SC-004**: Zero connection-related resource leaks detected in applications using the access API over extended runtime periods.
 - **SC-005**: Connection operations complete with minimal latency overhead (no more than 5% additional latency compared to direct NATS client access).
 - **SC-006**: Try-with-resources usage is fully supported with zero unintended side effects (underlying connection remains open and functional after try block exits).
+- **SC-007**: Developers can configure a complete NATS connection (servers, authentication, SSL) using only environment variables or application.properties within 5 minutes of reading the documentation.
+- **SC-008**: Configuration via both environment variables and application.properties works identically, with environment variables correctly overriding property file settings.
+- **SC-009**: 100% of configuration errors (invalid servers, authentication failures, missing required settings) result in clear, actionable error messages during application startup.
 
 ## Assumptions
 
@@ -163,11 +198,16 @@ A developer wants to use Java's try-with-resources statement when working with t
 5. **Shared connection is critical**: The connection is a shared resource used by all application publishers and subscribers. Closing it would break all NATS communication in the application. Therefore, developers must not be able to close the connection. The try-with-resources pattern is supported via a safe wrapper with a no-op `close()` method.
 6. **Wrapper pattern for AutoCloseable**: We provide a thin wrapper that implements `AutoCloseable` but does not close the underlying connection. This allows developers to use try-with-resources idiomatically while maintaining safety.
 7. **Quarkus and Arc availability**: We assume Quarkus 3.27.0+ and Arc (CDI) are available and properly configured in the runtime module, as these are core dependencies of the extension.
-8. **Basic NATS knowledge**: We assume developers accessing the raw connection have basic familiarity with the NATS client API, even though we'll provide examples.
+8. **Quarkus MicroProfile Config**: We assume Quarkus's implementation of MicroProfile Config API is available for reading configuration from environment variables and properties files, following standard Quarkus precedence rules.
+9. **Configuration naming convention**: Configuration properties follow Quarkus naming conventions (`quarkus.easynats.*`) and environment variable conventions (`QUARKUS_EASYNATS_*`), automatically converted by the Quarkus framework.
+10. **Server list format**: Multiple NATS servers are provided as comma-separated values (e.g., `nats://host1:4222,nats://host2:4222`), a standard format for NATS client libraries.
+11. **SSL support limitation**: SSL/TLS configuration is supported in the extension, but the project acknowledges that SSL testing cannot be performed in the current development environment. SSL configuration code paths must still be implemented correctly and documented.
+12. **Basic NATS knowledge**: We assume developers accessing the raw connection have basic familiarity with the NATS client API, even though we'll provide examples.
 
 ## Out of Scope
 
 - **Connection pooling or multiple connections**: This feature provides access to a single application-level connection.
 - **Non-CDI access patterns**: Static factory methods, service locators, or other non-CDI mechanisms are explicitly not supported. CDI injection is the only supported access pattern.
 - **Custom NATS server configuration**: We assume the NATS server is already configured and accessible; this feature doesn't configure NATS itself.
-- **Advanced NATS features beyond access**: Features like custom authentication, TLS configuration, or connection retry policies are out of scope (handled by existing Quarkus NATS configuration).
+- **Advanced NATS connection options**: Advanced NATS client features beyond servers, authentication (username/password), and SSL are out of scope (e.g., custom authentication handlers, advanced TLS options, connection timeout tuning). These can be added as future enhancements.
+- **SSL testing**: The feature supports SSL/TLS configuration, but testing is out of scope due to environment limitations. Implementation must still be correct and properly documented.
