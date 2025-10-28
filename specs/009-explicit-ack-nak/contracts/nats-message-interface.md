@@ -248,7 +248,7 @@ void handleEvent(NatsMessage<Event> msg) {
 - [ ] `term()` calls underlying NATS message's term()
 - [ ] Idempotency: calling `ack()` twice succeeds
 - [ ] Idempotency: calling `nak()` twice succeeds
-- [ ] `headers()`, `subject()`, `data()`, `metadata()` are pass-throughs
+- [ ] `headers()`, `subject()`, `payload()`, `metadata()` are pass-throughs
 
 ### Integration Tests
 - [ ] Subscriber receives `NatsMessage<Order>` parameter
