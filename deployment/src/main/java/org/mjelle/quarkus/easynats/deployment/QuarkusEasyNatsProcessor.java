@@ -18,9 +18,11 @@ import jakarta.enterprise.inject.spi.DefinitionException;
 import java.util.List;
 import org.jboss.jandex.AnnotationInstance;
 import org.jboss.jandex.DotName;
+import org.mjelle.quarkus.easynats.NatsConnection;
 import org.mjelle.quarkus.easynats.NatsConnectionManager;
 import org.mjelle.quarkus.easynats.NatsPublisher;
 import org.mjelle.quarkus.easynats.NatsSubject;
+import org.mjelle.quarkus.easynats.runtime.NatsConnectionProvider;
 import org.mjelle.quarkus.easynats.deployment.build.SubscriberBuildItem;
 import org.mjelle.quarkus.easynats.deployment.build.SubscribersCollectionBuildItem;
 import org.mjelle.quarkus.easynats.deployment.processor.SubscriberDiscoveryProcessor;
@@ -149,6 +151,7 @@ class QuarkusEasyNatsProcessor {
     AdditionalBeanBuildItem beans() {
         return AdditionalBeanBuildItem.builder()
                 .addBeanClass(NatsConnectionManager.class)
+                .addBeanClass(NatsConnectionProvider.class)
                 .addBeanClass(NatsPublisherRecorder.class)
                 .addBeanClass(SubscriberRegistry.class)
                 .addBeanClass(SubscriberInitializer.class)

@@ -6,7 +6,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import io.quarkus.test.junit.QuarkusTest;
 
 /**
  * Unit tests for TypedPayloadEncoder - Jackson-only serialization.
@@ -17,7 +16,6 @@ import io.quarkus.test.junit.QuarkusTest;
  * - Generic type serialization
  * - Error handling and exceptions
  */
-@QuarkusTest
 @DisplayName("TypedPayloadEncoder Tests (Jackson-Only)")
 class TypedPayloadEncoderTest {
 
