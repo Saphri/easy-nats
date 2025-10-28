@@ -16,6 +16,8 @@ Expose the shared NATS connection as a CDI-injectable singleton bean (`NatsConne
 
 **Technical approach**: Build-time processor registers `NatsConnection` as a `@Singleton` CDI bean during Quarkus startup. Runtime class is a thin delegating facade with no-op `close()` and full method delegation using reflection-free composition.
 
+**Internal Integration**: Existing extension components (`NatsPublisher`, `NatsSubscriber`, `NatsMessageHandler`, etc.) will be refactored to inject and use `NatsConnection` internally, creating a unified architecture where all NATS operations flow through the same singleton. This enables feature 011 (health checks) and future observability features to monitor all extension operations transparently.
+
 ## Technical Context
 
 <!--

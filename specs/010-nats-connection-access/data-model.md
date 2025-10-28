@@ -228,6 +228,64 @@ Configuration controls connection establishment. Defined in `NatsConfiguration` 
 
 ---
 
+## Internal Integration: Using NatsConnection in Extension Components
+
+The extension's existing components (`NatsPublisher`, `NatsSubscriber`, `NatsMessageHandler`, etc.) will be refactored to use `NatsConnection` internally instead of maintaining separate references to the underlying connection.
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────┐
+│            Quarkus Application                       │
+├─────────────────────────────────────────────────────┤
+│                                                       │
+│  ┌────────────────┐  ┌────────────────┐             │
+│  │ NatsPublisher  │  │ NatsSubscriber │  ...        │
+│  │ (existing)     │  │ (existing)     │             │
+│  └────────┬───────┘  └────────┬───────┘             │
+│           │                   │                     │
+│           │ Uses internally   │                     │
+│           │ (no public API    │                     │
+│           │  change)          │                     │
+│           └─────────┬─────────┘                     │
+│                     ▼                                │
+│         ┌──────────────────────┐                    │
+│         │  NatsConnection      │ ← Shared singleton│
+│         │  (this feature)      │                    │
+│         └──────────┬───────────┘                    │
+│                    │                                │
+│                    ▼                                │
+│         ┌──────────────────────┐                    │
+│         │ io.nats.client.     │                    │
+│         │ Connection          │                    │
+│         └──────────┬───────────┘                    │
+│                    │                                │
+│                    ▼                                │
+│         ┌──────────────────────┐                    │
+│         │   NATS Server        │                    │
+│         └──────────────────────┘                    │
+│                                                      │
+└─────────────────────────────────────────────────────┘
+```
+
+### Benefits
+
+1. **Single Source of Truth**: All extension components and developer code use the same `NatsConnection` singleton
+2. **Unified Monitoring**: Feature 011 (health checks) and future observability features monitor all NATS operations through one connection
+3. **Cleaner Architecture**: No duplicate connection management; `NatsConnectionProvider` is the only component that manages the underlying connection
+4. **Future-Proof**: All new features (health checks, tracing, metrics) automatically apply to all extension operations
+
+### Implementation Notes
+
+- `NatsPublisher` will inject `NatsConnection` in its constructor
+- `NatsSubscriber` will inject `NatsConnection` and use it to create subscriptions
+- `NatsMessageHandler` will use the injected `NatsConnection` for all operations
+- `NatsMessageDeserializer` and other utilities that need connection access will receive it via constructor injection
+- No public API changes needed; existing developer code continues to work (decorators like `@NatsPublisher` remain the same)
+- Internal refactoring is transparent to users
+
+---
+
 ## Design Rationale
 
 ### Why NatsConnection is a Wrapper, Not the Real Connection
@@ -236,6 +294,7 @@ Configuration controls connection establishment. Defined in `NatsConfiguration` 
 - **Simplicity**: Developers think they have "a connection" they can close with try-with-resources, but it's safe
 - **Future-proof**: Enables health checks (Feature 011) to monitor connection via listeners without managing lifecycle
 - **Clear intent**: Name `NatsConnection` is explicit; developers know it's the thing they interact with
+- **Extension integration**: Existing components (`NatsPublisher`, `NatsSubscriber`, etc.) naturally inject and use the same singleton, unifying architecture
 
 ### Why No-op close() is Better than UnsupportedOperationException
 
@@ -248,3 +307,4 @@ Configuration controls connection establishment. Defined in `NatsConfiguration` 
 - **Composition over inheritance**: Wrapper can intercept calls and add behavior if needed in future
 - **Cleaner**: Doesn't inherit all jnats implementation details
 - **Flexible**: Can wrap different connection types in future if needed
+- **Extension integration**: Makes it easy for internal components to inject and use the wrapper without tight coupling
