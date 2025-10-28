@@ -11,7 +11,7 @@
 ### Session 2025-10-28
 
 - Q: How should developers access the ack/nak APIs from within a subscriber method? → A: Through the `NatsMessage<T>` wrapper parameter. Developers receive a `NatsMessage<Order> orderMsg` parameter that provides `ack()`, `nak(Duration delay)`, `term()`, `payload()` methods and access to message headers.
-- Q: When does `autoAck` apply? → A: If a subscriber method parameter is `NatsMessage<T>`, there is no auto-ack/nak—the developer has explicit control and must call ack/nak/term. If the parameter is just the typed payload (e.g., `Order order`), then `autoAck` setting applies for automatic behavior.
+- Q: How is automatic vs. explicit control determined? → A: By parameter type alone. If the parameter is `NatsMessage<T>`, the developer has explicit control and must call ack/nak/term. If the parameter is just the typed payload (e.g., `Order order`), the framework automatically acknowledges on success and negative acknowledges on exception.
 - Q: Can ack/nak/term be called from async operations or callbacks? → A: Entirely the developer's responsibility. The framework provides the API; developers must ensure correct usage in any async or callback contexts they create.
 - Q: Should the framework validate that a durable consumer is configured with the correct AckPolicy? → A: No validation. Let NATS reject invalid configurations at runtime. This keeps the framework simple and allows NATS to be the source of truth.
 - Q: What is the default redelivery delay when nak() is called? → A: The framework delegates to NATS. The nak() call is passed directly to the underlying NATS message; NATS determines the behavior based on the consumer configuration.
@@ -101,9 +101,9 @@ As a developer, I want to use explicit acknowledgment and negative acknowledgmen
 
 ### Functional Requirements
 
-- **FR-001**: The `@NatsSubscriber` annotation MUST include an `autoAck` property (default: `true`) to enable or disable automatic acknowledgment of messages. This setting applies only when the subscriber method parameter is a typed payload (not `NatsMessage<T>`).
-- **FR-002**: When a subscriber method parameter is `NatsMessage<T>`, automatic ack/nak MUST be disabled; the developer has explicit control and must call `ack()`, `nak()`, or `term()` on the `NatsMessage` parameter.
-- **FR-002b**: When a subscriber method parameter is a typed payload (e.g., `Order order`) and `autoAck=true`, the framework MUST automatically acknowledge successful message processing; when `autoAck=false`, the framework MUST NOT automatically acknowledge.
+- **FR-001**: The subscriber method parameter type determines automatic ack/nak behavior (no annotation property needed). If the parameter is `NatsMessage<T>`, automatic ack/nak is disabled; if the parameter is a typed payload only (e.g., `Order order`), automatic ack/nak is enabled.
+- **FR-002**: When a subscriber method parameter is `NatsMessage<T>`, the framework MUST NOT automatically acknowledge or negative acknowledge messages. The developer has explicit control and MUST call `ack()`, `nak()`, or `term()` on the `NatsMessage` parameter.
+- **FR-002b**: When a subscriber method parameter is a typed payload only (e.g., `Order order`), the framework MUST automatically acknowledge successful message processing; the framework MUST automatically negative acknowledge if the subscriber method throws an exception.
 - **FR-003**: The `NatsMessage<T>` wrapper MUST provide an `ack()` method that allows subscriber methods to explicitly acknowledge a message.
 - **FR-004**: The `NatsMessage<T>` wrapper MUST provide a `nak(Duration delay)` method that allows subscriber methods to explicitly reject a message with an optional redelivery delay.
 - **FR-005**: The `NatsMessage<T>` wrapper MUST provide a `term()` method to explicitly terminate a message.
@@ -123,13 +123,14 @@ As a developer, I want to use explicit acknowledgment and negative acknowledgmen
 
 ### Measurable Outcomes
 
-- **SC-001**: A developer can disable automatic acknowledgment by setting `autoAck = false` in the `@NatsSubscriber` annotation.
-- **SC-002**: A developer can acknowledge a message by calling the acknowledgment API from within a subscriber method.
-- **SC-003**: A developer can negative acknowledge a message with an optional redelivery delay by calling the nak API from within a subscriber method.
-- **SC-004**: In end-to-end tests, messages are not redelivered when explicitly acknowledged.
-- **SC-005**: In end-to-end tests, messages are redelivered after the specified delay when explicitly negative acknowledged.
+- **SC-001**: A developer can opt into explicit control by using a `NatsMessage<T>` parameter; the framework automatically disables auto-ack/nak for such methods.
+- **SC-002**: A developer can acknowledge a message by calling `msg.ack()` from within a subscriber method with `NatsMessage<T>` parameter.
+- **SC-003**: A developer can negative acknowledge a message with an optional redelivery delay by calling `msg.nak(Duration)` from within a subscriber method with `NatsMessage<T>` parameter.
+- **SC-004**: In end-to-end tests, messages are not redelivered when explicitly acknowledged via `msg.ack()`.
+- **SC-005**: In end-to-end tests, messages are redelivered after the specified delay when explicitly negative acknowledged via `msg.nak(Duration)`.
 - **SC-006**: In end-to-end tests, acknowledgment and negative acknowledgment operations are idempotent (repeated calls do not cause errors or unexpected behavior).
 - **SC-007**: The API for ack/nak control is documented with clear examples showing how to implement error handling scenarios.
+- **SC-008**: Subscriber methods with typed-payload-only parameters (no `NatsMessage<T>`) automatically acknowledge on success and negative acknowledge on exception (implicit mode).
 
 ## Notes
 

@@ -38,7 +38,6 @@ This document defines the data model, entities, and their relationships for the 
 | `payload()` | `T` | Get the pre-deserialized typed payload | Simple getter; returns pre-deserialized instance from construction time |
 | `headers()` | `Headers` | Get message headers (CloudEvents attributes, etc.) | Pass-through to `underlyingMessage.getHeaders()` |
 | `subject()` | `String` | Get the NATS subject name | Pass-through to `underlyingMessage.getSubject()` |
-| `data()` | `byte[]` | Get raw message bytes | Pass-through to `underlyingMessage.getData()` |
 | `metadata()` | `MessageMetadata` | Get NATS JetStream metadata (sequence, consumer, etc.) | Pass-through to `underlyingMessage.getMetaData()` |
 
 **Idempotency**:

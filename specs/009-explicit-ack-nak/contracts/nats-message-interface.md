@@ -103,16 +103,6 @@ public interface NatsMessage<T> {
     String subject();
 
     /**
-     * Get the raw message payload bytes.
-     *
-     * Use this if you need access to the raw serialized form (before deserialization).
-     * This is a pass-through to the underlying NATS message's getData() method.
-     *
-     * @return Raw message bytes
-     */
-    byte[] data();
-
-    /**
      * Get NATS JetStream message metadata (sequence numbers, redelivery count, etc.).
      *
      * Useful for testing and observability. This is a pass-through to the underlying
@@ -207,7 +197,6 @@ void handleEvent(NatsMessage<Event> msg) {
 | `term()` | None | void | Terminates message (NATS-specific) | Throws IOException, JetStreamApiException |
 | `headers()` | None | Headers | None (read-only) | None (immutable) |
 | `subject()` | None | String | None (read-only) | None |
-| `data()` | None | byte[] | None (read-only) | None |
 | `metadata()` | None | MessageMetadata | None (read-only) | None |
 
 ---
@@ -249,11 +238,6 @@ void handleEvent(NatsMessage<Event> msg) {
 
 ### Integration Tests
 - [ ] Subscriber receives `NatsMessage<Order>` parameter
-- [ ] Calling `msg.ack()` prevents message redelivery after restart
-- [ ] Calling `msg.nak(Duration)` causes message redelivery after delay
-- [ ] Calling `msg.nak()` (no delay) respects consumer's delay config
-- [ ] Exception after `ack()` does not cause redelivery
-- [ ] Multiple subscribers can ack/nak same message type concurrently
 
 ---
 
