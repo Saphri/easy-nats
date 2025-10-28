@@ -6,6 +6,16 @@
 **Status**: Draft
 **Input**: User description: "As a developer I would like to have explicit ack/nak control in some scenarios"
 
+## Clarifications
+
+### Session 2025-10-28
+
+- Q: How should developers access the ack/nak APIs from within a subscriber method? → A: Through the `NatsMessage<T>` wrapper parameter. Developers receive a `NatsMessage<Order> orderMsg` parameter that provides `ack()`, `nak(Duration delay)`, `term()`, `payload()` methods and access to message headers.
+- Q: When does `autoAck` apply? → A: If a subscriber method parameter is `NatsMessage<T>`, there is no auto-ack/nak—the developer has explicit control and must call ack/nak/term. If the parameter is just the typed payload (e.g., `Order order`), then `autoAck` setting applies for automatic behavior.
+- Q: Can ack/nak/term be called from async operations or callbacks? → A: Entirely the developer's responsibility. The framework provides the API; developers must ensure correct usage in any async or callback contexts they create.
+- Q: Should the framework validate that a durable consumer is configured with the correct AckPolicy? → A: No validation. Let NATS reject invalid configurations at runtime. This keeps the framework simple and allows NATS to be the source of truth.
+- Q: What is the default redelivery delay when nak() is called? → A: The framework delegates to NATS. The nak() call is passed directly to the underlying NATS message; NATS determines the behavior based on the consumer configuration.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Acknowledge a message after processing completes (Priority: P1)
@@ -77,6 +87,7 @@ As a developer, I want to use explicit acknowledgment and negative acknowledgmen
 - What happens if a subscriber method calls both acknowledge and negative acknowledge on the same message? The first call should succeed; subsequent calls should be idempotent (silently ignored).
 - What happens if a subscriber method neither acknowledges nor negative acknowledges before the method returns? The framework does nothing; the message handling behavior is determined by NATS JetStream's configured AckPolicy and timeout settings.
 - What happens if a subscriber method calls acknowledge but then throws an exception after calling acknowledge? The acknowledge should have already taken effect; the exception should not prevent the acknowledgment.
+- What happens if a developer calls ack/nak/term from an async callback or after the subscriber method returns? It is entirely the developer's responsibility to ensure correct usage. The framework does not enforce or validate async usage patterns.
 
 ## Assumptions
 
@@ -89,22 +100,23 @@ As a developer, I want to use explicit acknowledgment and negative acknowledgmen
 
 ### Functional Requirements
 
-- **FR-001**: The `@NatsSubscriber` annotation MUST include an `autoAck` property (default: `true`) to enable or disable automatic acknowledgment of messages.
-- **FR-002**: When `autoAck` is set to `false`, the framework MUST NOT automatically acknowledge received messages; control passes to the subscriber method.
-- **FR-003**: The framework MUST provide an acknowledgment API that allows subscriber methods to explicitly acknowledge a message.
-- **FR-004**: The framework MUST provide a negative acknowledgment (nak) API that allows subscriber methods to explicitly reject a message.
-- **FR-005**: The nak API MUST accept an optional redelivery delay parameter to specify how long the broker should wait before redelivering the message.
+- **FR-001**: The `@NatsSubscriber` annotation MUST include an `autoAck` property (default: `true`) to enable or disable automatic acknowledgment of messages. This setting applies only when the subscriber method parameter is a typed payload (not `NatsMessage<T>`).
+- **FR-002**: When a subscriber method parameter is `NatsMessage<T>`, automatic ack/nak MUST be disabled; the developer has explicit control and must call `ack()`, `nak()`, or `term()` on the `NatsMessage` parameter.
+- **FR-002b**: When a subscriber method parameter is a typed payload (e.g., `Order order`) and `autoAck=true`, the framework MUST automatically acknowledge successful message processing; when `autoAck=false`, the framework MUST NOT automatically acknowledge.
+- **FR-003**: The `NatsMessage<T>` wrapper MUST provide an `ack()` method that allows subscriber methods to explicitly acknowledge a message.
+- **FR-004**: The `NatsMessage<T>` wrapper MUST provide a `nak(Duration delay)` method that allows subscriber methods to explicitly reject a message with an optional redelivery delay.
+- **FR-005**: The `NatsMessage<T>` wrapper MUST provide a `term()` method to explicitly terminate a message.
 - **FR-006**: Calling acknowledge on an already-acknowledged message MUST be idempotent (does not cause an error).
 - **FR-007**: Calling negative acknowledge on an already-negative-acknowledged message MUST be idempotent (does not cause an error).
 - **FR-008**: The acknowledgment/nak API MUST be accessible within the context of a subscriber method invocation.
 - **FR-009**: The framework MUST properly handle the case where a subscriber method throws an exception after calling acknowledge or nak; the ack/nak action should already have taken effect.
-- **FR-010**: The framework MUST validate that a durable consumer is configured with an appropriate `AckPolicy` (e.g., `explicit`) when manual ack/nak control is used.
+- **FR-010**: The framework does not validate AckPolicy configuration; NATS JetStream will reject invalid ack/nak/term operations at runtime if the consumer is misconfigured.
 
 ### Key Entities
 
-- **Subscriber Method Context**: The execution context associated with a subscriber method invocation that provides access to ack/nak APIs. This includes the message, headers, and control functions.
-- **Acknowledgment API**: An interface or method that allows explicit acknowledgment of a message within a subscriber method.
-- **Negative Acknowledgment API**: An interface or method that allows explicit rejection of a message with optional redelivery delay within a subscriber method.
+- **NatsMessage<T>**: A wrapper around the underlying NATS JetStream message that provides access to the typed payload via `payload()`, message headers, and control functions: `ack()` for explicit acknowledgment, `nak(Duration delay)` for negative acknowledgment with optional redelivery delay, and `term()` for message termination.
+- **Acknowledgment**: Explicit confirmation that a message has been successfully processed, called via `NatsMessage.ack()`.
+- **Negative Acknowledgment (Nak)**: Explicit rejection of a message when processing fails, called via `NatsMessage.nak(Duration delay)` to signal the broker to redeliver the message after the specified delay.
 
 ## Success Criteria *(mandatory)*
 
