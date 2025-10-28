@@ -13,8 +13,11 @@ import org.mjelle.quarkus.easynats.NatsConfigurationException;
 import org.mjelle.quarkus.easynats.NatsConnection;
 
 import java.io.IOException;
+import java.security.NoSuchAlgorithmException;
 import java.util.concurrent.ExecutorService;
 import java.util.logging.Logger;
+
+import javax.net.ssl.SSLContext;
 
 import io.quarkus.virtual.threads.VirtualThreads;
 
@@ -115,6 +118,15 @@ public class NatsConnectionProvider {
 
             // Note: SSL context would be added here when sslEnabled is true
             // For now, we rely on the NATS client's default SSL handling based on URL scheme (nats:// vs tls://)
+            // Add authentication if configured
+            if (config.sslEnabled()) {
+                try {
+                    optionsBuilder.sslContext(SSLContext.getDefault());
+                } catch (NoSuchAlgorithmException e) {
+                    throw new NatsConfigurationException("Failed to create SSL context", e);
+                }
+            }
+
 
             Options options = optionsBuilder.build();
 

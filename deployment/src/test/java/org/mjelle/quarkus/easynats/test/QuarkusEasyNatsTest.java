@@ -13,6 +13,9 @@ public class QuarkusEasyNatsTest {
     // Start unit test with your extension loaded
     @RegisterExtension
     static final QuarkusUnitTest unitTest = new QuarkusUnitTest()
+            .overrideConfigKey("quarkus.easynats.servers", "nats://localhost:4222")
+            .overrideConfigKey("quarkus.easynats.username", "guest")
+            .overrideConfigKey("quarkus.easynats.password", "guest")
             .setArchiveProducer(() -> ShrinkWrap.create(JavaArchive.class));
 
     @Test

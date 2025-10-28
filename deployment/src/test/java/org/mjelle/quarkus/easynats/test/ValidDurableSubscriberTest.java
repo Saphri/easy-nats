@@ -22,6 +22,9 @@ public class ValidDurableSubscriberTest {
 
     @RegisterExtension
     static final QuarkusUnitTest config = new QuarkusUnitTest()
+            .overrideConfigKey("quarkus.easynats.servers", "nats://localhost:4222")
+            .overrideConfigKey("quarkus.easynats.username", "guest")
+            .overrideConfigKey("quarkus.easynats.password", "guest")
             .setArchiveProducer(() -> ShrinkWrap.create(JavaArchive.class)
                     .addClasses(ValidDurableSubscriber.class, NatsSubscriber.class))
             .assertException(t -> {
