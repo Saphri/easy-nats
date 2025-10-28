@@ -14,6 +14,7 @@ A Quarkus extension for integrating with NATS JetStream, designed for simplicity
 *   **CloudEvents Support:** First-class support for the CloudEvents specification with automatic header generation.
 *   **Quarkus Integration:** Automatically configures and manages the NATS connection lifecycle.
 *   **JetStream Support:** Built on top of NATS JetStream for reliable messaging.
+*   **Explicit Ack/Nak Control:** Manually acknowledge or reject messages for advanced error handling.
 
 ## Getting Started
 
@@ -142,6 +143,42 @@ public void sendCloudEvent(MyEvent event) {
 ```
 
 The extension will automatically add the required CloudEvents headers to the message, such as `ce-id`, `ce-time`, and `ce-specversion`.
+
+### Explicit Acknowledgment
+
+For advanced error handling, you can take full control over message acknowledgment. To do this, change your subscriber method to accept a `NatsMessage<T>` parameter. This disables automatic acknowledgment and gives you access to `ack()` and `nak()` methods.
+
+```java
+import org.mjelle.quarkus.easynats.NatsMessage;
+import org.mjelle.quarkus.easynats.annotation.NatsSubscriber;
+import java.time.Duration;
+
+@ApplicationScoped
+public class MyNatsConsumer {
+
+    @NatsSubscriber(subject = "my-events", consumer = "my-consumer")
+    public void onMessage(NatsMessage<MyEvent> message) {
+        MyEvent event = message.payload();
+        try {
+            // Process the event
+            process(event);
+            
+            // Manually acknowledge the message
+            message.ack();
+            System.out.println("Message processed and acknowledged.");
+            
+        } catch (Exception e) {
+            // Reject the message and request redelivery after 10 seconds
+            message.nakWithDelay(Duration.ofSeconds(10));
+            System.err.println("Failed to process message, requesting redelivery.");
+        }
+    }
+
+    private void process(MyEvent event) throws Exception {
+        // Your business logic here
+    }
+}
+```
 
 ## Building from Source
 

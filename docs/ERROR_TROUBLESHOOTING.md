@@ -801,7 +801,7 @@ If you see an error that's not covered here:
 2. **Check the Raw Payload**: The actual JSON might reveal the issue
 3. **Consult JACKSON_COMPATIBILITY_GUIDE.md**: Verify your types are supported
 4. **Try WRAPPER_PATTERN.md**: See if wrapping helps
-5. **Enable Debug Logging**: Set log level to DEBUG for more details
+- **Enable Debug Logging**: Set log level to DEBUG for more details
 
 Example debug logging:
 
@@ -810,6 +810,45 @@ Example debug logging:
 quarkus.log.level=DEBUG
 quarkus.log.category."org.mjelle.quarkus.easynats".level=DEBUG
 ```
+
+---
+
+## Error: "JetStreamApiException: nak received for a message that is not outstanding"
+
+### When You See This Error
+
+You are using explicit acknowledgment with `NatsMessage<T>` and call `msg.nak()` or `msg.nakWithDelay()`, but the call fails with a `JetStreamApiException`.
+
+### What It Means
+
+You are trying to negatively acknowledge a message, but the Nats JetStream consumer is not configured to handle explicit acknowledgments. The consumer's `AckPolicy` is likely set to `all` or `none` instead of `explicit`.
+
+### Root Causes
+
+1.  **Incorrect Consumer Configuration**: The durable consumer was created without setting the acknowledgment policy to explicit.
+2.  **Using `nak()` with an Ephemeral Consumer**: Ephemeral consumers do not support explicit `nak`.
+
+### How to Fix It
+
+Ensure your durable consumer is created with `--ack explicit`.
+
+**1. Delete the old consumer (if it exists):**
+```bash
+nats consumer rm YOUR_STREAM YOUR_CONSUMER
+```
+
+**2. Re-create the consumer with the correct ack policy:**
+```bash
+nats consumer add YOUR_STREAM YOUR_CONSUMER --ack explicit
+```
+
+**Example:**
+```bash
+# For a stream named "ORDERS" and a consumer named "order-processor"
+nats consumer add ORDERS order-processor --ack explicit
+```
+
+By setting the acknowledgment policy to `explicit`, you tell NATS JetStream that your application will be responsible for manually acknowledging (`ack`) or negatively acknowledging (`nak`) each message.
 
 ---
 

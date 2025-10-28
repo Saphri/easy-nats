@@ -45,6 +45,13 @@ Customize serialization and deserialization behavior:
   - @JsonInclude - Conditional inclusion
   - Complete examples for each annotation
 
+- **[Explicit Ack/Nak Guide](./EXPLICIT_ACK_NAK_GUIDE.md)** - Manual message control
+  - `NatsMessage<T>` wrapper for explicit control
+  - `ack()` for successful processing
+  - `nak()` and `nakWithDelay()` for retries
+  - Accessing message headers and metadata
+  - Advanced error handling patterns
+
 ### Troubleshooting
 
 When things don't work as expected:
@@ -64,9 +71,9 @@ When things don't work as expected:
 
 For deeper understanding of the implementation:
 
-- **[Feature Specification](../specs/007-typed-serialization/spec.md)** - Complete requirements and use cases
-- **[Implementation Plan](../specs/007-typed-serialization/plan.md)** - Architecture and design decisions
-- **[Implementation Tasks](../specs/007-typed-serialization/tasks.md)** - All 64 implementation tasks with completion status
+- **[Feature Specification](../specs/009-explicit-ack-nak/spec.md)** - Complete requirements and use cases
+- **[Implementation Plan](../specs/009-explicit-ack-nak/plan.md)** - Architecture and design decisions
+- **[Implementation Tasks](../specs/009-explicit-ack-nak/tasks.md)** - All implementation tasks with completion status
 
 ## 📖 Common Scenarios
 
@@ -79,6 +86,9 @@ For deeper understanding of the implementation:
 ### I need to customize field names or serialization
 → See [Jackson Annotations Guide](./JACKSON_ANNOTATIONS_GUIDE.md)
 
+### I need full control over message retries
+→ See [Explicit Ack/Nak Guide](./EXPLICIT_ACK_NAK_GUIDE.md)
+
 ### I'm getting an error
 → See [Error Troubleshooting Guide](./ERROR_TROUBLESHOOTING.md)
 
@@ -90,6 +100,7 @@ For deeper understanding of the implementation:
 - **Type-Safe Messaging** - Compile-time and runtime type validation
 - **Automatic Serialization** - Jackson handles JSON seamlessly
 - **CloudEvents Support** - CloudEvents 1.0 binary-mode wrapping
+- **Explicit Ack/Nak Control** - Full control over message lifecycle
 - **Clear Error Messages** - Detailed guidance when things go wrong
 - **Annotation Support** - Full Jackson annotation compatibility
 - **Records Support** - Java Record types work out-of-the-box
@@ -102,6 +113,7 @@ For deeper understanding of the implementation:
 | JACKSON_COMPATIBILITY_GUIDE | Type reference | Understanding supported types |
 | WRAPPER_PATTERN | Handling limitations | Wrapping primitives/arrays |
 | JACKSON_ANNOTATIONS_GUIDE | Advanced customization | Custom serialization |
+| EXPLICIT_ACK_NAK_GUIDE | Advanced error handling | Implementing retries |
 | ERROR_TROUBLESHOOTING | Problem solving | Debugging issues |
 
 ## 💡 Tips
@@ -118,10 +130,11 @@ All documentation has been tested with working code examples:
 - ✅ JACKSON_COMPATIBILITY_GUIDE.md - Comprehensive reference
 - ✅ WRAPPER_PATTERN.md - Complete with examples
 - ✅ JACKSON_ANNOTATIONS_GUIDE.md - Deep dive guide
+- ✅ EXPLICIT_ACK_NAK_GUIDE.md - New guide for manual acknowledgment
 - ✅ ERROR_TROUBLESHOOTING.md - 9+ error scenarios covered
 
 ---
 
-**Last Updated**: 2025-10-27
-**Feature Version**: 007-typed-serialization
-**Status**: ✅ Complete (All 64 tasks done, 81 tests passing)
+**Last Updated**: 2025-10-28
+**Feature Version**: 009-explicit-ack-nak
+**Status**: ✅ Complete
