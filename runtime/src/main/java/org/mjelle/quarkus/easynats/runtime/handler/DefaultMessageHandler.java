@@ -5,12 +5,15 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.nats.client.Message;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
 import org.jboss.logging.Logger;
+import org.mjelle.quarkus.easynats.NatsMessage;
 import org.mjelle.quarkus.easynats.runtime.metadata.SubscriberMetadata;
 import org.mjelle.quarkus.easynats.runtime.subscriber.CloudEventException;
 import org.mjelle.quarkus.easynats.runtime.subscriber.CloudEventUnwrapper;
+import org.mjelle.quarkus.easynats.runtime.subscriber.DefaultNatsMessage;
 import org.mjelle.quarkus.easynats.runtime.subscriber.DeserializationException;
 
 /**
@@ -35,6 +38,8 @@ public class DefaultMessageHandler implements MessageHandler {
     private final Method method;
     private final ObjectMapper objectMapper;
     private final JavaType parameterType;
+    private final boolean isExplicitMode;
+    private final JavaType payloadType;
 
     /**
      * Creates a new message handler.
@@ -55,6 +60,44 @@ public class DefaultMessageHandler implements MessageHandler {
         // This avoids needing to Class.forName() user types which aren't available at runtime
         Type genericParamType = method.getGenericParameterTypes()[0];
         this.parameterType = objectMapper.getTypeFactory().constructType(genericParamType);
+
+        // Detect if parameter type is NatsMessage<T> (explicit mode)
+        // If so, extract T for deserialization; otherwise use full parameter type
+        this.isExplicitMode = isNatsMessageType(genericParamType);
+        this.payloadType = isExplicitMode ? extractPayloadType(genericParamType) : this.parameterType;
+    }
+
+    /**
+     * Determines if the given type is NatsMessage or NatsMessage&lt;T&gt;.
+     *
+     * @param type the type to check
+     * @return true if type is NatsMessage or NatsMessage&lt;T&gt;, false otherwise
+     */
+    private boolean isNatsMessageType(Type type) {
+        if (type instanceof ParameterizedType) {
+            Type rawType = ((ParameterizedType) type).getRawType();
+            return rawType instanceof Class && NatsMessage.class.isAssignableFrom((Class<?>) rawType);
+        } else if (type instanceof Class) {
+            return NatsMessage.class.isAssignableFrom((Class<?>) type);
+        }
+        return false;
+    }
+
+    /**
+     * Extracts the payload type T from NatsMessage&lt;T&gt;.
+     *
+     * @param type the NatsMessage&lt;T&gt; type
+     * @return the type T, or String if T cannot be determined
+     */
+    private JavaType extractPayloadType(Type type) {
+        if (type instanceof ParameterizedType) {
+            Type[] typeArgs = ((ParameterizedType) type).getActualTypeArguments();
+            if (typeArgs.length > 0) {
+                return objectMapper.getTypeFactory().constructType(typeArgs[0]);
+            }
+        }
+        // Fallback to String if type parameter cannot be extracted
+        return objectMapper.getTypeFactory().constructType(String.class);
     }
 
     @Override
@@ -63,6 +106,7 @@ public class DefaultMessageHandler implements MessageHandler {
             Object payload;
 
             // 006-typed-subscriber: CloudEvent unwrap + typed deserialization
+            // 009-explicit-ack-nak: Support both implicit (typed payload) and explicit (NatsMessage<T>) modes
             byte[] eventData = null;
             try {
                 // Step 1: Unwrap CloudEvent (binary-mode)
@@ -70,17 +114,22 @@ public class DefaultMessageHandler implements MessageHandler {
 
                 // Step 2: Deserialize to typed object using JavaType
                 // This handles complex types, generics, and user-defined classes
+                // For explicit mode: deserialize to T (the payload type inside NatsMessage<T>)
+                // For implicit mode: deserialize to the subscriber's parameter type directly
                 try {
-                    payload = objectMapper.readValue(eventData, parameterType);
+                    payload = objectMapper.readValue(eventData, payloadType);
                 } catch (Exception e) {
                     throw new DeserializationException(
-                            "Failed to deserialize to type " + parameterType.getTypeName(), e);
+                            "Failed to deserialize to type " + payloadType.getTypeName(), e);
                 }
             } catch (CloudEventException e) {
                 LOGGER.errorf(
                         "CloudEvent validation failed for subject=%s, method=%s, cause=%s",
                         metadata.subject(), metadata.methodName(), e.getMessage());
-                nakMessage(message);
+                // Only auto-nak if implicit mode; explicit mode developer handles it
+                if (!isExplicitMode) {
+                    nakMessage(message);
+                }
                 return;
             } catch (DeserializationException e) {
                 // Log with detailed context for debugging
@@ -92,17 +141,25 @@ public class DefaultMessageHandler implements MessageHandler {
                         "Message deserialization failed for subject=%s, method=%s, type=%s\n" +
                         "  Root cause: %s\n" +
                         "  Raw payload: %s",
-                        metadata.subject(), metadata.methodName(), parameterType.getTypeName(),
+                        metadata.subject(), metadata.methodName(), payloadType.getTypeName(),
                         e.getMessage(), payloadPreview);
-                nakMessage(message);
+                // Only auto-nak if implicit mode; explicit mode developer handles it
+                if (!isExplicitMode) {
+                    nakMessage(message);
+                }
                 return;
             }
 
-            // Step 3: Invoke method with payload
-            invokeSubscriberMethod(payload);
+            // Step 3: Wrap payload in NatsMessage<T> if explicit mode, otherwise use payload directly
+            Object methodParam = isExplicitMode ? new DefaultNatsMessage<>(message, payload) : payload;
 
-            // Step 4: Ack on success
-            message.ack();
+            // Step 4: Invoke method with payload or NatsMessage wrapper
+            invokeSubscriberMethod(methodParam);
+
+            // Step 5: Auto-ack on success (only for implicit mode; explicit mode is developer's responsibility)
+            if (!isExplicitMode) {
+                message.ack();
+            }
         } catch (InvocationTargetException e) {
             // The subscriber method threw an exception
             LOGGER.errorf(
@@ -110,7 +167,10 @@ public class DefaultMessageHandler implements MessageHandler {
                     "Error processing message for subscriber: subject=%s, method=%s",
                     metadata.subject(),
                     metadata.methodName());
-            nakMessage(message);
+            // Only auto-nak if implicit mode; explicit mode developer handles it
+            if (!isExplicitMode) {
+                nakMessage(message);
+            }
         } catch (Exception e) {
             // Other errors (reflection, etc.)
             LOGGER.errorf(
@@ -118,7 +178,10 @@ public class DefaultMessageHandler implements MessageHandler {
                     "Error processing message for subscriber: subject=%s, method=%s",
                     metadata.subject(),
                     metadata.methodName());
-            nakMessage(message);
+            // Only auto-nak if implicit mode; explicit mode developer handles it
+            if (!isExplicitMode) {
+                nakMessage(message);
+            }
         }
     }
 
