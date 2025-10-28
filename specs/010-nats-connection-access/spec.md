@@ -66,18 +66,19 @@ A developer needs confidence that the NATS connection is properly managed - it w
 
 ---
 
-### User Story 4 - Multiple Connection Access Patterns (Priority: P2)
+### User Story 4 - CDI Injection for Connection Access (Priority: P1)
 
-A developer may need different ways to access the connection - via dependency injection, static accessor methods, or programmatic lookup - depending on their code structure and use case.
+A developer wants to obtain the NATS connection using standard CDI (Contexts and Dependency Injection) mechanisms, following Quarkus and Java best practices. This includes constructor injection, which is the standard pattern for the extension.
 
-**Why this priority**: Flexibility in access patterns is important for developer experience but secondary to basic functionality. Different developers have different coding patterns (e.g., some use DI, others prefer static helpers in older codebases).
+**Why this priority**: CDI injection is the idiomatic way to access managed beans in Quarkus applications. It's a critical requirement because it integrates the connection seamlessly with the application's dependency graph and lifecycle management. This is equally important as basic access since it defines how developers will actually use the feature.
 
-**Independent Test**: Can be tested by verifying that a developer can obtain a NATS connection through at least two different access patterns (e.g., injection and static method) and both methods return the same, usable connection.
+**Independent Test**: Can be tested by verifying that a developer can inject a NATS connection into a bean using constructor injection, and that the injected connection is the same instance used by the extension's publishers and subscribers.
 
 **Acceptance Scenarios**:
 
-1. **Given** a developer using dependency injection patterns, **When** they inject a NATS connection, **Then** they receive an active connection.
-2. **Given** a developer who prefers static accessor methods, **When** they call a static utility to get the connection, **Then** they receive the same active connection that would be injected.
+1. **Given** a developer using constructor injection in a Quarkus bean, **When** they declare a constructor parameter of type `Connection`, **Then** the extension provides the active NATS connection without additional configuration.
+2. **Given** a developer injecting the connection in multiple beans, **When** each bean injects the connection, **Then** all beans receive the same underlying connection instance.
+3. **Given** a Quarkus application with the extension enabled, **When** the application starts up, **Then** the connection is properly initialized and ready for injection before any beans are instantiated.
 
 ---
 
@@ -113,28 +114,29 @@ A developer wants to use Java's try-with-resources statement when working with t
 
 ### Functional Requirements
 
-- **FR-001**: Extension MUST provide a way for developers to obtain a reference to the active NATS connection
-- **FR-002**: The connection provided MUST be the same underlying NATS connection used by the extension's publisher and subscriber mechanisms
-- **FR-003**: The connection MUST be thread-safe for concurrent use by multiple threads
-- **FR-004**: Accessing the connection MUST be simple and not require low-level NATS API knowledge
-- **FR-005**: The connection MUST remain valid and usable for the entire application lifetime
-- **FR-006**: Connection access MUST work within the Quarkus application context (respecting CDI lifecycle)
-- **FR-007**: The extension MUST prevent developers from closing the connection, since the connection is shared by all application publishers and subscribers
-- **FR-008**: The connection provided to developers MUST NOT expose a `close()` method or equivalent that could terminate the shared connection
-- **FR-009**: If a developer attempts to call `close()` on the provided connection, the extension MUST prevent the operation and provide a clear error message explaining that closing is not permitted
-- **FR-010**: Developers MUST receive clear error messages if they attempt to use a closed connection (in case the connection is closed by the extension due to connection failures)
-- **FR-011**: Extension MUST provide a connection wrapper that implements `AutoCloseable` to support try-with-resources usage
-- **FR-012**: When a developer uses the connection wrapper in a try-with-resources statement, the underlying NATS connection MUST NOT be closed when the try block exits
-- **FR-013**: The `close()` method on the connection wrapper MUST be a safe no-op that does not affect the underlying connection or other application components
-- **FR-014**: The connection wrapper MUST transparently delegate all NATS operations to the underlying connection (no performance degradation)
-- **FR-015**: Extension MUST provide documentation showing common advanced use cases (custom subscriptions, push subscriptions, metadata access), try-with-resources examples, and explicitly warn against attempting to close the connection
+- **FR-001**: Extension MUST register the NATS connection as a CDI bean in the Quarkus application context
+- **FR-002**: Developers MUST be able to inject the connection using standard CDI constructor injection patterns
+- **FR-003**: The connection provided MUST be the same underlying NATS connection used by the extension's publisher and subscriber mechanisms
+- **FR-004**: The extension MUST ensure the connection is fully initialized and available before any application beans are instantiated
+- **FR-005**: All beans that inject the connection MUST receive the same singleton instance
+- **FR-006**: The connection MUST be thread-safe for concurrent use by multiple threads
+- **FR-007**: The connection MUST remain valid and usable for the entire application lifetime
+- **FR-008**: The extension MUST prevent developers from closing the connection, since the connection is shared by all application publishers and subscribers
+- **FR-009**: The connection provided to developers MUST NOT expose a `close()` method or equivalent that could terminate the shared connection
+- **FR-010**: If a developer attempts to call `close()` on the provided connection, the extension MUST prevent the operation and provide a clear error message explaining that closing is not permitted
+- **FR-011**: Developers MUST receive clear error messages if they attempt to use a closed connection (in case the connection is closed by the extension due to connection failures)
+- **FR-012**: Extension MUST provide a connection wrapper that implements `AutoCloseable` to support try-with-resources usage
+- **FR-013**: When a developer uses the connection wrapper in a try-with-resources statement, the underlying NATS connection MUST NOT be closed when the try block exits
+- **FR-014**: The `close()` method on the connection wrapper MUST be a safe no-op that does not affect the underlying connection or other application components
+- **FR-015**: The connection wrapper MUST transparently delegate all NATS operations to the underlying connection (no performance degradation)
+- **FR-016**: Extension MUST provide documentation showing common advanced use cases (custom subscriptions, push subscriptions, metadata access), try-with-resources examples, and explicitly warn against attempting to close the connection
 
 ### Key Entities
 
 - **NATS Connection**: The underlying `io.nats.client.Connection` object from the NATS client library, representing an open connection to the NATS server.
 - **Connection Wrapper**: A safe wrapper around the NATS connection that implements `AutoCloseable` for try-with-resources support, with a no-op `close()` method to prevent accidental connection closure.
-- **Connection Manager**: The extension component responsible for managing the connection lifecycle, ensuring it's properly initialized, maintained, and cleaned up.
-- **Access Point**: The mechanism (injection point, static method, or other) through which developers can obtain the connection wrapper.
+- **CDI Bean**: The extension registers the connection wrapper as a singleton CDI bean in the Quarkus application context, enabling standard dependency injection.
+- **Connection Manager**: The extension component (Quarkus build-time processor) responsible for registering the connection as a CDI bean and managing its lifecycle.
 
 ## Success Criteria *(mandatory)*
 
@@ -154,15 +156,18 @@ A developer wants to use Java's try-with-resources statement when working with t
 
 ## Assumptions
 
-1. **NATS client thread safety**: We assume the underlying `io.nats:jnats` library is thread-safe for the connection object, as documented in the NATS Java client.
-2. **Single NATS connection per application**: We assume a typical Quarkus application uses a single NATS connection. Multiple connections per application are not explicitly supported in this feature.
-3. **Shared connection is critical**: The connection is a shared resource used by all application publishers and subscribers. Closing it would break all NATS communication in the application. Therefore, developers must not be able to close the connection. The try-with-resources pattern is supported via a safe wrapper with a no-op `close()` method.
-4. **Wrapper pattern for AutoCloseable**: We provide a thin wrapper that implements `AutoCloseable` but does not close the underlying connection. This allows developers to use try-with-resources idiomatically while maintaining safety.
-5. **Quarkus dependency available**: We assume Quarkus and Arc (CDI) are available and properly configured in the runtime module.
-6. **Basic NATS knowledge**: We assume developers accessing the raw connection have basic familiarity with the NATS client API, even though we'll provide examples.
+1. **CDI is the standard access mechanism**: Developers access the connection exclusively through CDI constructor injection. This follows Quarkus and Java best practices and integrates seamlessly with the application's lifecycle management.
+2. **Singleton bean scope**: The connection is registered as a singleton CDI bean, ensuring all beans receive the same instance throughout the application lifetime.
+3. **NATS client thread safety**: We assume the underlying `io.nats:jnats` library is thread-safe for the connection object, as documented in the NATS Java client.
+4. **Single NATS connection per application**: We assume a typical Quarkus application uses a single NATS connection. Multiple connections per application are not explicitly supported in this feature.
+5. **Shared connection is critical**: The connection is a shared resource used by all application publishers and subscribers. Closing it would break all NATS communication in the application. Therefore, developers must not be able to close the connection. The try-with-resources pattern is supported via a safe wrapper with a no-op `close()` method.
+6. **Wrapper pattern for AutoCloseable**: We provide a thin wrapper that implements `AutoCloseable` but does not close the underlying connection. This allows developers to use try-with-resources idiomatically while maintaining safety.
+7. **Quarkus and Arc availability**: We assume Quarkus 3.27.0+ and Arc (CDI) are available and properly configured in the runtime module, as these are core dependencies of the extension.
+8. **Basic NATS knowledge**: We assume developers accessing the raw connection have basic familiarity with the NATS client API, even though we'll provide examples.
 
 ## Out of Scope
 
 - **Connection pooling or multiple connections**: This feature provides access to a single application-level connection.
+- **Non-CDI access patterns**: Static factory methods, service locators, or other non-CDI mechanisms are explicitly not supported. CDI injection is the only supported access pattern.
 - **Custom NATS server configuration**: We assume the NATS server is already configured and accessible; this feature doesn't configure NATS itself.
 - **Advanced NATS features beyond access**: Features like custom authentication, TLS configuration, or connection retry policies are out of scope (handled by existing Quarkus NATS configuration).
