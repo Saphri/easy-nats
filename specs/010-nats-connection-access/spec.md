@@ -38,16 +38,16 @@ A developer using the Quarkus EasyNATS extension needs direct access to the unde
 
 ### User Story 2 - Thread-Safe Connection Access (Priority: P1)
 
-A developer working in a multi-threaded Quarkus application needs to safely access the NATS connection from multiple threads without race conditions or connection corruption.
+A developer working in a multi-threaded Quarkus application needs the ability to safely inject and use the NATS connection from multiple threads. The wrapper must not introduce thread-safety issues and must properly delegate all operations to the underlying thread-safe NATS client.
 
-**Why this priority**: Thread safety is critical for production applications. If the connection is not thread-safe, developers will encounter hard-to-debug concurrency issues that break in production. This is equally critical as basic access.
+**Why this priority**: The wrapper must not break thread safety that the underlying NATS client already provides. Developers assume they can safely inject and use the same connection instance across multiple threads. The wrapper is responsible for transparent delegation without adding synchronization overhead or concurrency bugs.
 
-**Independent Test**: Can be tested by verifying that multiple concurrent threads can safely publish messages through the same connection and receive them correctly, with no connection errors or lost messages.
+**Independent Test**: Can be tested by verifying that the wrapper properly delegates concurrent calls to the underlying NATS connection without serializing operations or corrupting state. This tests the wrapper's delegation, not the NATS client's thread safety (which is assumed and documented by jnats).
 
 **Acceptance Scenarios**:
 
-1. **Given** multiple threads accessing the same NATS connection simultaneously, **When** each thread publishes a message concurrently, **Then** all messages are delivered successfully without connection errors.
-2. **Given** a connection being used by one thread for publishing while another thread subscribes, **When** both operations occur concurrently, **Then** the subscriber receives all published messages correctly.
+1. **Given** multiple threads accessing the same injected connection wrapper simultaneously, **When** each thread delegates operations through the wrapper, **Then** the wrapper transparently forwards calls to the underlying connection without introducing synchronization bottlenecks or exceptions.
+2. **Given** a connection wrapper being used concurrently by threads publishing and subscribing, **When** the wrapper delegates these concurrent operations, **Then** the wrapper does not corrupt or block any operations that would otherwise succeed on the raw connection.
 
 ---
 
@@ -141,7 +141,7 @@ A developer wants to configure the NATS connection using standard Quarkus config
 - **FR-003**: The connection provided MUST be the same underlying NATS connection used by the extension's publisher and subscriber mechanisms
 - **FR-004**: The extension MUST ensure the connection is fully initialized and available before any application beans are instantiated
 - **FR-005**: All beans that inject the connection MUST receive the same singleton instance
-- **FR-006**: The connection MUST be thread-safe for concurrent use by multiple threads
+- **FR-006**: The connection wrapper MUST not introduce thread-safety issues and MUST properly delegate all concurrent operations to the underlying thread-safe NATS client (thread safety is provided by jnats, not reimplemented by the wrapper)
 - **FR-007**: The connection MUST remain valid and usable for the entire application lifetime
 - **FR-008**: The extension MUST prevent developers from closing the connection, since the connection is shared by all application publishers and subscribers
 - **FR-009**: The connection provided to developers MUST NOT expose a `close()` method or equivalent that could terminate the shared connection
@@ -181,7 +181,7 @@ A developer wants to configure the NATS connection using standard Quarkus config
 ### Measurable Outcomes
 
 - **SC-001**: Developers can obtain a NATS connection and successfully execute any NATS client operation within 30 seconds of reading the documentation.
-- **SC-002**: Connection access works reliably in multi-threaded scenarios with zero message loss or connection corruption under concurrent load.
+- **SC-002**: The connection wrapper properly delegates concurrent operations to the underlying NATS client without introducing deadlocks, synchronization bottlenecks, or state corruption (testing wrapper delegation, not underlying jnats thread safety).
 - **SC-003**: 95% of developers attempting to use advanced NATS operations report that the API is intuitive and required minimal trial-and-error.
 - **SC-004**: Zero connection-related resource leaks detected in applications using the access API over extended runtime periods.
 - **SC-005**: Connection operations complete with minimal latency overhead (no more than 5% additional latency compared to direct NATS client access).
@@ -194,7 +194,7 @@ A developer wants to configure the NATS connection using standard Quarkus config
 
 1. **CDI is the standard access mechanism**: Developers access the connection exclusively through CDI constructor injection. This follows Quarkus and Java best practices and integrates seamlessly with the application's lifecycle management.
 2. **Singleton bean scope**: The connection is registered as a singleton CDI bean, ensuring all beans receive the same instance throughout the application lifetime.
-3. **NATS client thread safety**: We assume the underlying `io.nats:jnats` library is thread-safe for the connection object, as documented in the NATS Java client.
+3. **NATS client thread safety**: We assume the underlying `io.nats:jnats` library is thread-safe for the connection object, as documented in the NATS Java client. The wrapper does not reimplement or test thread safety; it only delegates to the thread-safe underlying client. Testing focuses on verifying the wrapper doesn't introduce thread-safety issues, not on testing jnats itself.
 4. **Single NATS connection per application**: We assume a typical Quarkus application uses a single NATS connection. Multiple connections per application are not explicitly supported in this feature.
 5. **Shared connection is critical**: The connection is a shared resource used by all application publishers and subscribers. Closing it would break all NATS communication in the application. Therefore, developers must not be able to close the connection. The try-with-resources pattern is supported via a safe wrapper with a no-op `close()` method.
 6. **Wrapper pattern for AutoCloseable**: We provide a thin wrapper that implements `AutoCloseable` but does not close the underlying connection. This allows developers to use try-with-resources idiomatically while maintaining safety.
