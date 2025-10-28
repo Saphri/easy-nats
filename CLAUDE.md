@@ -466,6 +466,8 @@ if (appName != null && !appName.isEmpty()) {
 - N/A (messages managed by NATS JetStream) (001-durable-nats-consumers)
 - Java 21 (enforced per Constitution Principle IV) + Quarkus 3.27.0 LTS, NATS JetStream client (io.nats:jnats) (009-explicit-ack-nak)
 - N/A (messaging system; messages managed by NATS JetStream) (009-explicit-ack-nak)
+- Java 21 + Quarkus 3.27.0, NATS JetStream client (io.nats:jnats), Quarkus Arc (CDI) (010-nats-connection-access)
+- N/A (connection management only, no persistence) (010-nats-connection-access)
 
 ## Recent Changes
 - 005-transparent-cloudevents: Implemented transparent CloudEvent wrapping in NatsPublisher with custom PublishingException

@@ -14,6 +14,7 @@ docs/
 ├── JACKSON_COMPATIBILITY_GUIDE.md        # Type support reference
 ├── WRAPPER_PATTERN.md                    # Wrapping unsupported types
 ├── JACKSON_ANNOTATIONS_GUIDE.md          # Jackson annotation customization
+├── EXPLICIT_ACK_NAK_GUIDE.md             # Manual ack/nak control guide
 └── ERROR_TROUBLESHOOTING.md              # Common errors and solutions
 ```
 
@@ -41,7 +42,10 @@ docs/
   - @JsonAlias, @JsonFormat, @JsonInclude
   - Real-world examples
 
-### 🔧 Troubleshooting
+### 🔧 Advanced Features
+- **[Explicit Ack/Nak Guide](./EXPLICIT_ACK_NAK_GUIDE.md)** - Manual message control for retries and error handling.
+
+### 🆘 Troubleshooting
 - **[Error Troubleshooting Guide](./ERROR_TROUBLESHOOTING.md)** - Solutions to common problems
   - 9+ error scenarios with solutions
   - Error reference table
@@ -56,8 +60,9 @@ docs/
 | JACKSON_COMPATIBILITY_GUIDE.md | 13 KB | Type reference (5+ sections) |
 | WRAPPER_PATTERN.md | 14 KB | Wrapping guide (3 examples) |
 | JACKSON_ANNOTATIONS_GUIDE.md | 12 KB | Annotations reference (7+ annotations) |
-| ERROR_TROUBLESHOOTING.md | 19 KB | Troubleshooting (9+ error types) |
-| **Total** | **88 KB** | **Complete documentation** |
+| EXPLICIT_ACK_NAK_GUIDE.md | 8 KB | Manual ack/nak guide |
+| ERROR_TROUBLESHOOTING.md | 20 KB | Troubleshooting (10+ error types) |
+| **Total** | **82.5 KB** | **Complete documentation** |
 
 ## Feature Coverage
 
@@ -66,7 +71,8 @@ docs/
 - All supported types explained
 - Unsupported types handling covered
 - Jackson annotations guide included
-- Error troubleshooting for 9+ common scenarios
+- Explicit ack/nak control for advanced error handling
+- Error troubleshooting for 10+ common scenarios
 - 80+ code examples across all guides
 - Best practices and patterns included
 
@@ -99,6 +105,10 @@ docs/
 2. Check relevant sections in [Quick Start](./QUICKSTART.md)
 3. Use examples as templates for your code
 
+### I Need to Implement Custom Retries
+1. Read the [Explicit Ack/Nak Guide](./EXPLICIT_ACK_NAK_GUIDE.md)
+2. Check the examples for transient vs. permanent error handling.
+
 ### I'm Debugging an Error
 1. Find your error in [Error Troubleshooting](./ERROR_TROUBLESHOOTING.md)
 2. Follow the step-by-step solution
@@ -109,6 +119,7 @@ docs/
 - ✅ Type-safe publishing and subscribing
 - ✅ Automatic JSON serialization/deserialization
 - ✅ CloudEvents 1.0 binary-mode support
+- ✅ Explicit Ack/Nak control for advanced messaging patterns
 - ✅ Type validation at build-time and runtime
 - ✅ Clear error messages with guidance
 - ✅ Jackson annotation support
@@ -119,14 +130,14 @@ docs/
 ## Related Resources
 
 - **Main README**: [../README.md](../README.md) - Project overview
-- **Feature Specification**: [../specs/007-typed-serialization/spec.md](../specs/007-typed-serialization/spec.md)
-- **Implementation Tasks**: [../specs/007-typed-serialization/tasks.md](../specs/007-typed-serialization/tasks.md)
-- **Implementation Plan**: [../specs/007-typed-serialization/plan.md](../specs/007-typed-serialization/plan.md)
+- **Feature Specification**: [../specs/009-explicit-ack-nak/spec.md](../specs/009-explicit-ack-nak/spec.md)
+- **Implementation Tasks**: [../specs/009-explicit-ack-nak/tasks.md](../specs/009-explicit-ack-nak/tasks.md)
+- **Implementation Plan**: [../specs/009-explicit-ack-nak/plan.md](../specs/009-explicit-ack-nak/plan.md)
 
 ## Documentation Maintenance
 
 This documentation is:
-- **Current**: Updated as of 2025-10-27
+- **Current**: Updated as of 2025-10-28
 - **Tested**: All examples verified to compile and run
 - **Complete**: Covers all features and common scenarios
 - **Organized**: Structured for easy navigation

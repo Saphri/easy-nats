@@ -9,6 +9,7 @@ import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.api.StorageType;
 import io.nats.client.api.StreamConfiguration;
 import io.nats.client.api.StreamInfo;
+import org.mjelle.quarkus.easynats.NatsConnection;
 
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -34,6 +35,17 @@ public class NatsTestUtils {
 
     public static JetStream getJetStream() throws Exception {
         return getConnection().jetStream();
+    }
+
+    /**
+     * Returns a NatsConnection wrapper for testing try-with-resources and lifecycle scenarios.
+     * This method wraps the underlying connection in a NatsConnection facade.
+     *
+     * @return a NatsConnection wrapper
+     * @throws Exception if unable to establish connection
+     */
+    public static NatsConnection getNatsConnection() throws Exception {
+        return new NatsConnection(getConnection());
     }
 
     private static void createStreamIfNotExists(Connection nc) throws Exception {

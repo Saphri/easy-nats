@@ -413,6 +413,30 @@ public class Order {
 
 ---
 
+## Advanced: Explicit Acknowledgment
+
+By default, the framework automatically acknowledges messages on success and rejects them on failure. For more advanced error handling, such as custom retry logic or dead-letter queues, you can take full control of the acknowledgment process.
+
+This is done by changing your subscriber method parameter from the payload type (e.g., `OrderData`) to the `NatsMessage<T>` wrapper (e.g., `NatsMessage<OrderData>`).
+
+```java
+import org.mjelle.quarkus.easynats.NatsMessage;
+
+@NatsSubscriber(subject = "orders", consumer = "order-processor")
+public void handleOrder(NatsMessage<OrderData> message) {
+    try {
+        process(message.payload());
+        message.ack(); // Manually acknowledge
+    } catch (Exception e) {
+        message.nakWithDelay(Duration.ofSeconds(10)); // Manually reject for redelivery
+    }
+}
+```
+
+📖 **Learn More**: For a deep dive into this feature, see the **[Explicit Ack/Nak Guide](EXPLICIT_ACK_NAK_GUIDE.md)**.
+
+---
+
 ## Full Documentation
 
 ### Type Support & Compatibility
