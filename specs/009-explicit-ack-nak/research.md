@@ -27,8 +27,14 @@ Implement `NatsMessage<T>` as a **thin typed wrapper** around the underlying NAT
 - `ack()`: Direct pass-through to underlying NATS message's ack() method
 - `nak(Duration delay)`: Direct pass-through to underlying NATS message's nak() method
 - `term()`: Direct pass-through to underlying NATS message's term() method
-- `payload()`: Returns pre-deserialized typed payload (`T`); deserialization occurs during NatsMessage construction
+- `payload()`: Returns pre-deserialized typed payload (`T`); deserialization occurs during NatsMessage construction via `MessageDeserializer.deserialize()`
 - Header access: Direct pass-through to underlying NATS message headers
+
+**Payload Deserialization**:
+- Uses existing `org.mjelle.quarkus.easynats.runtime.subscriber.MessageDeserializer` for consistency
+- Deserializes during NatsMessage construction (eager, not lazy)
+- If deserialization fails, exception thrown before subscriber method invocation
+- Supports Jackson-compatible types (POJOs, records, generic types with Jackson annotations)
 
 **No Framework Intervention**:
 - Idempotency: Guaranteed by NATS JetStream (re-acking same message is safe)

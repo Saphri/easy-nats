@@ -218,9 +218,11 @@ void handleEvent(NatsMessage<Event> msg) {
 
 1. **NatsMessage<T> Creation**: Created during subscriber method invocation by framework
 2. **Type Information**: Generic type T is captured from method signature during annotation processing
-3. **Delegation**: All control methods (`ack()`, `nak()`, `term()`) delegate directly to underlying NATS `Message` object
-4. **Caching**: Only `payload()` uses caching; all other methods are pure pass-throughs
-5. **No State Tracking**: Framework does not maintain any state about message ack/nak status
+3. **Payload Deserialization**: Use `MessageDeserializer.deserialize()` from `org.mjelle.quarkus.easynats.runtime.subscriber` (reuses existing infrastructure)
+4. **Deserialization Timing**: Deserialize in NatsMessage constructor before returning to subscriber method; if deserialization fails, throw exception and do NOT invoke subscriber method
+5. **Delegation**: All control methods (`ack()`, `nak()`, `term()`) delegate directly to underlying NATS `Message` object
+6. **Payload Storage**: Store deserialized instance as field; `payload()` is a simple getter with no side effects
+7. **No State Tracking**: Framework does not maintain any state about message ack/nak status
 
 ### For Users/Developers
 

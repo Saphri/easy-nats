@@ -25,7 +25,8 @@ This feature introduces explicit control over message acknowledgment and negativ
 **Architecture Pattern**: Thin wrapper delegation to NATS JetStream APIs
   - `NatsMessage<T>` wraps underlying NATS Message
   - `ack()`, `nak(Duration)`, `term()` are direct pass-through to NATS
-  - Only `payload()` adds framework logic (type-safe deserialization)
+  - `payload()` returns pre-deserialized instance (deserialized at construction via existing `MessageDeserializer` class)
+  - Reuses `org.mjelle.quarkus.easynats.runtime.subscriber.MessageDeserializer` for Jackson-based type deserialization
 **Performance Goals**: Negligible overhead (direct delegation); inherits NATS JetStream latency/throughput
 **Constraints**:
   - No framework-level validation of AckPolicy (NATS rejects invalid configs at runtime)

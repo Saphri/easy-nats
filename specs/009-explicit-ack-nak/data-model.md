@@ -63,7 +63,8 @@ RECEIVED → (ack | nak | term)
 - `payload()` is safe to call from multiple threads (returns pre-deserialized instance)
 
 **Constraints**:
-- NatsMessage construction fails if payload cannot be deserialized to type T; error thrown during construction
+- NatsMessage construction fails if payload cannot be deserialized to type T; `DeserializationException` thrown during construction
+- Deserialization uses `MessageDeserializer.deserialize()` which supports Jackson-compatible types only
 - `payload()` returns the pre-deserialized instance (no failures possible)
 - `ack()` called after message context expires: NATS will reject (error propagates to developer)
 - `nak()` called on message from non-durable consumer: NATS will reject
@@ -233,7 +234,7 @@ void handleOrder(NatsMessage<Order> msg) {
 - Type information captured at annotation processing time (compile-time)
 - Stored in `NatsSubscriber` annotation metadata
 - `NatsMessage<T>` constructor is given type info (dependency injection)
-- Deserialization happens in constructor using captured type info, not runtime generic parameter
+- Deserialization happens in constructor using `MessageDeserializer.deserialize()` (reuses existing runtime infrastructure)
 - If deserialization fails, error is thrown from constructor; subscriber method is never invoked
 
 **Example**:
