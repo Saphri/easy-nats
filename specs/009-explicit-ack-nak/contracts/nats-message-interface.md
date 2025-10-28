@@ -207,7 +207,7 @@ void handleEvent(NatsMessage<Event> msg) {
 |--------|-------|--------|--------------|----------------|
 | `payload()` | None | T (typed payload) | None (returns pre-deserialized instance) | None (deserialization errors occur at construction) |
 | `ack()` | None | void | Marks message delivered at broker | Throws IOException, JetStreamApiException |
-| `nak(Duration)` | Optional delay | void | Marks message for redelivery after delay | Throws IOException, JetStreamApiException |
+| `nak()` / `nakWithDelay(Duration)` | Optional delay | void | Marks message for redelivery | Throws IOException, JetStreamApiException |
 | `term()` | None | void | Terminates message (NATS-specific) | Throws IOException, JetStreamApiException |
 | `headers()` | None | Headers | None (read-only) | None (immutable) |
 | `subject()` | None | String | None (read-only) | None |
