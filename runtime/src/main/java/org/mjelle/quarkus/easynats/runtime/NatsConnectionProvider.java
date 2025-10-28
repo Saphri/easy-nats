@@ -9,13 +9,14 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Observes;
 import jakarta.enterprise.inject.Produces;
 import jakarta.inject.Singleton;
+
+import org.jboss.logging.Logger;
 import org.mjelle.quarkus.easynats.NatsConfigurationException;
 import org.mjelle.quarkus.easynats.NatsConnection;
 
 import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
 import java.util.concurrent.ExecutorService;
-import java.util.logging.Logger;
 
 import javax.net.ssl.SSLContext;
 
@@ -31,7 +32,7 @@ import io.quarkus.virtual.threads.VirtualThreads;
 @ApplicationScoped
 public class NatsConnectionProvider {
 
-    private static final Logger LOGGER = Logger.getLogger(NatsConnectionProvider.class.getName());
+    private final Logger log = Logger.getLogger(NatsConnectionProvider.class);
 
     private final NatsConfiguration config;
     private final ExecutorService executorService;
@@ -96,7 +97,7 @@ public class NatsConnectionProvider {
         try {
             config.validate();
         } catch (NatsConfigurationException e) {
-            LOGGER.severe("Invalid NATS configuration: " + e.getMessage());
+            log.errorf(e, "Invalid NATS configuration");
             throw e;
         }
 
@@ -147,19 +148,19 @@ public class NatsConnectionProvider {
             // Wrap connection in facade
             this.wrappedConnection = new NatsConnection(natsConnection);
 
-            LOGGER.info("Successfully connected to NATS server(s): " + String.join(", ", config.servers()));
-            LOGGER.info("Connected to: " + natsConnection.getConnectedUrl());
+            log.infof("Successfully connected to NATS server(s): %s", String.join(", ", config.servers()));
+            log.infof("Connected to: %s", natsConnection.getConnectedUrl());
 
             return wrappedConnection;
 
         } catch (IOException e) {
             String errorMsg = "Failed to connect to NATS server(s): " + String.join(", ", config.servers());
-            LOGGER.severe(errorMsg + " - " + e.getMessage());
+            log.errorf(e, errorMsg);
             throw new NatsConfigurationException(errorMsg, e);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             String errorMsg = "Connection to NATS was interrupted";
-            LOGGER.severe(errorMsg + " - " + e.getMessage());
+            log.errorf(e, errorMsg);
             throw new NatsConfigurationException(errorMsg, e);
         }
     }
@@ -172,11 +173,11 @@ public class NatsConnectionProvider {
     void onShutdown(@Observes ShutdownEvent shutdownEvent) {
         if (natsConnection != null && natsConnection.getStatus() != Connection.Status.CLOSED) {
             try {
-                LOGGER.info("Closing NATS connection on application shutdown");
+                log.info("Closing NATS connection on application shutdown");
                 natsConnection.close();
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-                LOGGER.warning("Connection close was interrupted: " + e.getMessage());
+                log.warnf(e, "Connection close was interrupted");
             }
         }
     }
