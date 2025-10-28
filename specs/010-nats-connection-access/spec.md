@@ -151,12 +151,13 @@ A developer wants to configure the NATS connection using standard Quarkus config
 - **FR-013**: When a developer uses the connection wrapper in a try-with-resources statement, the underlying NATS connection MUST NOT be closed when the try block exits
 - **FR-014**: The `close()` method on the connection wrapper MUST be a safe no-op that does not affect the underlying connection or other application components
 - **FR-015**: The connection wrapper MUST transparently delegate all NATS operations to the underlying connection (no performance degradation)
-- **FR-016**: Extension MUST provide documentation showing common advanced use cases (custom subscriptions, push subscriptions, metadata access), try-with-resources examples, and explicitly warn against attempting to close the connection
+- **FR-016**: Extension MUST provide documentation showing common advanced use cases including: custom subscriptions, push subscriptions, metadata access, keyStoreManagement access, and keyStore access; plus try-with-resources examples; and explicitly warn against attempting to close the connection
 - **FR-017**: Extension MUST support configuration of NATS servers via property `quarkus.easynats.servers` in application.properties
 - **FR-018**: Extension MUST support configuration of NATS servers via environment variable `QUARKUS_EASYNATS_SERVERS`
 - **FR-019**: Extension MUST support configuration of authentication username via property `quarkus.easynats.username` and environment variable `QUARKUS_EASYNATS_USERNAME`
 - **FR-020**: Extension MUST support configuration of authentication password via property `quarkus.easynats.password` and environment variable `QUARKUS_EASYNATS_PASSWORD`
 - **FR-021**: Extension MUST support configuration of SSL/TLS via property `quarkus.easynats.ssl-enabled` and environment variable `QUARKUS_EASYNATS_SSL_ENABLED`
+- **FR-021a**: When `ssl-enabled` is true, the extension MUST inject the default `SSLContext` into the NATS `Options` object used in `Nats.connect(options)` to enable secure communication
 - **FR-022**: Configuration via environment variables MUST take precedence over application.properties, following standard Quarkus configuration precedence rules
 - **FR-023**: The extension MUST apply all configured settings when establishing the connection to the NATS server
 - **FR-024**: The extension MUST provide clear error messages if NATS server connection fails due to configuration errors (invalid servers, authentication failure, etc.)
@@ -201,13 +202,16 @@ A developer wants to configure the NATS connection using standard Quarkus config
 8. **Quarkus MicroProfile Config**: We assume Quarkus's implementation of MicroProfile Config API is available for reading configuration from environment variables and properties files, following standard Quarkus precedence rules.
 9. **Configuration naming convention**: Configuration properties follow Quarkus naming conventions (`quarkus.easynats.*`) and environment variable conventions (`QUARKUS_EASYNATS_*`), automatically converted by the Quarkus framework.
 10. **Server list format**: Multiple NATS servers are provided as comma-separated values (e.g., `nats://host1:4222,nats://host2:4222`), a standard format for NATS client libraries.
-11. **SSL support limitation**: SSL/TLS configuration is supported in the extension, but the project acknowledges that SSL testing cannot be performed in the current development environment. SSL configuration code paths must still be implemented correctly and documented.
-12. **Basic NATS knowledge**: We assume developers accessing the raw connection have basic familiarity with the NATS client API, even though we'll provide examples.
+11. **SSL implementation approach**: When `ssl-enabled=true`, the extension injects Java's default `SSLContext` into the NATS `Options` object passed to `Nats.connect(options)`. This approach uses the JVM's built-in SSL/TLS configuration without requiring additional custom SSL setup.
+12. **SSL support limitation**: SSL/TLS configuration is supported in the extension, and SSL code paths must be correctly implemented and documented. However, the project acknowledges that SSL testing cannot be performed in the current development environment.
+13. **Advanced keyStore access**: Developers can access the connection's `keyStoreManagement` and `keyStore` properties for advanced certificate and key management use cases, enabling deep integration with the NATS connection's SSL/TLS infrastructure.
+14. **Basic NATS knowledge**: We assume developers accessing the raw connection have basic familiarity with the NATS client API, even though we'll provide examples.
 
 ## Out of Scope
 
 - **Connection pooling or multiple connections**: This feature provides access to a single application-level connection.
 - **Non-CDI access patterns**: Static factory methods, service locators, or other non-CDI mechanisms are explicitly not supported. CDI injection is the only supported access pattern.
 - **Custom NATS server configuration**: We assume the NATS server is already configured and accessible; this feature doesn't configure NATS itself.
+- **Custom SSL context injection**: Developers cannot inject a custom `SSLContext` beyond the default JVM context. The extension uses only Java's default `SSLContext` when `ssl-enabled=true`. Custom SSL context requirements require direct NATS client API usage.
 - **Advanced NATS connection options**: Advanced NATS client features beyond servers, authentication (username/password), and SSL are out of scope (e.g., custom authentication handlers, advanced TLS options, connection timeout tuning). These can be added as future enhancements.
-- **SSL testing**: The feature supports SSL/TLS configuration, but testing is out of scope due to environment limitations. Implementation must still be correct and properly documented.
+- **SSL testing**: The feature supports SSL/TLS configuration with full implementation, but testing is out of scope due to environment limitations. Implementation must still be correct and properly documented.
