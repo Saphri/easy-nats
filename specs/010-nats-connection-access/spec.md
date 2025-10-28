@@ -151,7 +151,7 @@ A developer wants to configure the NATS connection using standard Quarkus config
 - **FR-013**: When a developer uses the connection wrapper in a try-with-resources statement, the underlying NATS connection MUST NOT be closed when the try block exits
 - **FR-014**: The `close()` method on the connection wrapper MUST be a safe no-op that does not affect the underlying connection or other application components
 - **FR-015**: The connection wrapper MUST transparently delegate all NATS operations to the underlying connection (no performance degradation)
-- **FR-016**: Extension MUST provide documentation showing common advanced use cases including: custom subscriptions, push subscriptions, metadata access, keyValueManagement access, and keyValue access; plus try-with-resources examples; and explicitly warn against attempting to close the connection
+- **FR-016**: Extension MUST provide documentation showing common advanced use cases including: metadata access, keyValueManagement access, and keyValue access; plus try-with-resources examples; and explicitly warn against attempting to close the connection
 - **FR-017**: Extension MUST support configuration of NATS servers via property `quarkus.easynats.servers` in application.properties
 - **FR-018**: Extension MUST support configuration of NATS servers via environment variable `QUARKUS_EASYNATS_SERVERS`
 - **FR-019**: Extension MUST support configuration of authentication username via property `quarkus.easynats.username` and environment variable `QUARKUS_EASYNATS_USERNAME`
