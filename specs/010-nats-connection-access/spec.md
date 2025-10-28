@@ -81,6 +81,22 @@ A developer may need different ways to access the connection - via dependency in
 
 ---
 
+### User Story 5 - Try-with-Resources Support for Safe Scoped Usage (Priority: P2)
+
+A developer wants to use Java's try-with-resources statement when working with the NATS connection for advanced operations, to ensure proper resource management and clean code practices.
+
+**Why this priority**: Try-with-resources is a standard Java idiom for resource management. Supporting it improves code readability and developer familiarity. It's secondary to basic access since developers can still use the connection without it, but important for ergonomics.
+
+**Independent Test**: Can be tested by verifying that a developer can successfully use the connection in a try-with-resources block, with no compilation errors, and that the connection remains open and usable by other parts of the application after the try block exits.
+
+**Acceptance Scenarios**:
+
+1. **Given** a developer using try-with-resources syntax, **When** they obtain a NATS connection wrapper in a try statement, **Then** the code compiles and executes successfully.
+2. **Given** a developer using try-with-resources with the connection, **When** the try block exits normally, **Then** the underlying connection remains open for use by other application components.
+3. **Given** a developer using try-with-resources with the connection, **When** an exception is thrown in the try block, **Then** the underlying connection remains open and available for recovery or cleanup operations.
+
+---
+
 ### Edge Cases
 
 - What happens if a developer tries to access the connection before the application is fully initialized?
@@ -107,13 +123,18 @@ A developer may need different ways to access the connection - via dependency in
 - **FR-008**: The connection provided to developers MUST NOT expose a `close()` method or equivalent that could terminate the shared connection
 - **FR-009**: If a developer attempts to call `close()` on the provided connection, the extension MUST prevent the operation and provide a clear error message explaining that closing is not permitted
 - **FR-010**: Developers MUST receive clear error messages if they attempt to use a closed connection (in case the connection is closed by the extension due to connection failures)
-- **FR-011**: Extension MUST provide documentation showing common advanced use cases (custom subscriptions, push subscriptions, metadata access) and explicitly warn against attempting to close the connection
+- **FR-011**: Extension MUST provide a connection wrapper that implements `AutoCloseable` to support try-with-resources usage
+- **FR-012**: When a developer uses the connection wrapper in a try-with-resources statement, the underlying NATS connection MUST NOT be closed when the try block exits
+- **FR-013**: The `close()` method on the connection wrapper MUST be a safe no-op that does not affect the underlying connection or other application components
+- **FR-014**: The connection wrapper MUST transparently delegate all NATS operations to the underlying connection (no performance degradation)
+- **FR-015**: Extension MUST provide documentation showing common advanced use cases (custom subscriptions, push subscriptions, metadata access), try-with-resources examples, and explicitly warn against attempting to close the connection
 
 ### Key Entities
 
 - **NATS Connection**: The underlying `io.nats.client.Connection` object from the NATS client library, representing an open connection to the NATS server.
+- **Connection Wrapper**: A safe wrapper around the NATS connection that implements `AutoCloseable` for try-with-resources support, with a no-op `close()` method to prevent accidental connection closure.
 - **Connection Manager**: The extension component responsible for managing the connection lifecycle, ensuring it's properly initialized, maintained, and cleaned up.
-- **Access Point**: The mechanism (injection point, static method, or other) through which developers can obtain the connection.
+- **Access Point**: The mechanism (injection point, static method, or other) through which developers can obtain the connection wrapper.
 
 ## Success Criteria *(mandatory)*
 
@@ -129,14 +150,16 @@ A developer may need different ways to access the connection - via dependency in
 - **SC-003**: 95% of developers attempting to use advanced NATS operations report that the API is intuitive and required minimal trial-and-error.
 - **SC-004**: Zero connection-related resource leaks detected in applications using the access API over extended runtime periods.
 - **SC-005**: Connection operations complete with minimal latency overhead (no more than 5% additional latency compared to direct NATS client access).
+- **SC-006**: Try-with-resources usage is fully supported with zero unintended side effects (underlying connection remains open and functional after try block exits).
 
 ## Assumptions
 
 1. **NATS client thread safety**: We assume the underlying `io.nats:jnats` library is thread-safe for the connection object, as documented in the NATS Java client.
 2. **Single NATS connection per application**: We assume a typical Quarkus application uses a single NATS connection. Multiple connections per application are not explicitly supported in this feature.
-3. **Shared connection is critical**: The connection is a shared resource used by all application publishers and subscribers. Closing it would break all NATS communication in the application. Therefore, developers must not be able to close the connection.
-4. **Quarkus dependency available**: We assume Quarkus and Arc (CDI) are available and properly configured in the runtime module.
-5. **Basic NATS knowledge**: We assume developers accessing the raw connection have basic familiarity with the NATS client API, even though we'll provide examples.
+3. **Shared connection is critical**: The connection is a shared resource used by all application publishers and subscribers. Closing it would break all NATS communication in the application. Therefore, developers must not be able to close the connection. The try-with-resources pattern is supported via a safe wrapper with a no-op `close()` method.
+4. **Wrapper pattern for AutoCloseable**: We provide a thin wrapper that implements `AutoCloseable` but does not close the underlying connection. This allows developers to use try-with-resources idiomatically while maintaining safety.
+5. **Quarkus dependency available**: We assume Quarkus and Arc (CDI) are available and properly configured in the runtime module.
+6. **Basic NATS knowledge**: We assume developers accessing the raw connection have basic familiarity with the NATS client API, even though we'll provide examples.
 
 ## Out of Scope
 
