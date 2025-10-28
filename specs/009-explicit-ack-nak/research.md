@@ -27,7 +27,7 @@ Implement `NatsMessage<T>` as a **thin typed wrapper** around the underlying NAT
 - `ack()`: Direct pass-through to underlying NATS message's ack() method
 - `nak(Duration delay)`: Direct pass-through to underlying NATS message's nak() method
 - `term()`: Direct pass-through to underlying NATS message's term() method
-- `payload()`: Returns deserialized typed payload (`T`)
+- `payload()`: Returns pre-deserialized typed payload (`T`); deserialization occurs during NatsMessage construction
 - Header access: Direct pass-through to underlying NATS message headers
 
 **No Framework Intervention**:

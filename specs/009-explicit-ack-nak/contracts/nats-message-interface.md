@@ -35,12 +35,10 @@ public interface NatsMessage<T> {
     /**
      * Get the deserialized message payload.
      *
-     * Type T must be deserializable by the framework's message serialization engine (Jackson).
-     * The payload is lazily deserialized on first call and cached; subsequent calls return the same instance.
+     * The payload is pre-deserialized when NatsMessage is created. This method simply returns the cached typed instance.
+     * No deserialization occurs on method call; if deserialization fails, the error happens during NatsMessage construction.
      *
-     * @return The deserialized payload of type T
-     * @throws DeserializationException if payload cannot be deserialized to type T
-     * @throws JsonMappingException if JSON structure doesn't match type T
+     * @return The deserialized payload of type T (already deserialized at construction time)
      */
     T payload();
 
@@ -203,7 +201,7 @@ void handleEvent(NatsMessage<Event> msg) {
 
 | Method | Input | Output | Side Effects | Error Handling |
 |--------|-------|--------|--------------|----------------|
-| `payload()` | None | T (typed payload) | Deserializes on first call; caches result | Throws DeserializationException |
+| `payload()` | None | T (typed payload) | None (returns pre-deserialized instance) | None (deserialization errors occur at construction) |
 | `ack()` | None | void | Marks message delivered at broker | Throws IOException, JetStreamApiException |
 | `nak(Duration)` | Optional delay | void | Marks message for redelivery after delay | Throws IOException, JetStreamApiException |
 | `term()` | None | void | Terminates message (NATS-specific) | Throws IOException, JetStreamApiException |
@@ -236,8 +234,10 @@ void handleEvent(NatsMessage<Event> msg) {
 ## Testing Requirements
 
 ### Unit Tests
-- [ ] `payload()` deserializes correct type T
-- [ ] `payload()` caches result (same instance returned on multiple calls)
+- [ ] NatsMessage constructor deserializes payload to correct type T
+- [ ] `payload()` returns pre-deserialized instance (no deserialization on call)
+- [ ] `payload()` returns same instance on multiple calls (same object reference)
+- [ ] NatsMessage constructor throws DeserializationException if payload cannot deserialize
 - [ ] `ack()` calls underlying NATS message's ack()
 - [ ] `nak(Duration)` calls underlying NATS message's nak(duration)
 - [ ] `term()` calls underlying NATS message's term()

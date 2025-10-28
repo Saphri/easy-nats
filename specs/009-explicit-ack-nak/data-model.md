@@ -26,8 +26,7 @@ This document defines the data model, entities, and their relationships for the 
 | Field | Type | Description | Immutable |
 |-------|------|-------------|-----------|
 | `underlyingMessage` | `io.nats.client.Message` | Underlying NATS JetStream message | Yes |
-| `typeInfo` | `Class<T>` or equivalent | Runtime type information for payload deserialization | Yes |
-| `deserializedPayload` | `T` (cached) | Lazily-deserialized typed payload | Yes |
+| `payload` | `T` | Pre-deserialized typed payload (deserialized at NatsMessage construction) | Yes |
 
 **Public Methods**:
 
@@ -36,7 +35,7 @@ This document defines the data model, entities, and their relationships for the 
 | `ack()` | `void` | Acknowledge the message to the broker | Pass-through to `underlyingMessage.ack()` |
 | `nak(Duration delay)` | `void` | Negative acknowledge with optional redelivery delay | Pass-through to `underlyingMessage.nak(delay)` |
 | `term()` | `void` | Explicitly terminate the message | Pass-through to `underlyingMessage.term()` |
-| `payload()` | `T` | Get the deserialized typed payload | Deserialize on first call; cache result |
+| `payload()` | `T` | Get the pre-deserialized typed payload | Simple getter; returns pre-deserialized instance from construction time |
 | `headers()` | `Headers` | Get message headers (CloudEvents attributes, etc.) | Pass-through to `underlyingMessage.getHeaders()` |
 | `subject()` | `String` | Get the NATS subject name | Pass-through to `underlyingMessage.getSubject()` |
 | `data()` | `byte[]` | Get raw message bytes | Pass-through to `underlyingMessage.getData()` |
@@ -61,10 +60,11 @@ RECEIVED → (ack | nak | term)
 - `NatsMessage<T>` itself is not thread-safe (references underlying non-thread-safe NATS message)
 - However, `ack()`, `nak()`, `term()` delegate to NATS client library which is thread-safe
 - Concurrent calls to these methods are **allowed** and safe (NATS handles)
-- Concurrent calls to `payload()` may cause redundant deserialization but will return same logical value
+- `payload()` is safe to call from multiple threads (returns pre-deserialized instance)
 
 **Constraints**:
-- `payload()` must succeed; deserialization failure throws exception
+- NatsMessage construction fails if payload cannot be deserialized to type T; error thrown during construction
+- `payload()` returns the pre-deserialized instance (no failures possible)
 - `ack()` called after message context expires: NATS will reject (error propagates to developer)
 - `nak()` called on message from non-durable consumer: NATS will reject
 - Multiple `ack()`/`nak()` calls: First succeeds; subsequent calls are idempotent
@@ -232,8 +232,9 @@ void handleOrder(NatsMessage<Order> msg) {
 **Framework Handling**:
 - Type information captured at annotation processing time (compile-time)
 - Stored in `NatsSubscriber` annotation metadata
-- `NatsMessage<T>` is given type info via constructor (dependency injection)
-- Deserialization uses captured type info, not runtime generic parameter
+- `NatsMessage<T>` constructor is given type info (dependency injection)
+- Deserialization happens in constructor using captured type info, not runtime generic parameter
+- If deserialization fails, error is thrown from constructor; subscriber method is never invoked
 
 **Example**:
 ```java
@@ -249,9 +250,9 @@ void handle(NatsMessage<Order> msg) {
 ## Data Volume & Scale
 
 **Per-Message Overhead**:
-- `NatsMessage<T>` wrapper: ~100 bytes (reference + fields)
-- Deserialized payload: Depends on type T (Order might be 200-500 bytes)
-- Cached deserialized value: Stored as field (one-time allocation per message)
+- `NatsMessage<T>` wrapper: ~100 bytes (reference + underlying message reference)
+- Deserialized payload: Already allocated at NatsMessage construction (depends on type T; Order might be 200-500 bytes)
+- Total per-message memory: ~100 bytes (wrapper) + payload size
 
 **Throughput Assumptions**:
 - No bulk operations (feature handles one message at a time)
@@ -266,10 +267,12 @@ void handle(NatsMessage<Order> msg) {
 
 ## Notes
 
-1. **No Custom State Tracking**: Framework does not maintain state machine or transaction log for messages
-2. **Idempotency Boundary**: Idempotency guaranteed by NATS JetStream; framework is transparent
-3. **Error Propagation**: All NATS exceptions propagate directly to subscriber method or caller
-4. **Headers Immutable**: Message headers are read-only (from NATS); framework does not allow modification
+1. **Deserialization at Construction**: `NatsMessage<T>` deserializes payload during construction, not on `payload()` call
+2. **Early Failure Detection**: If payload cannot be deserialized, subscriber method is not invoked; error thrown during message construction
+3. **No Custom State Tracking**: Framework does not maintain state machine or transaction log for messages
+4. **Idempotency Boundary**: Idempotency guaranteed by NATS JetStream; framework is transparent
+5. **Error Propagation**: All NATS exceptions propagate directly to subscriber method or caller
+6. **Headers Immutable**: Message headers are read-only (from NATS); framework does not allow modification
 
 ---
 
