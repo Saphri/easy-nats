@@ -142,16 +142,16 @@ A developer wants to configure the NATS connection using standard Quarkus config
 - **FR-004**: The extension MUST ensure the connection is fully initialized and available before any application beans that depend on it are instantiated
 - **FR-004a**: If a bean attempts to inject the connection before initialization completes, the extension MUST immediately fail the bean instantiation with a clear error message explaining that the connection is not yet initialized
 - **FR-005**: All beans that inject the connection MUST receive the same singleton instance
-- **FR-006**: The connection wrapper MUST not introduce thread-safety issues and MUST properly delegate all concurrent operations to the underlying thread-safe NATS client (thread safety is provided by jnats, not reimplemented by the wrapper)
+- **FR-006**: `NatsConnection` MUST not introduce thread-safety issues and MUST properly delegate all concurrent operations to the underlying thread-safe NATS client (thread safety is provided by jnats, not reimplemented by NatsConnection)
 - **FR-007**: The connection MUST remain valid and usable for the entire application lifetime
 - **FR-008**: The extension MUST prevent developers from closing the connection, since the connection is shared by all application publishers and subscribers
 - **FR-009**: The connection provided to developers MUST NOT expose a `close()` method or equivalent that could terminate the shared connection
 - **FR-010**: If a developer attempts to call `close()` on the provided connection, the extension MUST prevent the operation and provide a clear error message explaining that closing is not permitted
 - **FR-011**: Developers MUST receive clear error messages if they attempt to use a closed connection (in case the connection is closed by the extension due to connection failures)
-- **FR-012**: Extension MUST provide a connection wrapper that implements `AutoCloseable` to support try-with-resources usage
-- **FR-013**: When a developer uses the connection wrapper in a try-with-resources statement, the underlying NATS connection MUST NOT be closed when the try block exits
-- **FR-014**: The `close()` method on the connection wrapper MUST be a safe no-op that does not affect the underlying connection or other application components
-- **FR-015**: The connection wrapper MUST transparently delegate all NATS operations to the underlying connection (no performance degradation), including listener registration methods (e.g., `ConnectionListener`) needed for future health check integration
+- **FR-012**: `NatsConnection` MUST implement `AutoCloseable` to support try-with-resources usage
+- **FR-013**: When a developer uses `NatsConnection` in a try-with-resources statement, the underlying NATS connection MUST NOT be closed when the try block exits
+- **FR-014**: The `close()` method on `NatsConnection` MUST be a safe no-op that does not affect the underlying connection or other application components
+- **FR-015**: `NatsConnection` MUST transparently delegate all NATS operations to the underlying connection (no performance degradation), including listener registration methods (e.g., `ConnectionListener`) needed for future health check integration
 - **FR-016**: Extension MUST provide documentation showing common advanced use cases including: metadata access, keyValueManagement access, and keyValue access; plus try-with-resources examples; and explicitly warn against attempting to close the connection
 - **FR-017**: Extension MUST support configuration of NATS servers via property `quarkus.easynats.servers` in application.properties
 - **FR-018**: Extension MUST support configuration of NATS servers via environment variable `QUARKUS_EASYNATS_SERVERS`
@@ -167,10 +167,10 @@ A developer wants to configure the NATS connection using standard Quarkus config
 
 ### Key Entities
 
-- **NATS Connection**: The underlying `io.nats.client.Connection` object from the NATS client library, representing an open connection to the NATS server.
-- **Connection Wrapper**: A safe wrapper around the NATS connection that implements `AutoCloseable` for try-with-resources support, with a no-op `close()` method to prevent accidental connection closure.
-- **CDI Bean**: The extension registers the connection wrapper as a singleton CDI bean in the Quarkus application context, enabling standard dependency injection.
-- **Connection Manager**: The extension component (Quarkus build-time processor) responsible for registering the connection as a CDI bean and managing its lifecycle.
+- **NATS Connection** (`io.nats.client.Connection`): The underlying connection object from the NATS client library, representing an open connection to the NATS server.
+- **NatsConnection**: A safe wrapper around the NATS connection that implements `AutoCloseable` for try-with-resources support, with a no-op `close()` method to prevent accidental connection closure. This is the class developers inject via CDI.
+- **CDI Bean**: The extension registers `NatsConnection` as a singleton CDI bean in the Quarkus application context, enabling standard dependency injection via `@Inject NatsConnection`.
+- **Connection Manager**: The extension component (Quarkus build-time processor) responsible for registering `NatsConnection` as a CDI bean and managing its lifecycle.
 - **Configuration**: Quarkus-managed configuration properties and environment variables that control NATS connection parameters (servers, credentials, SSL settings). Follows standard Quarkus configuration precedence.
 
 ## Success Criteria *(mandatory)*
@@ -208,7 +208,7 @@ A developer wants to configure the NATS connection using standard Quarkus config
 11. **SSL implementation approach**: When `ssl-enabled=true`, the extension injects Java's default `SSLContext` into the NATS `Options` object passed to `Nats.connect(options)`. This approach uses the JVM's built-in SSL/TLS configuration without requiring additional custom SSL setup.
 12. **SSL support limitation**: SSL/TLS configuration is supported in the extension, and SSL code paths must be correctly implemented and documented. However, the project acknowledges that SSL testing cannot be performed in the current development environment.
 13. **Advanced keyValue access**: Developers can access the connection's `keyValueManagement` and `keyValue` properties for advanced key-value store operations within NATS, enabling deep integration with the NATS connection's key-value storage features.
-13a. **Listener support for future integration**: The wrapper properly delegates listener registration methods (e.g., `setConnectionListener()`, connection state callbacks) to the underlying NATS connection. This enables future health check features (e.g., SmallRye Health integration) to monitor connection state via listeners.
+13a. **Listener support for future integration**: `NatsConnection` properly delegates listener registration methods (e.g., `setConnectionListener()`, connection state callbacks) to the underlying NATS connection. This enables future health check features (e.g., SmallRye Health integration) to monitor connection state via listeners.
 14. **Basic NATS knowledge**: We assume developers accessing the raw connection have basic familiarity with the NATS client API, even though we'll provide examples.
 
 ## Clarifications
@@ -222,7 +222,7 @@ A developer wants to configure the NATS connection using standard Quarkus config
 ## Future Features & Dependencies
 
 This feature enables the following planned capabilities:
-- **Connection Health Checks (Feature 011)**: Will register a `ConnectionListener` on the exposed connection to monitor NATS connection state and report health status via SmallRye Health. The wrapper must properly delegate listener registration methods to the underlying connection.
+- **Connection Health Checks (Feature 011)**: Will register a `ConnectionListener` on the exposed `NatsConnection` to monitor NATS connection state and report health status via SmallRye Health. `NatsConnection` must properly delegate listener registration methods to the underlying connection.
 
 ## Out of Scope
 

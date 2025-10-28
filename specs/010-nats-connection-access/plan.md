@@ -7,14 +7,14 @@
 
 ## Summary
 
-Expose the shared NATS connection as a CDI-injectable singleton bean with a thin wrapper that:
+Expose the shared NATS connection as a CDI-injectable singleton bean (`NatsConnection`) with a thin wrapper that:
 1. Prevents accidental closure (no-op `close()` method, fail-fast injection timing)
 2. Supports try-with-resources idiom via `AutoCloseable` implementation
 3. Transparently delegates all NATS operations (publish, subscribe, listener registration) to the underlying jnats connection
 4. Is configurable via standard Quarkus properties (servers, username, password, ssl-enabled)
 5. Enables future health checks (Feature 011) via listener delegation
 
-**Technical approach**: Build-time processor registers the wrapper as a `@Singleton` CDI bean during Quarkus startup. Runtime wrapper is a thin delegating facade with no-op `close()` and full method delegation using reflection-free composition.
+**Technical approach**: Build-time processor registers `NatsConnection` as a `@Singleton` CDI bean during Quarkus startup. Runtime class is a thin delegating facade with no-op `close()` and full method delegation using reflection-free composition.
 
 ## Technical Context
 
@@ -40,13 +40,13 @@ Expose the shared NATS connection as a CDI-injectable singleton bean with a thin
 
 ### ✅ Principle I: Extension-First Architecture
 - **Status**: PASS
-- **Rationale**: Feature uses standard Quarkus extension pattern. Build-time processor registers CDI bean via `@BuildStep` in deployment module. Runtime module contains only connection wrapper (thin facade). No deployment concerns leak into runtime.
-- **Implementation**: `deployment/QuarkusEasyNatsProcessor.java` will register `ConnectionWrapper` bean; `runtime/NatsConnectionWrapper.java` implements the facade.
+- **Rationale**: Feature uses standard Quarkus extension pattern. Build-time processor registers CDI bean via `@BuildStep` in deployment module. Runtime module contains only `NatsConnection` class (thin facade). No deployment concerns leak into runtime.
+- **Implementation**: `deployment/QuarkusEasyNatsProcessor.java` will register `NatsConnection` bean; `runtime/NatsConnection.java` implements the facade.
 
 ### ✅ Principle II: Minimal Runtime Dependencies (JetStream-Only)
 - **Status**: PASS
-- **Rationale**: Feature adds zero new runtime dependencies. Uses existing jnats client (already required by extension). No new heavyweight libraries. Connection wrapper is <100 LOC, pure delegation. Single connection enforced at architecture level (one shared instance).
-- **Implementation**: Wrapper class delegates all operations to jnats; no reimplementation of reconnection, failover, or message handling.
+- **Rationale**: Feature adds zero new runtime dependencies. Uses existing jnats client (already required by extension). No new heavyweight libraries. `NatsConnection` is <100 LOC, pure delegation. Single connection enforced at architecture level (one shared instance).
+- **Implementation**: `NatsConnection` class delegates all operations to jnats; no reimplementation of reconnection, failover, or message handling.
 
 ### ✅ Principle III: Test-Driven Development
 - **Status**: PASS
@@ -65,8 +65,8 @@ Expose the shared NATS connection as a CDI-injectable singleton bean with a thin
 
 ### ✅ Principle VI: Developer Experience First
 - **Status**: PASS
-- **Rationale**: Feature provides intuitive CDI injection (`@Inject Connection`), try-with-resources support, and safe failure semantics (no-op close, fail-fast injection). Developers can directly access raw jnats APIs without manual connection management. Wrapper is invisible—it "just works."
-- **Implementation**: `ConnectionWrapper` implements `AutoCloseable` with no-op close. CDI processor registers singleton. Constructor injection supported via Quarkus CDI.
+- **Rationale**: Feature provides intuitive CDI injection (`@Inject NatsConnection`), try-with-resources support, and safe failure semantics (no-op close, fail-fast injection). Developers can directly access raw jnats APIs without manual connection management. `NatsConnection` is invisible—it "just works."
+- **Implementation**: `NatsConnection` implements `AutoCloseable` with no-op close. CDI processor registers singleton. Constructor injection supported via Quarkus CDI.
 
 ### ✅ Principle VII: Observability First
 - **Status**: PASS (not violated; enabled for future)
