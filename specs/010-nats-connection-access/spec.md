@@ -119,12 +119,12 @@ A developer wants to configure the NATS connection using standard Quarkus config
 ### Edge Cases
 
 - What happens if a developer tries to access the connection before the application is fully initialized?
-- How does the extension handle connection failures or reconnections while a developer is using the connection?
+- Connection failures and automatic reconnections are delegated entirely to jnats; the wrapper does not intervene in reconnection logic
 - What mechanisms prevent a developer from accidentally closing the connection and breaking other subscriptions/publishers?
 - How does the feature handle multiple Quarkus applications running in the same JVM process?
 - What happens if no servers are configured or the configuration is empty?
 - How does the extension handle invalid server addresses (malformed URLs, non-existent hosts)?
-- What happens if authentication credentials are incomplete (username without password)?
+- Incomplete authentication credentials (username without password, or vice versa) cause startup failure with clear error explaining both are required when either is provided
 - How does the extension handle SSL configuration when the NATS server doesn't support SSL?
 
 ## Requirements *(mandatory)*
@@ -139,7 +139,8 @@ A developer wants to configure the NATS connection using standard Quarkus config
 - **FR-001**: Extension MUST register the NATS connection as a CDI bean in the Quarkus application context
 - **FR-002**: Developers MUST be able to inject the connection using standard CDI constructor injection patterns
 - **FR-003**: The connection provided MUST be the same underlying NATS connection used by the extension's publisher and subscriber mechanisms
-- **FR-004**: The extension MUST ensure the connection is fully initialized and available before any application beans are instantiated
+- **FR-004**: The extension MUST ensure the connection is fully initialized and available before any application beans that depend on it are instantiated
+- **FR-004a**: If a bean attempts to inject the connection before initialization completes, the extension MUST immediately fail the bean instantiation with a clear error message explaining that the connection is not yet initialized
 - **FR-005**: All beans that inject the connection MUST receive the same singleton instance
 - **FR-006**: The connection wrapper MUST not introduce thread-safety issues and MUST properly delegate all concurrent operations to the underlying thread-safe NATS client (thread safety is provided by jnats, not reimplemented by the wrapper)
 - **FR-007**: The connection MUST remain valid and usable for the entire application lifetime
@@ -160,7 +161,8 @@ A developer wants to configure the NATS connection using standard Quarkus config
 - **FR-021a**: When `ssl-enabled` is true, the extension MUST inject the default `SSLContext` into the NATS `Options` object used in `Nats.connect(options)` to enable secure communication
 - **FR-022**: Configuration via environment variables MUST take precedence over application.properties, following standard Quarkus configuration precedence rules
 - **FR-023**: The extension MUST apply all configured settings when establishing the connection to the NATS server
-- **FR-024**: The extension MUST provide clear error messages if NATS server connection fails due to configuration errors (invalid servers, authentication failure, etc.)
+- **FR-023a**: The extension MUST validate that authentication credentials are complete: if `username` is provided, `password` MUST also be provided, and vice versa. Incomplete credentials MUST cause startup failure with a clear error message.
+- **FR-024**: The extension MUST provide clear error messages if NATS server connection fails due to configuration errors (invalid servers, authentication failure, incomplete credentials, etc.)
 - **FR-025**: The extension MUST provide configuration documentation including examples for all configurable properties
 
 ### Key Entities
@@ -195,6 +197,7 @@ A developer wants to configure the NATS connection using standard Quarkus config
 1. **CDI is the standard access mechanism**: Developers access the connection exclusively through CDI constructor injection. This follows Quarkus and Java best practices and integrates seamlessly with the application's lifecycle management.
 2. **Singleton bean scope**: The connection is registered as a singleton CDI bean, ensuring all beans receive the same instance throughout the application lifetime.
 3. **NATS client thread safety**: We assume the underlying `io.nats:jnats` library is thread-safe for the connection object, as documented in the NATS Java client. The wrapper does not reimplement or test thread safety; it only delegates to the thread-safe underlying client. Testing focuses on verifying the wrapper doesn't introduce thread-safety issues, not on testing jnats itself.
+3a. **NATS client automatic reconnection**: The wrapper delegates automatic reconnection and failure recovery entirely to jnats. When a network failure occurs, jnats automatically attempts to reconnect with exponential backoff. The wrapper does not intervene, log, or notify about reconnection attempts.
 4. **Single NATS connection per application**: We assume a typical Quarkus application uses a single NATS connection. Multiple connections per application are not explicitly supported in this feature.
 5. **Shared connection is critical**: The connection is a shared resource used by all application publishers and subscribers. Closing it would break all NATS communication in the application. Therefore, developers must not be able to close the connection. The try-with-resources pattern is supported via a safe wrapper with a no-op `close()` method.
 6. **Wrapper pattern for AutoCloseable**: We provide a thin wrapper that implements `AutoCloseable` but does not close the underlying connection. This allows developers to use try-with-resources idiomatically while maintaining safety.
@@ -206,6 +209,14 @@ A developer wants to configure the NATS connection using standard Quarkus config
 12. **SSL support limitation**: SSL/TLS configuration is supported in the extension, and SSL code paths must be correctly implemented and documented. However, the project acknowledges that SSL testing cannot be performed in the current development environment.
 13. **Advanced keyValue access**: Developers can access the connection's `keyValueManagement` and `keyValue` properties for advanced key-value store operations within NATS, enabling deep integration with the NATS connection's key-value storage features.
 14. **Basic NATS knowledge**: We assume developers accessing the raw connection have basic familiarity with the NATS client API, even though we'll provide examples.
+
+## Clarifications
+
+### Session 2025-10-28
+
+- Q: What should happen if a bean attempts to inject the connection before it's fully initialized? → A: Injection fails immediately with a clear error message during bean instantiation (fail-fast). This prevents silent failures and makes initialization dependencies explicit.
+- Q: How should the connection handle network failures and NATS server disconnection? → A: Do nothing. The wrapper delegates transparently to jnats's built-in reconnection logic. jnats handles automatic reconnection with exponential backoff and buffering; the wrapper doesn't intervene.
+- Q: What should happen if authentication credentials are incomplete (e.g., username provided but password missing)? → A: Fail at startup with clear error message. Both username and password are required together when either is provided. Prevents silent failures and configuration mistakes.
 
 ## Out of Scope
 
