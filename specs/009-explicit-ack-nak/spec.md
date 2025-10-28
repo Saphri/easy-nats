@@ -15,6 +15,7 @@
 - Q: Can ack/nak/term be called from async operations or callbacks? → A: Entirely the developer's responsibility. The framework provides the API; developers must ensure correct usage in any async or callback contexts they create.
 - Q: Should the framework validate that a durable consumer is configured with the correct AckPolicy? → A: No validation. Let NATS reject invalid configurations at runtime. This keeps the framework simple and allows NATS to be the source of truth.
 - Q: What is the default redelivery delay when nak() is called? → A: The framework delegates to NATS. The nak() call is passed directly to the underlying NATS message; NATS determines the behavior based on the consumer configuration.
+- **Architecture Note**: `NatsMessage<T>` is a thin typed wrapper. The `payload()` method provides type-safe deserialized payload access. All control methods (`ack()`, `nak()`, `term()`) and header access are direct pass-through delegations to the underlying NATS message.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -114,9 +115,9 @@ As a developer, I want to use explicit acknowledgment and negative acknowledgmen
 
 ### Key Entities
 
-- **NatsMessage<T>**: A wrapper around the underlying NATS JetStream message that provides access to the typed payload via `payload()`, message headers, and control functions: `ack()` for explicit acknowledgment, `nak(Duration delay)` for negative acknowledgment with optional redelivery delay, and `term()` for message termination.
-- **Acknowledgment**: Explicit confirmation that a message has been successfully processed, called via `NatsMessage.ack()`.
-- **Negative Acknowledgment (Nak)**: Explicit rejection of a message when processing fails, called via `NatsMessage.nak(Duration delay)` to signal the broker to redeliver the message after the specified delay.
+- **NatsMessage<T>**: A thin typed wrapper around the underlying NATS JetStream message. Provides type-safe access to the deserialized payload via `payload()` method; most other methods (`ack()`, `nak()`, `term()`, header access) are direct pass-through delegations to the underlying NATS message.
+- **Acknowledgment**: Explicit confirmation that a message has been successfully processed. Delegated to underlying NATS message via `NatsMessage.ack()`.
+- **Negative Acknowledgment (Nak)**: Explicit rejection of a message when processing fails. Delegated to underlying NATS message via `NatsMessage.nak(Duration delay)` to signal the broker to redeliver the message after the specified delay.
 
 ## Success Criteria *(mandatory)*
 
@@ -134,4 +135,4 @@ As a developer, I want to use explicit acknowledgment and negative acknowledgmen
 
 - This feature builds on top of feature 008-durable-nats-consumers, which provides durable consumer support.
 - Ack/nak control is particularly useful for implementing complex error handling workflows and retry patterns.
-- The design should consider how ack/nak APIs are made available to subscriber methods (e.g., injection, parameter, context variable).
+- **Architecture**: `NatsMessage<T>` is a thin typed wrapper around the NATS JetStream message. The primary value is type-safe payload access via `payload()`. All control methods (`ack()`, `nak()`, `term()`) and header access are direct pass-through delegations to the underlying NATS message, minimizing framework overhead.
