@@ -72,7 +72,7 @@ public class AckOrderResource {
         if (error == null) {
             return Response.status(Response.Status.NOT_FOUND).build();
         }
-        return Response.ok("{\"error\":\"" + error + "\"}").build();
+        return Response.ok(java.util.Collections.singletonMap("error", error)).build();
     }
 
     @POST

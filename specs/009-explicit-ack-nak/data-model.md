@@ -33,16 +33,18 @@ This document defines the data model, entities, and their relationships for the 
 | Method | Return | Description | Semantics |
 |--------|--------|-------------|-----------|
 | `ack()` | `void` | Acknowledge the message to the broker | Pass-through to `underlyingMessage.ack()` |
-| `nak(Duration delay)` | `void` | Negative acknowledge with optional redelivery delay | Pass-through to `underlyingMessage.nak(delay)` |
+| `nak()` | `void` | Negative acknowledge with immediate redelivery | Pass-through to `underlyingMessage.nak()` |
+| `nakWithDelay(Duration delay)` | `void` | Negative acknowledge with optional redelivery delay | Pass-through to `underlyingMessage.nakWithDelay(delay)` |
 | `term()` | `void` | Explicitly terminate the message | Pass-through to `underlyingMessage.term()` |
 | `payload()` | `T` | Get the pre-deserialized typed payload | Simple getter; returns pre-deserialized instance from construction time |
 | `headers()` | `Headers` | Get message headers (CloudEvents attributes, etc.) | Pass-through to `underlyingMessage.getHeaders()` |
 | `subject()` | `String` | Get the NATS subject name | Pass-through to `underlyingMessage.getSubject()` |
-| `metadata()` | `MessageMetadata` | Get NATS JetStream metadata (sequence, consumer, etc.) | Pass-through to `underlyingMessage.getMetaData()` |
+| `metadata()` | `NatsJetStreamMetaData` | Get NATS JetStream metadata (sequence, consumer, etc.) | Pass-through to `underlyingMessage.getMetaData()` |
 
 **Idempotency**:
 - `ack()` is idempotent: calling twice on same message is safe; second call is a no-op (NATS handles)
 - `nak()` is idempotent: calling twice redelivers message once (NATS handles)
+- `nakWithDelay(Duration)` is idempotent: calling twice redelivers message once with the delay (NATS handles)
 - `term()` behavior: NATS JetStream determines semantics
 
 **State Transitions**:

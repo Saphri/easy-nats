@@ -70,7 +70,7 @@ public class NakOrderResource {
     @Produces(MediaType.APPLICATION_JSON)
     public Response getLastRedeliveryCount() {
         int count = nakOrderListener.getLastRedeliveryCount();
-        return Response.ok("{\"redeliveryCount\":" + count + "}").build();
+        return Response.ok(java.util.Collections.singletonMap("redeliveryCount", count)).build();
     }
 
     @GET
@@ -81,7 +81,7 @@ public class NakOrderResource {
         if (error == null) {
             return Response.status(Response.Status.NOT_FOUND).build();
         }
-        return Response.ok("{\"error\":\"" + error + "\"}").build();
+        return Response.ok(java.util.Collections.singletonMap("error", error)).build();
     }
 
     @POST

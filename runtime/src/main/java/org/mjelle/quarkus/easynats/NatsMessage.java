@@ -209,8 +209,8 @@ public interface NatsMessage<T> {
      * <strong>Example - Exponential Backoff:</strong>
      * </p>
      * <pre>
-     * int redeliveryCount = msg.metadata().redeliveryCount();
-     * Duration backoff = Duration.ofMillis(100 * (int) Math.pow(2, redeliveryCount));
+     * int redeliveryAttempt = Math.max(0, (int) msg.metadata().deliveredCount() - 1);
+     * Duration backoff = Duration.ofMillis(100L * (long) Math.pow(2, redeliveryAttempt));
      * msg.nakWithDelay(backoff);  // Exponential backoff: 100ms, 200ms, 400ms, ...
      * </pre>
      *

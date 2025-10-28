@@ -23,7 +23,7 @@
  *         processOrder(order);
  *         msg.ack();  // Explicit acknowledgment
  *     } catch (RetryableException e) {
- *         msg.nak(Duration.ofSeconds(5));  // Request redelivery after delay
+ *         msg.nakWithDelay(Duration.ofSeconds(5));  // Request redelivery after delay
  *     }
  * }
  * </pre>
@@ -58,13 +58,27 @@ public interface NatsMessage<T> {
     void ack();
 
     /**
-     * Negative acknowledge (nak) this message, requesting redelivery after an optional delay.
+     * Negative acknowledge (nak) this message, requesting immediate redelivery.
      *
      * Once nak() returns successfully, the message is marked for redelivery and will be resent
-     * to the consumer after the specified delay (or NATS broker's configured delay if none specified).
-     * This call is pass-through to the underlying NATS JetStream message's nak(duration) method.
+     * to the consumer immediately (subject to broker backpressure).
+     * This call is pass-through to the underlying NATS JetStream message's nak() method.
      *
      * Idempotency: Calling nak() multiple times on the same message is safe.
+     *
+     * @throws IOException if the underlying NATS connection is broken
+     * @throws JetStreamApiException if the broker rejects the nak (e.g., non-durable consumer)
+     */
+    void nak();
+
+    /**
+     * Negative acknowledge (nak) this message, requesting redelivery after an optional delay.
+     *
+     * Once nakWithDelay() returns successfully, the message is marked for redelivery and will be resent
+     * to the consumer after the specified delay (or NATS broker's configured delay if none specified).
+     * This call is pass-through to the underlying NATS JetStream message's nakWithDelay(duration) method.
+     *
+     * Idempotency: Calling nakWithDelay() multiple times on the same message is safe.
      * Delay handling: The provided delay is a hint to the broker; NATS may honor or override based
      * on consumer configuration (max redelivery attempts, backoff policy, etc.).
      *
@@ -72,7 +86,7 @@ public interface NatsMessage<T> {
      * @throws IOException if the underlying NATS connection is broken
      * @throws JetStreamApiException if the broker rejects the nak (e.g., non-durable consumer)
      */
-    void nak(Duration delay);
+    void nakWithDelay(Duration delay);
 
     /**
      * Explicitly terminate this message without redelivery.
@@ -108,9 +122,9 @@ public interface NatsMessage<T> {
      * Useful for testing and observability. This is a pass-through to the underlying
      * NATS message's getMetaData() method.
      *
-     * @return MessageMetadata containing sequence, timestamp, redelivery count, etc.
+     * @return NatsJetStreamMetaData containing sequence, timestamp, redelivery count, etc.
      */
-    MessageMetadata metadata();
+    NatsJetStreamMetaData metadata();
 }
 ```
 
@@ -139,8 +153,8 @@ void handleOrder(NatsMessage<Order> msg) {
         processOrder(order);
         msg.ack();
     } catch (TransientException e) {
-        // Transient error: request redelivery
-        msg.nak(Duration.ofSeconds(5));
+        // Transient error: request redelivery with delay
+        msg.nakWithDelay(Duration.ofSeconds(5));
     } catch (PermanentException e) {
         // Permanent error: ack to prevent retries, log the error
         msg.ack();

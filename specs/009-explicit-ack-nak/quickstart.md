@@ -50,7 +50,7 @@ void handleOrder(NatsMessage<Order> msg) {
         processOrder(order);
         msg.ack();  // Explicit acknowledgment
     } catch (Exception e) {
-        msg.nak(Duration.ofSeconds(5));  // Request redelivery
+        msg.nakWithDelay(Duration.ofSeconds(5));  // Request redelivery
     }
 }
 ```
@@ -131,7 +131,7 @@ public class OrderProcessor {
         } catch (NetworkException e) {
             // Transient error (network timeout, temporary DB unavailability)
             // Request redelivery after 5 seconds
-            msg.nak(Duration.ofSeconds(5));
+            msg.nakWithDelay(Duration.ofSeconds(5));
             log.warn("Transient error processing order {}: {}", order.id(), e.getMessage());
 
         } catch (ValidationException e) {
@@ -142,7 +142,7 @@ public class OrderProcessor {
 
         } catch (Exception e) {
             // Unknown error: safe default is to retry
-            msg.nak(Duration.ofSeconds(10));
+            msg.nakWithDelay(Duration.ofSeconds(10));
             log.error("Unknown error processing order {}: {}", order.id(), e, e);
         }
     }
@@ -160,7 +160,7 @@ public class OrderProcessor {
 ```
 
 **Key Points**:
-- `msg.nak(Duration.ofSeconds(5))` requests redelivery after 5 seconds
+- `msg.nakWithDelay(Duration.ofSeconds(5))` requests redelivery after 5 seconds
 - `msg.ack()` after error logs the issue but prevents retry (for unrecoverable errors)
 - Different error types get different handling
 
@@ -200,7 +200,7 @@ public class EventProcessor {
         } catch (Exception e) {
             if (redeliveryCount < 3) {
                 // Retry if we haven't exceeded attempt limit
-                msg.nak(Duration.ofSeconds(5 * (redeliveryCount + 1)));  // Exponential backoff
+                msg.nakWithDelay(Duration.ofSeconds(5 * (redeliveryCount + 1)));  // Exponential backoff
             } else {
                 // Max retries exceeded: acknowledge to move on
                 msg.ack();
@@ -248,7 +248,7 @@ public class OrderProcessor {
                 msg.ack();  // Ack in background thread (thread-safe)
                 log.info("Order processed asynchronously: {}", order.id());
             } catch (Exception e) {
-                msg.nak(Duration.ofSeconds(5));
+                msg.nakWithDelay(Duration.ofSeconds(5));
                 log.error("Async processing failed for order {}: {}", order.id(), e.getMessage());
             }
         });
@@ -304,7 +304,7 @@ public class OrderProcessor {
 
         } catch (Exception e) {
             // Transient error: transaction will rollback, message will be redelivered
-            msg.nak(Duration.ofSeconds(5));
+            msg.nakWithDelay(Duration.ofSeconds(5));
             // Quarkus @Transactional will rollback the database changes
             throw e;  // Or handle gracefully
         }
@@ -326,7 +326,7 @@ public class OrderProcessor {
 ```java
 int redeliveryCount = msg.metadata().redeliveryCount;
 long delaySeconds = 1L << Math.min(redeliveryCount, 5);  // 1, 2, 4, 8, 16, 32 seconds
-msg.nak(Duration.ofSeconds(delaySeconds));
+msg.nakWithDelay(Duration.ofSeconds(delaySeconds));
 ```
 
 ### Pattern: Dead-Letter Handling
@@ -337,7 +337,7 @@ if (msg.metadata().redeliveryCount >= 3) {
     publishToDeadLetterTopic(msg.payload());
     msg.ack();
 } else {
-    msg.nak(Duration.ofSeconds(5));
+    msg.nakWithDelay(Duration.ofSeconds(5));
 }
 ```
 
