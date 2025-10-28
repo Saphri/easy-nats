@@ -85,7 +85,7 @@ A developer may need different ways to access the connection - via dependency in
 
 - What happens if a developer tries to access the connection before the application is fully initialized?
 - How does the extension handle connection failures or reconnections while a developer is using the connection?
-- What happens if a developer closes the NATS connection themselves while the extension expects it to remain open?
+- What mechanisms prevent a developer from accidentally closing the connection and breaking other subscriptions/publishers?
 - How does the feature handle multiple Quarkus applications running in the same JVM process?
 
 ## Requirements *(mandatory)*
@@ -103,9 +103,11 @@ A developer may need different ways to access the connection - via dependency in
 - **FR-004**: Accessing the connection MUST be simple and not require low-level NATS API knowledge
 - **FR-005**: The connection MUST remain valid and usable for the entire application lifetime
 - **FR-006**: Connection access MUST work within the Quarkus application context (respecting CDI lifecycle)
-- **FR-007**: The extension MUST prevent premature closure of the connection by developers unless explicitly intended
-- **FR-008**: Developers MUST receive clear error messages if they attempt to use a closed connection
-- **FR-009**: Extension MUST provide documentation showing common advanced use cases (custom subscriptions, push subscriptions, metadata access)
+- **FR-007**: The extension MUST prevent developers from closing the connection, since the connection is shared by all application publishers and subscribers
+- **FR-008**: The connection provided to developers MUST NOT expose a `close()` method or equivalent that could terminate the shared connection
+- **FR-009**: If a developer attempts to call `close()` on the provided connection, the extension MUST prevent the operation and provide a clear error message explaining that closing is not permitted
+- **FR-010**: Developers MUST receive clear error messages if they attempt to use a closed connection (in case the connection is closed by the extension due to connection failures)
+- **FR-011**: Extension MUST provide documentation showing common advanced use cases (custom subscriptions, push subscriptions, metadata access) and explicitly warn against attempting to close the connection
 
 ### Key Entities
 
@@ -132,7 +134,7 @@ A developer may need different ways to access the connection - via dependency in
 
 1. **NATS client thread safety**: We assume the underlying `io.nats:jnats` library is thread-safe for the connection object, as documented in the NATS Java client.
 2. **Single NATS connection per application**: We assume a typical Quarkus application uses a single NATS connection. Multiple connections per application are not explicitly supported in this feature.
-3. **Developer responsibility for misuse**: While we provide safe access, developers are ultimately responsible for not closing the connection or misusing it in ways that would break the extension.
+3. **Shared connection is critical**: The connection is a shared resource used by all application publishers and subscribers. Closing it would break all NATS communication in the application. Therefore, developers must not be able to close the connection.
 4. **Quarkus dependency available**: We assume Quarkus and Arc (CDI) are available and properly configured in the runtime module.
 5. **Basic NATS knowledge**: We assume developers accessing the raw connection have basic familiarity with the NATS client API, even though we'll provide examples.
 
