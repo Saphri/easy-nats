@@ -151,7 +151,7 @@ A developer wants to configure the NATS connection using standard Quarkus config
 - **FR-012**: Extension MUST provide a connection wrapper that implements `AutoCloseable` to support try-with-resources usage
 - **FR-013**: When a developer uses the connection wrapper in a try-with-resources statement, the underlying NATS connection MUST NOT be closed when the try block exits
 - **FR-014**: The `close()` method on the connection wrapper MUST be a safe no-op that does not affect the underlying connection or other application components
-- **FR-015**: The connection wrapper MUST transparently delegate all NATS operations to the underlying connection (no performance degradation)
+- **FR-015**: The connection wrapper MUST transparently delegate all NATS operations to the underlying connection (no performance degradation), including listener registration methods (e.g., `ConnectionListener`) needed for future health check integration
 - **FR-016**: Extension MUST provide documentation showing common advanced use cases including: metadata access, keyValueManagement access, and keyValue access; plus try-with-resources examples; and explicitly warn against attempting to close the connection
 - **FR-017**: Extension MUST support configuration of NATS servers via property `quarkus.easynats.servers` in application.properties
 - **FR-018**: Extension MUST support configuration of NATS servers via environment variable `QUARKUS_EASYNATS_SERVERS`
@@ -208,6 +208,7 @@ A developer wants to configure the NATS connection using standard Quarkus config
 11. **SSL implementation approach**: When `ssl-enabled=true`, the extension injects Java's default `SSLContext` into the NATS `Options` object passed to `Nats.connect(options)`. This approach uses the JVM's built-in SSL/TLS configuration without requiring additional custom SSL setup.
 12. **SSL support limitation**: SSL/TLS configuration is supported in the extension, and SSL code paths must be correctly implemented and documented. However, the project acknowledges that SSL testing cannot be performed in the current development environment.
 13. **Advanced keyValue access**: Developers can access the connection's `keyValueManagement` and `keyValue` properties for advanced key-value store operations within NATS, enabling deep integration with the NATS connection's key-value storage features.
+13a. **Listener support for future integration**: The wrapper properly delegates listener registration methods (e.g., `setConnectionListener()`, connection state callbacks) to the underlying NATS connection. This enables future health check features (e.g., SmallRye Health integration) to monitor connection state via listeners.
 14. **Basic NATS knowledge**: We assume developers accessing the raw connection have basic familiarity with the NATS client API, even though we'll provide examples.
 
 ## Clarifications
@@ -217,6 +218,11 @@ A developer wants to configure the NATS connection using standard Quarkus config
 - Q: What should happen if a bean attempts to inject the connection before it's fully initialized? → A: Injection fails immediately with a clear error message during bean instantiation (fail-fast). This prevents silent failures and makes initialization dependencies explicit.
 - Q: How should the connection handle network failures and NATS server disconnection? → A: Do nothing. The wrapper delegates transparently to jnats's built-in reconnection logic. jnats handles automatic reconnection with exponential backoff and buffering; the wrapper doesn't intervene.
 - Q: What should happen if authentication credentials are incomplete (e.g., username provided but password missing)? → A: Fail at startup with clear error message. Both username and password are required together when either is provided. Prevents silent failures and configuration mistakes.
+
+## Future Features & Dependencies
+
+This feature enables the following planned capabilities:
+- **Connection Health Checks (Feature 011)**: Will register a `ConnectionListener` on the exposed connection to monitor NATS connection state and report health status via SmallRye Health. The wrapper must properly delegate listener registration methods to the underlying connection.
 
 ## Out of Scope
 
