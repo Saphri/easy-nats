@@ -1,8 +1,6 @@
 package org.mjelle.quarkus.easynats.runtime.health;
 
 import jakarta.enterprise.context.ApplicationScoped;
-import org.eclipse.microprofile.health.HealthCheck;
-import org.eclipse.microprofile.health.HealthCheckResponse;
 import org.eclipse.microprofile.health.Readiness;
 
 /**
@@ -20,34 +18,9 @@ import org.eclipse.microprofile.health.Readiness;
  */
 @Readiness
 @ApplicationScoped
-public class NatsReadinessCheck implements HealthCheck {
-
-    private final ConnectionStatusHolder statusHolder;
+public class NatsReadinessCheck extends AbstractNatsReadinessProbe {
 
     public NatsReadinessCheck(ConnectionStatusHolder statusHolder) {
-        this.statusHolder = statusHolder;
-    }
-
-    @Override
-    public HealthCheckResponse call() {
-        ConnectionStatus status = statusHolder.getStatus();
-
-        // Readiness probe: Report UP only for fully connected states
-        if (status == ConnectionStatus.CONNECTED ||
-                status == ConnectionStatus.RECONNECTED ||
-                status == ConnectionStatus.RESUBSCRIBED) {
-            return HealthCheckResponse
-                    .named("NATS Connection (Readiness)")
-                    .up()
-                    .withData("connectionStatus", status.name())
-                    .build();
-        }
-
-        // All other states (DISCONNECTED, RECONNECTING, CLOSED, LAME_DUCK) mean not ready
-        return HealthCheckResponse
-                .named("NATS Connection (Readiness)")
-                .down()
-                .withData("connectionStatus", status.name())
-                .build();
+        super(statusHolder, "NATS Connection (Readiness)");
     }
 }
