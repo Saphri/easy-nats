@@ -25,9 +25,8 @@ As a developer, I want my distributed trace to show messaging spans correctly so
   - **When** a consumer service receives and successfully processes the message.
   - **Then** a single distributed trace is generated that includes:
     - A span from the producer service for sending the message.
-    - A span representing the message's transit through the NATS messaging system.
     - A span from the consumer service for receiving and processing the message.
-  - **And** the consumer's span is correctly parented to the producer's span, showing a clear causal link.
+  - **And** the consumer's span is correctly parented to the producer's span, showing a clear causal link that represents the message transit.
 
 - Q: What specific attributes or naming conventions should be used to distinguish between initial message processing attempts and redelivery attempts within a trace? → A: Use an OpenTelemetry attribute like `messaging.message_redelivered` (boolean) on the consumer span.
 - Q: What specific OpenTelemetry attributes or events should be used to indicate a timeout or failure on a span? → A: Set `otel.status_code` to `ERROR` and `otel.status_description` to a relevant message (e.g., "Timeout"), and optionally add an `exception` event.
