@@ -18,8 +18,8 @@ A container orchestration system (like Kubernetes) needs to determine if the app
 
 **Acceptance Scenarios**:
 
-1.  **Given** the application is running and connected to NATS, **When** the liveness endpoint is called, **Then** it returns an HTTP 200 OK status and a JSON response with `{"status": "UP"}`.
-2.  **Given** the application is running but the NATS connection is lost, **When** the liveness endpoint is called, **Then** it returns an HTTP 503 Service Unavailable status and a JSON response with `{"status": "DOWN"}`.
+1.  **Given** the application is running and connected to NATS, **When** the liveness endpoint is called, **Then** it returns an HTTP 200 OK status and a JSON response with `{"status": "UP", "checks": [{"name": "NATS Connection", "status": "UP", "data": {"connectionStatus": "CONNECTED"}}]}`.
+2.  **Given** the application is running but the NATS connection is lost, **When** the liveness endpoint is called, **Then** it returns an HTTP 503 Service Unavailable status and a JSON response with `{"status": "DOWN", "checks": [{"name": "NATS Connection", "status": "DOWN", "data": {"connectionStatus": "DISCONNECTED"}}]}`.
 
 ---
 
@@ -33,9 +33,9 @@ A container orchestration system needs to know when the application is ready to 
 
 **Acceptance Scenarios**:
 
-1.  **Given** the application is starting up and not yet connected to NATS, **When** the readiness endpoint is called, **Then** it returns an HTTP 503 Service Unavailable status and a JSON response with `{"status": "DOWN"}`.
-2.  **Given** the application has successfully connected to NATS, **When** the readiness endpoint is called, **Then** it returns an HTTP 200 OK status and a JSON response with `{"status": "UP"}`.
-3.  **Given** the application was ready but loses its NATS connection, **When** the readiness endpoint is called, **Then** it returns an HTTP 503 Service Unavailable status and a JSON response with `{"status": "DOWN"}`.
+1.  **Given** the application is starting up and not yet connected to NATS, **When** the readiness endpoint is called, **Then** it returns an HTTP 503 Service Unavailable status and a JSON response with `{"status": "DOWN", "checks": [{"name": "NATS Connection", "status": "DOWN", "data": {"connectionStatus": "DISCONNECTED"}}]}`.
+2.  **Given** the application has successfully connected to NATS, **When** the readiness endpoint is called, **Then** it returns an HTTP 200 OK status and a JSON response with `{"status": "UP", "checks": [{"name": "NATS Connection", "status": "UP", "data": {"connectionStatus": "CONNECTED"}}]}`.
+3.  **Given** the application was ready but loses its NATS connection, **When** the readiness endpoint is called, **Then** it returns an HTTP 503 Service Unavailable status and a JSON response with `{"status": "DOWN", "checks": [{"name": "NATS Connection", "status": "DOWN", "data": {"connectionStatus": "DISCONNECTED"}}]}`.
 
 ---
 
@@ -49,12 +49,11 @@ For applications that may have a slow startup time, a container orchestration sy
 
 **Acceptance Scenarios**:
 
-1.  **Given** the application is starting up and not yet connected to NATS, **When** the startup endpoint is called, **Then** it returns an HTTP 503 Service Unavailable status and a JSON response with `{"status": "DOWN"}`.
-2.  **Given** the application has successfully connected to NATS, **When** the startup endpoint is called, **Then** it returns an HTTP 200 OK status and a JSON response with `{"status": "UP"}`.
+1.  **Given** the application is starting up and not yet connected to NATS, **When** the startup endpoint is called, **Then** it returns an HTTP 503 Service Unavailable status and a JSON response with `{"status": "DOWN", "checks": [{"name": "NATS Connection", "status": "DOWN", "data": {"connectionStatus": "DISCONNECTED"}}]}`.
+2.  **Given** the application has successfully connected to NATS, **When** the startup endpoint is called, **Then** it returns an HTTP 200 OK status and a JSON response with `{"status": "UP", "checks": [{"name": "NATS Connection", "status": "UP", "data": {"connectionStatus": "CONNECTED"}}]}`.
 
 ### Edge Cases
 
--   What happens if the NATS server is slow to respond but not down? The health checks should have a configurable timeout.
 -   How does the system handle a flapping NATS connection (connecting and disconnecting frequently)? The readiness and liveness probes should accurately reflect the current connection state.
 
 ## Requirements *(mandatory)*
@@ -70,12 +69,20 @@ For applications that may have a slow startup time, a container orchestration sy
 -   **FR-007**: The readiness endpoint MUST return a failure status if the application is not connected to NATS.
 -   **FR-008**: The startup endpoint MUST return a success status only when the application has an active NATS connection.
 -   **FR-009**: The startup endpoint MUST return a failure status if the application is not connected to NATS.
+-   **FR-010**: The health check endpoints MUST include detailed NATS connection status (e.g., `CONNECTED`, `DISCONNECTED`) in their JSON response.
 
 ## Success Criteria *(mandatory)*
 
 ### Measurable Outcomes
 
--   **SC-001**: When the NATS connection is healthy, the liveness, readiness, and startup endpoints respond with an HTTP 200 OK status and a JSON response with `{"status": "UP"}` within 100ms.
--   **SC-002**: When the NATS connection is down, the liveness, readiness, and startup endpoints respond with an HTTP 503 Service Unavailable status and a JSON response with `{"status": "DOWN"}` within 100ms.
+-   **SC-001**: When the NATS connection is healthy, the liveness, readiness, and startup endpoints respond with an HTTP 200 OK status and a JSON response with `{"status": "UP", "checks": [{"name": "NATS Connection", "status": "UP", "data": {"connectionStatus": "CONNECTED"}}]}` within 100ms.
+-   **SC-002**: When the NATS connection is down, the liveness, readiness, and startup endpoints respond with an HTTP 503 Service Unavailable status and a JSON response with `{"status": "DOWN", "checks": [{"name": "NATS Connection", "status": "DOWN", "data": {"connectionStatus": "DISCONNECTED"}}]}` within 100ms.
 -   **SC-003**: In a Kubernetes environment, a pod running the application is automatically restarted if its NATS connection is lost for a configurable period.
 -   **SC-004**: In a Kubernetes environment, a new pod running the application does not receive traffic until its NATS connection is established.
+
+## Clarifications
+
+### Session 2025-10-29
+
+-   Q: Should the timeout for the NATS connection check within the health probe be configurable, and if so, what should the default value be? → A: No, the health check should wait indefinitely.
+-   Q: Should the health check response body include detailed information about the NATS connection status beyond the simple "UP" or "DOWN"? → A: Yes, include the NATS connection status (e.g., `CONNECTED`, `DISCONNECTED`).
