@@ -18,8 +18,8 @@ A container orchestration system (like Kubernetes) needs to determine if the app
 
 **Acceptance Scenarios**:
 
-1.  **Given** the application is running and connected to NATS, **When** the liveness endpoint is called, **Then** it returns an HTTP 200 OK status.
-2.  **Given** the application is running but the NATS connection is lost, **When** the liveness endpoint is called, **Then** it returns an HTTP 503 Service Unavailable status.
+1.  **Given** the application is running and connected to NATS, **When** the liveness endpoint is called, **Then** it returns an HTTP 200 OK status and a JSON response with `{"status": "UP"}`.
+2.  **Given** the application is running but the NATS connection is lost, **When** the liveness endpoint is called, **Then** it returns an HTTP 503 Service Unavailable status and a JSON response with `{"status": "DOWN"}`.
 
 ---
 
@@ -33,9 +33,9 @@ A container orchestration system needs to know when the application is ready to 
 
 **Acceptance Scenarios**:
 
-1.  **Given** the application is starting up and not yet connected to NATS, **When** the readiness endpoint is called, **Then** it returns an HTTP 503 Service Unavailable status.
-2.  **Given** the application has successfully connected to NATS, **When** the readiness endpoint is called, **Then** it returns an HTTP 200 OK status.
-3.  **Given** the application was ready but loses its NATS connection, **When** the readiness endpoint is called, **Then** it returns an HTTP 503 Service Unavailable status.
+1.  **Given** the application is starting up and not yet connected to NATS, **When** the readiness endpoint is called, **Then** it returns an HTTP 503 Service Unavailable status and a JSON response with `{"status": "DOWN"}`.
+2.  **Given** the application has successfully connected to NATS, **When** the readiness endpoint is called, **Then** it returns an HTTP 200 OK status and a JSON response with `{"status": "UP"}`.
+3.  **Given** the application was ready but loses its NATS connection, **When** the readiness endpoint is called, **Then** it returns an HTTP 503 Service Unavailable status and a JSON response with `{"status": "DOWN"}`.
 
 ---
 
@@ -49,8 +49,8 @@ For applications that may have a slow startup time, a container orchestration sy
 
 **Acceptance Scenarios**:
 
-1.  **Given** the application is starting up and not yet connected to NATS, **When** the startup endpoint is called, **Then** it returns an HTTP 503 Service Unavailable status.
-2.  **Given** the application has successfully connected to NATS, **When** the startup endpoint is called, **Then** it returns an HTTP 200 OK status.
+1.  **Given** the application is starting up and not yet connected to NATS, **When** the startup endpoint is called, **Then** it returns an HTTP 503 Service Unavailable status and a JSON response with `{"status": "DOWN"}`.
+2.  **Given** the application has successfully connected to NATS, **When** the startup endpoint is called, **Then** it returns an HTTP 200 OK status and a JSON response with `{"status": "UP"}`.
 
 ### Edge Cases
 
@@ -75,7 +75,7 @@ For applications that may have a slow startup time, a container orchestration sy
 
 ### Measurable Outcomes
 
--   **SC-001**: When the NATS connection is healthy, the liveness, readiness, and startup endpoints respond with an HTTP 200 OK status within 100ms.
--   **SC-002**: When the NATS connection is down, the liveness, readiness, and startup endpoints respond with an HTTP 503 Service Unavailable status within 100ms.
+-   **SC-001**: When the NATS connection is healthy, the liveness, readiness, and startup endpoints respond with an HTTP 200 OK status and a JSON response with `{"status": "UP"}` within 100ms.
+-   **SC-002**: When the NATS connection is down, the liveness, readiness, and startup endpoints respond with an HTTP 503 Service Unavailable status and a JSON response with `{"status": "DOWN"}` within 100ms.
 -   **SC-003**: In a Kubernetes environment, a pod running the application is automatically restarted if its NATS connection is lost for a configurable period.
 -   **SC-004**: In a Kubernetes environment, a new pod running the application does not receive traffic until its NATS connection is established.
