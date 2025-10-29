@@ -21,6 +21,7 @@ A container orchestration system (like Kubernetes) needs to determine if the app
 1.  **Given** the application is running and connected to NATS, **When** the liveness endpoint is called, **Then** it returns an HTTP 200 OK status and a JSON response with `{"status": "UP", "checks": [{"name": "NATS Connection", "status": "UP", "data": {"connectionStatus": "CONNECTED"}}]}`.
 2.  **Given** the application is running and the NATS connection is temporarily disconnected (reconnecting), **When** the liveness endpoint is called, **Then** it returns an HTTP 200 OK status and a JSON response with `{"status": "UP", "checks": [{"name": "NATS Connection", "status": "UP", "data": {"connectionStatus": "RECONNECTING"}}]}`.
 3.  **Given** the application is running and the NATS connection is permanently closed, **When** the liveness endpoint is called, **Then** it returns an HTTP 503 Service Unavailable status and a JSON response with `{"status": "DOWN", "checks": [{"name": "NATS Connection", "status": "DOWN", "data": {"connectionStatus": "CLOSED"}}]}`.
+4.  **Given** the application is running and receives a `LAME_DUCK` event from the NATS server, **When** the liveness endpoint is called, **Then** it returns an HTTP 200 OK status and a JSON response with `{"status": "UP", "checks": [{"name": "NATS Connection", "status": "UP", "data": {"connectionStatus": "LAME_DUCK"}}]}`.
 
 ---
 
@@ -38,6 +39,7 @@ A container orchestration system needs to know when the application is ready to 
 2.  **Given** the application has successfully connected to NATS, **When** the readiness endpoint is called, **Then** it returns an HTTP 200 OK status and a JSON response with `{"status": "UP", "checks": [{"name": "NATS Connection", "status": "UP", "data": {"connectionStatus": "CONNECTED"}}]}`.
 3.  **Given** the application was ready but the NATS connection is temporarily disconnected (reconnecting), **When** the readiness endpoint is called, **Then** it returns an HTTP 503 Service Unavailable status and a JSON response with `{"status": "DOWN", "checks": [{"name": "NATS Connection", "status": "DOWN", "data": {"connectionStatus": "RECONNECTING"}}]}`.
 4.  **Given** the application has reconnected to NATS after a temporary disconnection, **When** the readiness endpoint is called, **Then** it returns an HTTP 200 OK status and a JSON response with `{"status": "UP", "checks": [{"name": "NATS Connection", "status": "UP", "data": {"connectionStatus": "RECONNECTED"}}]}`.
+5.  **Given** the application is running and receives a `LAME_DUCK` event from the NATS server, **When** the readiness endpoint is called, **Then** it returns an HTTP 503 Service Unavailable status and a JSON response with `{"status": "DOWN", "checks": [{"name": "NATS Connection", "status": "DOWN", "data": {"connectionStatus": "LAME_DUCK"}}]}`.
 
 ---
 
@@ -74,6 +76,7 @@ For applications that may have a slow startup time, a container orchestration sy
 -   **FR-010**: The health check endpoints MUST include detailed NATS connection status (e.g., `CONNECTED`, `DISCONNECTED`) in their JSON response.
 -   **FR-011**: The liveness probe MUST remain `UP` during temporary NATS disconnections and only report `DOWN` when the connection is permanently `CLOSED`.
 -   **FR-012**: The readiness probe MUST report `DOWN` as soon as the NATS connection is lost (`DISCONNECTED`) and only report `UP` after it has been successfully re-established (`RECONNECTED` or `RESUBSCRIBED`).
+-   **FR-013**: Upon receiving a `LAME_DUCK` event, the readiness probe MUST report `DOWN`, while the liveness probe MUST remain `UP`.
 
 ## Success Criteria *(mandatory)*
 
@@ -91,3 +94,4 @@ For applications that may have a slow startup time, a container orchestration sy
 -   Q: Should the timeout for the NATS connection check within the health probe be configurable, and if so, what should the default value be? → A: No, the health check should wait indefinitely.
 -   Q: Should the health check response body include detailed information about the NATS connection status beyond the simple "UP" or "DOWN"? → A: Yes, include the NATS connection status (e.g., `CONNECTED`, `DISCONNECTED`).
 -   Q: How should the readiness and liveness probes report the application's status while the NATS client is attempting to reconnect? → A: The readiness probe will report `DOWN` on a `DISCONNECTED` event and `UP` on `RECONNECTED`/`RESUBSCRIBED`. The liveness probe will only report `DOWN` on a `CLOSED` event.
+-   Q: How should the health probes react to a `LAME_DUCK` event from the NATS server? → A: Readiness probe reports `DOWN`; Liveness probe remains `UP`.
