@@ -46,62 +46,60 @@ public class NatsTraceService {
         }
     };
 
-    private final OpenTelemetry openTelemetry;
-    private final Tracer tracer;
+    private OpenTelemetry openTelemetry;
+    private Tracer tracer;
 
     public NatsTraceService() {
         // No-args constructor for CDI bean instantiation
-        this(initializeOpenTelemetry(null));
+        // Lazy initialization: OpenTelemetry will be initialized when first needed
+        this.openTelemetry = null;
+        this.tracer = null;
     }
 
-    // Secondary constructor for explicit injection if needed, without @Inject
-    // to avoid confusing Arc CDI container
+    // Secondary constructor for explicit injection if needed
     public NatsTraceService(OpenTelemetry otelInstance) {
-        if (otelInstance == null) {
-            throw new IllegalStateException(
-                "OpenTelemetry must be configured. Add 'io.quarkus:quarkus-opentelemetry' " +
-                "dependency and configure an exporter (e.g., 'io.quarkus:quarkus-opentelemetry-exporter-jaeger') " +
-                "to enable distributed tracing."
+        this.openTelemetry = otelInstance;
+        if (otelInstance != null) {
+            this.tracer = otelInstance.getTracer(
+                NatsTraceService.class.getCanonicalName(),
+                "1.0"
             );
         }
-        this.openTelemetry = otelInstance;
-        this.tracer = otelInstance.getTracer(
-            NatsTraceService.class.getCanonicalName(),
-            "1.0"
-        );
     }
 
     /**
-     * Initializes OpenTelemetry from the global instance or provided instance.
-     * Fails fast if OpenTelemetry is not available.
+     * Lazily initializes and returns OpenTelemetry instance.
+     * This ensures we get the Quarkus-configured OpenTelemetry instance
+     * rather than the global one.
      */
-    private static OpenTelemetry initializeOpenTelemetry(OpenTelemetry otelInstance) {
-        if (otelInstance != null) {
-            return otelInstance;
+    private synchronized OpenTelemetry getOpenTelemetry() {
+        if (this.openTelemetry != null) {
+            return this.openTelemetry;
         }
+
         try {
-            OpenTelemetry global = GlobalOpenTelemetry.get();
-            // Check if we got a no-op instance (which means OpenTelemetry is not properly configured)
-            if (global == OpenTelemetry.noop()) {
-                Logger logger = Logger.getLogger(NatsTraceService.class);
-                logger.error(
+            this.openTelemetry = GlobalOpenTelemetry.get();
+            if (this.openTelemetry == null || this.openTelemetry == OpenTelemetry.noop()) {
+                LOGGER.warn(
                     "OpenTelemetry is not properly configured. " +
                     "Add 'io.quarkus:quarkus-opentelemetry' dependency and configure an exporter " +
                     "(e.g., 'io.quarkus:quarkus-opentelemetry-exporter-jaeger') to enable distributed tracing."
                 );
-                throw new IllegalStateException(
-                    "OpenTelemetry must be configured for distributed tracing."
-                );
+                this.openTelemetry = OpenTelemetry.noop();
             }
-            return global;
         } catch (Exception e) {
-            Logger logger = Logger.getLogger(NatsTraceService.class);
-            logger.error("Failed to initialize OpenTelemetry: " + e.getMessage(), e);
-            throw new IllegalStateException(
-                "OpenTelemetry initialization failed. Ensure 'io.quarkus:quarkus-opentelemetry' " +
-                "is added to your dependencies and properly configured.", e
+            LOGGER.warnf(e, "Failed to get OpenTelemetry instance, using noop");
+            this.openTelemetry = OpenTelemetry.noop();
+        }
+
+        if (this.tracer == null && this.openTelemetry != null) {
+            this.tracer = this.openTelemetry.getTracer(
+                NatsTraceService.class.getCanonicalName(),
+                "1.0"
             );
         }
+
+        return this.openTelemetry;
     }
 
     /**
@@ -115,6 +113,12 @@ public class NatsTraceService {
      * @return a Span representing the publishing operation
      */
     public Span createProducerSpan(String subject, Headers headers) {
+        if (tracer == null) {
+            tracer = getOpenTelemetry().getTracer(
+                NatsTraceService.class.getCanonicalName(),
+                "1.0"
+            );
+        }
         Span span = tracer.spanBuilder("NATS publish to " + subject)
             .setSpanKind(SpanKind.PRODUCER)
             .startSpan();
@@ -141,6 +145,12 @@ public class NatsTraceService {
      * @return a Span representing the consumption and processing operation
      */
     public Span createConsumerSpan(String subject, Message message) {
+        if (tracer == null) {
+            tracer = getOpenTelemetry().getTracer(
+                NatsTraceService.class.getCanonicalName(),
+                "1.0"
+            );
+        }
         // Extract trace context from message headers
         Context extractedContext = extractTraceContext(message);
 
@@ -178,7 +188,7 @@ public class NatsTraceService {
      */
     private void injectTraceContext(Headers headers) {
         try {
-            TextMapPropagator propagator = openTelemetry.getPropagators().getTextMapPropagator();
+            TextMapPropagator propagator = getOpenTelemetry().getPropagators().getTextMapPropagator();
             if (propagator != null) {
                 Map<String, String> carrier = new HashMap<>();
                 propagator.inject(Context.current(), carrier, Map::put);
@@ -208,7 +218,7 @@ public class NatsTraceService {
                 return Context.current();
             }
 
-            TextMapPropagator propagator = openTelemetry.getPropagators().getTextMapPropagator();
+            TextMapPropagator propagator = getOpenTelemetry().getPropagators().getTextMapPropagator();
             if (propagator == null) {
                 return Context.current();
             }

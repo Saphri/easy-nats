@@ -113,8 +113,8 @@ public class SubscriberInitializer {
             }
         } catch (Exception e) {
             // Tracing not available; continue without it
-            LOGGER.warnf("OpenTelemetry tracing not available for subscriber: subject=%s, method=%s - %s",
-                    metadata.subject(), metadata.methodName(), e.getMessage());
+            LOGGER.warnf(e, "Failed to initialize OpenTelemetry tracing for subscriber: subject=%s, method=%s",
+                    metadata.subject(), metadata.methodName());
         }
 
         DefaultMessageHandler handler = (traceService != null) ?
