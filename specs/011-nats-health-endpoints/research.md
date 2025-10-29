@@ -18,11 +18,11 @@ The health checks will be implemented using the standard Quarkus SmallRye Health
 
 ### Decision
 
-The NATS connection status will be tracked by registering a `io.nats.client.ConnectionListener` on the shared NATS connection. This listener will update an internal state holder that the `HealthCheck` bean will read.
+The NATS connection status will be tracked by registering a `io.nats.client.ConnectionListener` on the shared NATS connection. This listener will update an internal state holder that the `HealthCheck` bean will read. The state holder will differentiate between transient (`DISCONNECTED`, `RECONNECTING`) and permanent (`CLOSED`) connection failures, as well as graceful shutdown (`LAME_DUCK`).
 
 ### Rationale
 
--   **Efficiency**: This is an event-driven approach. The application reacts to connection events (`CONNECTED`, `DISCONNECTED`, etc.) rather than actively polling or probing the connection, which is far more efficient.
+-   **Efficiency**: This is an event-driven approach. The application reacts to connection events rather than actively polling or probing the connection, which is far more efficient.
 -   **Accuracy**: It provides the most accurate and real-time status of the connection as reported by the underlying `jnats` client.
 -   **Simplicity**: It avoids the complexity of implementing a reliable active probing mechanism.
 
