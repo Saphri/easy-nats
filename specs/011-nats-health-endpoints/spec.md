@@ -1,6 +1,7 @@
 # Feature Specification: NATS Health Check Endpoints
 
-**Feature Branch**: `002-nats-health-endpoints`
+**Feature Branch**: `011-nats-health-endpoints`
+**Continues**: `010-nats-connection-access`
 **Created**: 2025-10-29
 **Status**: Draft
 **Input**: User description: "This feature introduces standard health check endpoints (liveness, readiness, and startup) to expose the status of the NATS connection. These endpoints are essential for container orchestration systems like Kubernetes to manage the application's lifecycle effectively, ensuring pods are only sent traffic when ready and are restarted if they become unresponsive."
