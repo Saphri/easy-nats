@@ -1,5 +1,6 @@
 package org.mjelle.quarkus.easynats.runtime.health;
 
+import java.util.Set;
 import org.eclipse.microprofile.health.HealthCheck;
 import org.eclipse.microprofile.health.HealthCheckResponse;
 
@@ -14,6 +15,12 @@ import org.eclipse.microprofile.health.HealthCheckResponse;
  * and only need to provide their specific health check name.
  */
 public abstract class AbstractNatsReadinessProbe implements HealthCheck {
+
+    private static final Set<ConnectionStatus> HEALTHY_STATES = Set.of(
+            ConnectionStatus.CONNECTED,
+            ConnectionStatus.RECONNECTED,
+            ConnectionStatus.RESUBSCRIBED
+    );
 
     private final ConnectionStatusHolder statusHolder;
     private final String checkName;
@@ -34,7 +41,7 @@ public abstract class AbstractNatsReadinessProbe implements HealthCheck {
         ConnectionStatus status = statusHolder.getStatus();
 
         // Report UP only for fully connected states
-        if (isHealthy(status)) {
+        if (HEALTHY_STATES.contains(status)) {
             return HealthCheckResponse
                     .named(checkName)
                     .up()
@@ -42,23 +49,11 @@ public abstract class AbstractNatsReadinessProbe implements HealthCheck {
                     .build();
         }
 
-        // All other states (DISCONNECTED, RECONNECTING, CLOSED, LAME_DUCK) report DOWN
+        // All other states (DISCONNECTED, CLOSED, LAME_DUCK) report DOWN
         return HealthCheckResponse
                 .named(checkName)
                 .down()
                 .withData("connectionStatus", status.name())
                 .build();
-    }
-
-    /**
-     * Determines if the connection status represents a healthy state.
-     *
-     * @param status the current connection status
-     * @return true if the connection is fully ready to accept traffic
-     */
-    private boolean isHealthy(ConnectionStatus status) {
-        return status == ConnectionStatus.CONNECTED ||
-                status == ConnectionStatus.RECONNECTED ||
-                status == ConnectionStatus.RESUBSCRIBED;
     }
 }

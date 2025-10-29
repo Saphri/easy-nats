@@ -38,7 +38,7 @@ The project uses the standard Quarkus testing framework for integration tests. T
 - Java 21 + Quarkus 3.27.0
 - NATS JetStream client (jnats 2.23.0)
 - Jackson Databind
-- Java 21 + Quarkus 3.27.0, NATS JetStream client, SmallRye Health (011-nats-health-endpoints)
+- SmallRye Health
 
 ## Recent Changes
-- 011-nats-health-endpoints: Added Java 21 + Quarkus 3.27.0, NATS JetStream client, SmallRye Health
+- 011-nats-health-endpoints: Implemented Kubernetes health check endpoints (liveness, readiness, startup probes)
