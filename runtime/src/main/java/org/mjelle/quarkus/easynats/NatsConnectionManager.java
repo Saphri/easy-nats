@@ -12,6 +12,7 @@ import java.io.IOException;
 import java.util.concurrent.ExecutorService;
 import java.util.logging.Logger;
 import io.quarkus.virtual.threads.VirtualThreads;
+import org.mjelle.quarkus.easynats.runtime.health.ConnectionStatus;
 import org.mjelle.quarkus.easynats.runtime.health.ConnectionStatusHolder;
 import org.mjelle.quarkus.easynats.runtime.health.NatsConnectionListener;
 
@@ -55,10 +56,10 @@ public class NatsConnectionManager {
 
             this.connection = Nats.connect(options);
             this.jetStream = connection.jetStream();
-            statusHolder.setStatus(org.mjelle.quarkus.easynats.runtime.health.ConnectionStatus.CONNECTED);
+            statusHolder.setStatus(ConnectionStatus.CONNECTED);
             LOGGER.info("Connected to NATS broker at nats://localhost:4222");
         } catch (IOException | InterruptedException e) {
-            statusHolder.setStatus(org.mjelle.quarkus.easynats.runtime.health.ConnectionStatus.DISCONNECTED);
+            statusHolder.setStatus(ConnectionStatus.DISCONNECTED);
             LOGGER.warning("Failed to connect to NATS broker at nats://localhost:4222. " +
                     "NatsPublisher will not be functional until broker is available: " + e.getMessage());
         }
@@ -73,7 +74,7 @@ public class NatsConnectionManager {
         if (connection != null && !connection.getStatus().equals(Connection.Status.CLOSED)) {
             try {
                 connection.close();
-                statusHolder.setStatus(org.mjelle.quarkus.easynats.runtime.health.ConnectionStatus.CLOSED);
+                statusHolder.setStatus(ConnectionStatus.CLOSED);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
