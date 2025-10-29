@@ -107,9 +107,14 @@ public class SubscriberInitializer {
         NatsTraceService traceService = null;
         try {
             traceService = Arc.container().instance(NatsTraceService.class).get();
+            if (traceService != null) {
+                LOGGER.infof("OpenTelemetry tracing enabled for subscriber: subject=%s, method=%s",
+                        metadata.subject(), metadata.methodName());
+            }
         } catch (Exception e) {
             // Tracing not available; continue without it
-            LOGGER.debugf("OpenTelemetry tracing not available: %s", e.getMessage());
+            LOGGER.warnf("OpenTelemetry tracing not available for subscriber: subject=%s, method=%s - %s",
+                    metadata.subject(), metadata.methodName(), e.getMessage());
         }
 
         DefaultMessageHandler handler = (traceService != null) ?
