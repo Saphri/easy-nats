@@ -50,33 +50,57 @@ public class NatsTraceService {
     private final Tracer tracer;
 
     public NatsTraceService() {
-        // No-args constructor for CDI bean instantiation when OpenTelemetry is not explicitly injected
-        this(null);
+        // No-args constructor for CDI bean instantiation
+        this(initializeOpenTelemetry(null));
     }
 
     // Secondary constructor for explicit injection if needed, without @Inject
     // to avoid confusing Arc CDI container
     public NatsTraceService(OpenTelemetry otelInstance) {
-        this.openTelemetry = initializeOpenTelemetry(otelInstance);
-        this.tracer = this.openTelemetry.getTracer(
+        if (otelInstance == null) {
+            throw new IllegalStateException(
+                "OpenTelemetry must be configured. Add 'io.quarkus:quarkus-opentelemetry' " +
+                "dependency and configure an exporter (e.g., 'io.quarkus:quarkus-opentelemetry-exporter-jaeger') " +
+                "to enable distributed tracing."
+            );
+        }
+        this.openTelemetry = otelInstance;
+        this.tracer = otelInstance.getTracer(
             NatsTraceService.class.getCanonicalName(),
             "1.0"
         );
     }
 
     /**
-     * Initializes OpenTelemetry, falling back to GlobalOpenTelemetry.get() or noop if needed.
+     * Initializes OpenTelemetry from the global instance or provided instance.
+     * Fails fast if OpenTelemetry is not available.
      */
     private static OpenTelemetry initializeOpenTelemetry(OpenTelemetry otelInstance) {
         if (otelInstance != null) {
             return otelInstance;
         }
         try {
-            return GlobalOpenTelemetry.get();
+            OpenTelemetry global = GlobalOpenTelemetry.get();
+            // Check if we got a no-op instance (which means OpenTelemetry is not properly configured)
+            if (global == OpenTelemetry.noop()) {
+                Logger logger = Logger.getLogger(NatsTraceService.class);
+                logger.error(
+                    "OpenTelemetry is not properly configured. " +
+                    "Add 'io.quarkus:quarkus-opentelemetry' dependency and configure an exporter " +
+                    "(e.g., 'io.quarkus:quarkus-opentelemetry-exporter-jaeger') to enable distributed tracing."
+                );
+                throw new IllegalStateException(
+                    "OpenTelemetry must be configured for distributed tracing."
+                );
+            }
+            return global;
         } catch (Exception e) {
             Logger logger = Logger.getLogger(NatsTraceService.class);
-            logger.warn("Failed to get GlobalOpenTelemetry instance, using noop: " + e.getMessage());
-            return OpenTelemetry.noop();
+            logger.error("Failed to initialize OpenTelemetry: " + e.getMessage(), e);
+            throw new IllegalStateException(
+                "OpenTelemetry initialization failed. Ensure 'io.quarkus:quarkus-opentelemetry' " +
+                "is added to your dependencies and properly configured.", e
+            );
         }
     }
 

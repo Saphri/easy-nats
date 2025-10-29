@@ -187,7 +187,7 @@ This allows you to quickly identify failures and debug production issues.
 Distributed tracing in Quarkus EasyNATS is:
 
 - ✅ **Compatible with all NATS messaging patterns** (publish/subscribe, JetStream, durable consumers)
-- ✅ **Backward compatible** (optional—works without OpenTelemetry if not configured)
+- ✅ **Requires OpenTelemetry** (must be configured; fails fast with clear error messages if not available)
 - ✅ **Standards-compliant** (uses W3C Trace Context and OpenTelemetry standards)
 - ✅ **Native-image friendly** (works in both JVM and GraalVM native image)
 
