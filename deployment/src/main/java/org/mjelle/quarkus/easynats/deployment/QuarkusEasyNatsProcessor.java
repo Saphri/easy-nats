@@ -23,6 +23,10 @@ import org.mjelle.quarkus.easynats.NatsConnectionManager;
 import org.mjelle.quarkus.easynats.NatsPublisher;
 import org.mjelle.quarkus.easynats.NatsSubject;
 import org.mjelle.quarkus.easynats.runtime.NatsConnectionProvider;
+import org.mjelle.quarkus.easynats.runtime.health.ConnectionStatusHolder;
+import org.mjelle.quarkus.easynats.runtime.health.NatsHealthCheck;
+import org.mjelle.quarkus.easynats.runtime.health.NatsReadinessCheck;
+import org.mjelle.quarkus.easynats.runtime.health.NatsStartupCheck;
 import org.mjelle.quarkus.easynats.deployment.build.SubscriberBuildItem;
 import org.mjelle.quarkus.easynats.deployment.build.SubscribersCollectionBuildItem;
 import org.mjelle.quarkus.easynats.deployment.processor.SubscriberDiscoveryProcessor;
@@ -155,6 +159,10 @@ class QuarkusEasyNatsProcessor {
                 .addBeanClass(NatsPublisherRecorder.class)
                 .addBeanClass(SubscriberRegistry.class)
                 .addBeanClass(SubscriberInitializer.class)
+                .addBeanClass(ConnectionStatusHolder.class)
+                .addBeanClass(NatsHealthCheck.class)
+                .addBeanClass(NatsReadinessCheck.class)
+                .addBeanClass(NatsStartupCheck.class)
                 .build();
     }
 }

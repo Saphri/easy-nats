@@ -52,6 +52,17 @@ Customize serialization and deserialization behavior:
   - Accessing message headers and metadata
   - Advanced error handling patterns
 
+### Observability & Operations
+
+Monitor your application's health and NATS connection status:
+
+- **Health Checks** - Kubernetes-compatible health endpoints
+  - Liveness probe (`/q/health/live`) - Is the application running?
+  - Readiness probe (`/q/health/ready`) - Is it ready for traffic?
+  - Startup probe (`/q/health/started`) - Has it finished initializing?
+  - Automatic NATS connection monitoring
+  - No configuration required
+
 ### Troubleshooting
 
 When things don't work as expected:
@@ -89,6 +100,12 @@ For deeper understanding of the implementation:
 ### I need full control over message retries
 → See [Explicit Ack/Nak Guide](./EXPLICIT_ACK_NAK_GUIDE.md)
 
+### I need to monitor NATS connection health
+→ Health checks are automatically enabled! Access:
+- `/q/health/live` for liveness probe (Kubernetes)
+- `/q/health/ready` for readiness probe (Kubernetes)
+- `/q/health/started` for startup probe (Kubernetes)
+
 ### I'm getting an error
 → See [Error Troubleshooting Guide](./ERROR_TROUBLESHOOTING.md)
 
@@ -101,6 +118,7 @@ For deeper understanding of the implementation:
 - **Automatic Serialization** - Jackson handles JSON seamlessly
 - **CloudEvents Support** - CloudEvents 1.0 binary-mode wrapping
 - **Explicit Ack/Nak Control** - Full control over message lifecycle
+- **Health Checks** - Kubernetes-compatible liveness, readiness, and startup probes
 - **Clear Error Messages** - Detailed guidance when things go wrong
 - **Annotation Support** - Full Jackson annotation compatibility
 - **Records Support** - Java Record types work out-of-the-box

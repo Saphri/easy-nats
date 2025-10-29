@@ -12,6 +12,9 @@ import java.io.IOException;
 import java.util.concurrent.ExecutorService;
 import java.util.logging.Logger;
 import io.quarkus.virtual.threads.VirtualThreads;
+import org.mjelle.quarkus.easynats.runtime.health.ConnectionStatus;
+import org.mjelle.quarkus.easynats.runtime.health.ConnectionStatusHolder;
+import org.mjelle.quarkus.easynats.runtime.health.NatsConnectionListener;
 
 /**
  * Manages the singleton NATS JetStream connection for the entire application.
@@ -25,17 +28,20 @@ public class NatsConnectionManager {
     private static final Logger LOGGER = Logger.getLogger(NatsConnectionManager.class.getName());
 
     private final ExecutorService executorService;
+    private final ConnectionStatusHolder statusHolder;
 
     private Connection connection;
     private JetStream jetStream;
 
-    public NatsConnectionManager(@VirtualThreads ExecutorService executorService) {
+    public NatsConnectionManager(@VirtualThreads ExecutorService executorService, ConnectionStatusHolder statusHolder) {
         this.executorService = executorService;
+        this.statusHolder = statusHolder;
     }
 
     /**
      * Initializes the NATS connection on application startup.
      * Logs a warning if unable to connect to the broker instead of failing startup.
+     * Registers the ConnectionListener to track connection state changes.
      *
      * @param startupEvent the startup event
      */
@@ -45,14 +51,21 @@ public class NatsConnectionManager {
                     .server("nats://localhost:4222")
                     .userInfo("guest", "guest")
                     .executor(executorService)
+                    .connectionListener(new NatsConnectionListener(statusHolder))
                     .build();
 
             this.connection = Nats.connect(options);
             this.jetStream = connection.jetStream();
+            statusHolder.setStatus(ConnectionStatus.CONNECTED);
             LOGGER.info("Connected to NATS broker at nats://localhost:4222");
-        } catch (IOException | InterruptedException e) {
+        } catch (IOException e) {
+            statusHolder.setStatus(ConnectionStatus.DISCONNECTED);
             LOGGER.warning("Failed to connect to NATS broker at nats://localhost:4222. " +
                     "NatsPublisher will not be functional until broker is available: " + e.getMessage());
+        } catch (InterruptedException e) {
+            statusHolder.setStatus(ConnectionStatus.DISCONNECTED);
+            Thread.currentThread().interrupt();
+            LOGGER.warning("NATS connection interrupted during startup: " + e.getMessage());
         }
     }
 
@@ -65,6 +78,7 @@ public class NatsConnectionManager {
         if (connection != null && !connection.getStatus().equals(Connection.Status.CLOSED)) {
             try {
                 connection.close();
+                statusHolder.setStatus(ConnectionStatus.CLOSED);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
