@@ -133,7 +133,6 @@ Trace: abc123def456
 While basic attributes are automatic, you can add custom attributes by accessing the current span via OpenTelemetry:
 
 ```java
-import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.api.trace.Span;
 
 @ApplicationScoped

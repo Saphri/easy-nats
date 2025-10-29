@@ -101,6 +101,11 @@ class TracingTest {
         OrderData orderData = new OrderData("ORD-REDELIVERY-001", "CUST-REDELIVERY-001", 350.00);
 
         // When - Publish a message
+        // Note: To fully test redelivery detection, the subscriber would need to explicitly nak()
+        // the message to trigger redelivery. In this test, we verify that:
+        // 1. Messages are successfully delivered
+        // 2. The redelivery detection code path is available in NatsTraceService.createConsumerSpan()
+        // Real redelivery testing would require a durable consumer with explicit nak() handling.
         given()
                 .contentType(ContentType.JSON)
                 .body(orderData)
@@ -109,7 +114,7 @@ class TracingTest {
                 .then()
                 .statusCode(204);
 
-        // Then - Verify message was received (normal delivery)
+        // Then - Verify message was received on first delivery
         await()
                 .atMost(Duration.ofSeconds(5))
                 .pollInterval(Duration.ofMillis(100))
@@ -122,6 +127,7 @@ class TracingTest {
                             .extract()
                             .as(OrderData.class);
 
+                    // Verify the message was successfully processed on first delivery
                     assertThat(result).isEqualTo(orderData);
                 });
     }
@@ -130,9 +136,11 @@ class TracingTest {
     @DisplayName("T011: Error during message processing is recorded in span with ERROR status")
     void testErrorRecordingInSpan() {
         // Given - Create invalid message data that will fail deserialization
+        // When sending plain text instead of JSON, the endpoint should reject it
         String invalidJson = "foo";
 
         // When - Try to publish invalid data
+        // This should fail at the REST endpoint level before reaching NATS
         given()
                 .contentType(ContentType.JSON)
                 .body(invalidJson)
@@ -141,18 +149,34 @@ class TracingTest {
                 .then()
                 .statusCode(400); // Should fail validation
 
-        // Then - Verify the error was handled gracefully
-        // (In a real scenario, we would check the OpenTelemetry exporter for error spans)
+        // Then - Verify the error was handled gracefully and system remains operational
+        // Note: In a real scenario with OpenTelemetry exporters configured, we would:
+        // 1. Check the OpenTelemetry exporter backend for span with status=ERROR
+        // 2. Verify the exception message is recorded in the span
+        // 3. Confirm the span includes the error context
+        // For now, we verify the system remains operational after the error
         await()
                 .atMost(Duration.ofSeconds(2))
                 .pollInterval(Duration.ofMillis(100))
                 .untilAsserted(() -> {
-                    // Verify the system is still operational
+                    // Verify the system is still operational after the error
+                    OrderData validOrder = new OrderData("ORD-AFTER-ERROR", "CUST-AFTER-ERROR", 100.00);
+                    given()
+                            .contentType(ContentType.JSON)
+                            .body(validOrder)
+                            .when()
+                            .post("/publish/order")
+                            .then()
+                            .statusCode(204);
+
+                    // Confirm the valid message was processed successfully
                     given()
                             .when()
                             .get("/subscribe/last-order")
                             .then()
-                            .statusCode(200);
+                            .statusCode(200)
+                            .extract()
+                            .as(OrderData.class);
                 });
     }
 

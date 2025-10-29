@@ -18,6 +18,11 @@ public class NatsPublisherRecorder {
      * <p>
      * This method is called by CDI to produce instances of {@link NatsPublisher}.
      * It uses the {@link NatsSubject} annotation to configure the default subject for the publisher.
+     * <p>
+     * Note: NatsTraceService is instantiated directly (not injected as a parameter) because the
+     * producer method is called during build-time processing, and OpenTelemetry dependencies may
+     * not be available at that time. The NatsTraceService handles graceful fallback to noop
+     * if OpenTelemetry is not configured.
      *
      * @param injectionPoint      the injection point
      * @param connectionManager   the NATS connection manager
@@ -32,8 +37,8 @@ public class NatsPublisherRecorder {
             NatsConnectionManager connectionManager,
             ObjectMapper objectMapper) {
         NatsSubject subject = injectionPoint.getAnnotated().getAnnotation(NatsSubject.class);
-        // Always create a fresh NatsTraceService instance which has a no-args constructor
-        // This ensures it's always available, using noop if OpenTelemetry is not available
+        // Create NatsTraceService instance directly to avoid CDI build-time dependency issues
+        // NatsTraceService handles graceful fallback to noop if OpenTelemetry is not available
         NatsTraceService traceService = new NatsTraceService();
 
         if (subject != null) {

@@ -29,40 +29,55 @@ public class NatsTraceService {
 
     private static final Logger LOGGER = Logger.getLogger(NatsTraceService.class);
 
+    /**
+     * Reusable TextMapGetter for extracting trace context from NATS Headers.
+     * This is created once and reused for all trace context extraction operations.
+     */
+    private static final TextMapGetter<Headers> HEADERS_GETTER = new TextMapGetter<Headers>() {
+        @Override
+        public Iterable<String> keys(Headers carrier) {
+            return carrier.keySet();
+        }
+
+        @Override
+        public String get(Headers carrier, String key) {
+            java.util.List<String> values = carrier.get(key);
+            return (values != null && !values.isEmpty()) ? values.get(0) : null;
+        }
+    };
+
     private final OpenTelemetry openTelemetry;
     private final Tracer tracer;
 
     public NatsTraceService() {
         // No-args constructor for CDI bean instantiation when OpenTelemetry is not explicitly injected
-        OpenTelemetry otel;
-        try {
-            otel = GlobalOpenTelemetry.get();
-        } catch (Exception e) {
-            LOGGER.warn("Failed to get GlobalOpenTelemetry instance, using noop: " + e.getMessage());
-            otel = OpenTelemetry.noop();
-        }
-        this.openTelemetry = otel;
+        this(null);
+    }
+
+    // Secondary constructor for explicit injection if needed, without @Inject
+    // to avoid confusing Arc CDI container
+    public NatsTraceService(OpenTelemetry otelInstance) {
+        this.openTelemetry = initializeOpenTelemetry(otelInstance);
         this.tracer = this.openTelemetry.getTracer(
             NatsTraceService.class.getCanonicalName(),
             "1.0"
         );
     }
 
-    // Secondary constructor for explicit injection if needed, without @Inject
-    // to avoid confusing Arc CDI container
-    public NatsTraceService(OpenTelemetry otelInstance) {
-        OpenTelemetry otel;
-        try {
-            otel = otelInstance != null ? otelInstance : GlobalOpenTelemetry.get();
-        } catch (Exception e) {
-            LOGGER.warn("Failed to get OpenTelemetry instance, using noop: " + e.getMessage());
-            otel = OpenTelemetry.noop();
+    /**
+     * Initializes OpenTelemetry, falling back to GlobalOpenTelemetry.get() or noop if needed.
+     */
+    private static OpenTelemetry initializeOpenTelemetry(OpenTelemetry otelInstance) {
+        if (otelInstance != null) {
+            return otelInstance;
         }
-        this.openTelemetry = otel;
-        this.tracer = this.openTelemetry.getTracer(
-            NatsTraceService.class.getCanonicalName(),
-            "1.0"
-        );
+        try {
+            return GlobalOpenTelemetry.get();
+        } catch (Exception e) {
+            Logger logger = Logger.getLogger(NatsTraceService.class);
+            logger.warn("Failed to get GlobalOpenTelemetry instance, using noop: " + e.getMessage());
+            return OpenTelemetry.noop();
+        }
     }
 
     /**
@@ -121,7 +136,7 @@ public class NatsTraceService {
                 long deliveredCount = message.metaData().deliveredCount();
                 if (deliveredCount > 1) {
                     span.setAttribute("messaging.message_redelivered", true);
-                    span.setAttribute("messaging.redelivery_count", (int) (deliveredCount - 1));
+                    span.setAttribute("messaging.redelivery_count", deliveredCount - 1);
                 }
             } catch (Exception e) {
                 // Silently ignore if metaData is not available
@@ -174,22 +189,8 @@ public class NatsTraceService {
                 return Context.current();
             }
 
-            // Create a headers carrier that implements TextMapGetter
-            TextMapGetter<Headers> getter = new TextMapGetter<Headers>() {
-                @Override
-                public Iterable<String> keys(Headers carrier) {
-                    return carrier.keySet();
-                }
-
-                @Override
-                public String get(Headers carrier, String key) {
-                    java.util.List<String> values = carrier.get(key);
-                    return (values != null && !values.isEmpty()) ? values.get(0) : null;
-                }
-            };
-
-            // Extract the context from the carrier
-            Context extractedContext = propagator.extract(Context.current(), message.getHeaders(), getter);
+            // Extract the context from the carrier using the reusable HEADERS_GETTER
+            Context extractedContext = propagator.extract(Context.current(), message.getHeaders(), HEADERS_GETTER);
             return extractedContext != null ? extractedContext : Context.current();
         } catch (Exception e) {
             LOGGER.warn("Failed to extract W3C Trace Context from NATS headers: " + e.getMessage());
