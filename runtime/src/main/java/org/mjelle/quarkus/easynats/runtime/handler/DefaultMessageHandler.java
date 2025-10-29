@@ -130,7 +130,9 @@ public class DefaultMessageHandler implements MessageHandler {
                 // Determine which subject to use for tracing
                 String subject = metadata.isDurableConsumer() ? metadata.stream() : metadata.subject();
                 span = traceService.createConsumerSpan(subject, message);
-                scope = traceService.activateSpan(span);
+                if (span != null) {
+                    scope = traceService.activateSpan(span);
+                }
             }
 
             Object payload;

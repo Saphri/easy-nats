@@ -33,6 +33,7 @@ import org.mjelle.quarkus.easynats.runtime.NatsPublisherRecorder;
 import org.mjelle.quarkus.easynats.runtime.SubscriberRegistry;
 import org.mjelle.quarkus.easynats.runtime.SubscriberRegistryRecorder;
 import org.mjelle.quarkus.easynats.runtime.metadata.SubscriberMetadata;
+import org.mjelle.quarkus.easynats.runtime.observability.NatsTraceService;
 import org.mjelle.quarkus.easynats.runtime.startup.SubscriberInitializer;
 
 class QuarkusEasyNatsProcessor {
@@ -162,6 +163,7 @@ class QuarkusEasyNatsProcessor {
                 .addBeanClass(NatsHealthCheck.class)
                 .addBeanClass(NatsReadinessCheck.class)
                 .addBeanClass(NatsStartupCheck.class)
+                .addBeanClass(NatsTraceService.class)
                 .build();
     }
 }

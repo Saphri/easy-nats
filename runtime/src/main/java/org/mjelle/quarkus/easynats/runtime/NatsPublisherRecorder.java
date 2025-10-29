@@ -19,12 +19,13 @@ public class NatsPublisherRecorder {
      * This method is called by CDI to produce instances of {@link NatsPublisher}.
      * It uses the {@link NatsSubject} annotation to configure the default subject for the publisher.
      * <p>
-     * NatsTraceService is created directly to work around build-time CDI constraints, but OpenTelemetry
-     * is now required and its absence will cause NatsTraceService to fail with a clear error message.
+     * NatsTraceService is injected by CDI at runtime. OpenTelemetry will be injected
+     * automatically by Quarkus when the quarkus-opentelemetry extension is present.
      *
      * @param injectionPoint      the injection point
      * @param connectionManager   the NATS connection manager
      * @param objectMapper        the Jackson object mapper
+     * @param traceService        the NATS tracing service (may be a no-op implementation if tracing is disabled)
      * @param <T>                 the type of the publisher
      * @return a configured {@link NatsPublisher} instance
      */
@@ -33,10 +34,9 @@ public class NatsPublisherRecorder {
     public <T> NatsPublisher<T> publisher(
             InjectionPoint injectionPoint,
             NatsConnectionManager connectionManager,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            NatsTraceService traceService) {
         NatsSubject subject = injectionPoint.getAnnotated().getAnnotation(NatsSubject.class);
-        // Create NatsTraceService - will fail fast with clear error if OpenTelemetry is not available
-        NatsTraceService traceService = new NatsTraceService();
 
         if (subject != null) {
             return new NatsPublisher<>(connectionManager, objectMapper, traceService, subject.value());

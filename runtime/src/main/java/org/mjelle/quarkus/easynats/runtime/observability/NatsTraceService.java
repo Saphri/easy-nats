@@ -2,7 +2,6 @@ package org.mjelle.quarkus.easynats.runtime.observability;
 
 import io.nats.client.Message;
 import io.nats.client.impl.Headers;
-import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.SpanKind;
@@ -13,6 +12,7 @@ import io.opentelemetry.context.Scope;
 import io.opentelemetry.context.propagation.TextMapGetter;
 import io.opentelemetry.context.propagation.TextMapPropagator;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -46,60 +46,57 @@ public class NatsTraceService {
         }
     };
 
-    private OpenTelemetry openTelemetry;
-    private Tracer tracer;
+    private final OpenTelemetry openTelemetry;
+    private final Tracer tracer;
+    private final boolean tracingEnabled;
 
-    public NatsTraceService() {
-        // No-args constructor for CDI bean instantiation
-        // Lazy initialization: OpenTelemetry will be initialized when first needed
-        this.openTelemetry = null;
-        this.tracer = null;
-    }
+    /**
+     * Creates a new NatsTraceService with CDI-injected OpenTelemetry.
+     *
+     * OpenTelemetry is provided by Quarkus when the quarkus-opentelemetry extension is present.
+     * If OpenTelemetry is not configured or no exporter is available, tracing will be disabled.
+     *
+     * @param openTelemetry the OpenTelemetry instance provided by Quarkus (may be noop)
+     */
+    @Inject
+    public NatsTraceService(OpenTelemetry openTelemetry) {
+        this.openTelemetry = openTelemetry;
 
-    // Secondary constructor for explicit injection if needed
-    public NatsTraceService(OpenTelemetry otelInstance) {
-        this.openTelemetry = otelInstance;
-        if (otelInstance != null) {
-            this.tracer = otelInstance.getTracer(
+        if (openTelemetry != null && openTelemetry != OpenTelemetry.noop()) {
+            this.tracer = openTelemetry.getTracer(
                 NatsTraceService.class.getCanonicalName(),
                 "1.0"
+            );
+            this.tracingEnabled = true;
+            LOGGER.infof("OpenTelemetry tracing initialized successfully: %s",
+                openTelemetry.getClass().getSimpleName());
+        } else if (openTelemetry == OpenTelemetry.noop()) {
+            this.tracer = null;
+            this.tracingEnabled = false;
+            LOGGER.warn(
+                "OpenTelemetry is configured but using noop implementation (no exporter). " +
+                "Distributed tracing will be disabled. " +
+                "To enable tracing, add an exporter dependency, e.g., " +
+                "'io.quarkus:quarkus-opentelemetry-exporter-jaeger' or " +
+                "'io.quarkus:quarkus-opentelemetry-exporter-otlp' and configure it in application.properties"
+            );
+        } else {
+            this.tracer = null;
+            this.tracingEnabled = false;
+            LOGGER.warn(
+                "OpenTelemetry is not available. " +
+                "Ensure 'io.quarkus:quarkus-opentelemetry' dependency is present in pom.xml"
             );
         }
     }
 
     /**
-     * Lazily initializes and returns OpenTelemetry instance.
-     * This ensures we get the Quarkus-configured OpenTelemetry instance
-     * rather than the global one.
+     * Checks if tracing is enabled.
+     *
+     * @return true if OpenTelemetry is properly configured with an exporter; false otherwise
      */
-    private synchronized OpenTelemetry getOpenTelemetry() {
-        if (this.openTelemetry != null) {
-            return this.openTelemetry;
-        }
-
-        try {
-            this.openTelemetry = GlobalOpenTelemetry.get();
-            if (this.openTelemetry == null || this.openTelemetry == OpenTelemetry.noop()) {
-                LOGGER.warn(
-                    "OpenTelemetry is not properly configured. " +
-                    "Add 'io.quarkus:quarkus-opentelemetry' dependency and configure an exporter " +
-                    "(e.g., 'io.quarkus:quarkus-opentelemetry-exporter-jaeger') to enable distributed tracing."
-                );
-                this.openTelemetry = OpenTelemetry.noop();
-            }
-        } catch (Exception e) {
-            LOGGER.warnf(e, "Failed to get OpenTelemetry instance, using noop");
-            this.openTelemetry = OpenTelemetry.noop();
-        }
-
-        if (this.tracer == null && this.openTelemetry != null) {
-            this.tracer = this.openTelemetry.getTracer(
-                NatsTraceService.class.getCanonicalName(),
-                "1.0"
-            );
-        }
-
-        return this.openTelemetry;
+    public boolean isTracingEnabled() {
+        return tracingEnabled;
     }
 
     /**
@@ -113,11 +110,8 @@ public class NatsTraceService {
      * @return a Span representing the publishing operation
      */
     public Span createProducerSpan(String subject, Headers headers) {
-        if (tracer == null) {
-            tracer = getOpenTelemetry().getTracer(
-                NatsTraceService.class.getCanonicalName(),
-                "1.0"
-            );
+        if (!tracingEnabled || tracer == null) {
+            return null;
         }
         Span span = tracer.spanBuilder("NATS publish to " + subject)
             .setSpanKind(SpanKind.PRODUCER)
@@ -145,11 +139,8 @@ public class NatsTraceService {
      * @return a Span representing the consumption and processing operation
      */
     public Span createConsumerSpan(String subject, Message message) {
-        if (tracer == null) {
-            tracer = getOpenTelemetry().getTracer(
-                NatsTraceService.class.getCanonicalName(),
-                "1.0"
-            );
+        if (!tracingEnabled || tracer == null) {
+            return null;
         }
         // Extract trace context from message headers
         Context extractedContext = extractTraceContext(message);
@@ -187,8 +178,11 @@ public class NatsTraceService {
      * @param headers the NATS message headers to populate with trace context
      */
     private void injectTraceContext(Headers headers) {
+        if (!tracingEnabled || openTelemetry == null) {
+            return;
+        }
         try {
-            TextMapPropagator propagator = getOpenTelemetry().getPropagators().getTextMapPropagator();
+            TextMapPropagator propagator = openTelemetry.getPropagators().getTextMapPropagator();
             if (propagator != null) {
                 Map<String, String> carrier = new HashMap<>();
                 propagator.inject(Context.current(), carrier, Map::put);
@@ -213,12 +207,15 @@ public class NatsTraceService {
      * @return the extracted or current Context
      */
     private Context extractTraceContext(Message message) {
+        if (!tracingEnabled || openTelemetry == null) {
+            return Context.current();
+        }
         try {
             if (message == null || message.getHeaders() == null) {
                 return Context.current();
             }
 
-            TextMapPropagator propagator = getOpenTelemetry().getPropagators().getTextMapPropagator();
+            TextMapPropagator propagator = openTelemetry.getPropagators().getTextMapPropagator();
             if (propagator == null) {
                 return Context.current();
             }

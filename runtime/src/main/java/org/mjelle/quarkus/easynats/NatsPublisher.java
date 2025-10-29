@@ -140,8 +140,12 @@ public class NatsPublisher<T> {
                 payload.getClass(), null, null);
 
             // Create a tracing span for this publish operation
-            span = traceService.createProducerSpan(subject, hwm.headers);
-            scope = traceService.activateSpan(span);
+            if (traceService != null) {
+                span = traceService.createProducerSpan(subject, hwm.headers);
+                if (span != null) {
+                    scope = traceService.activateSpan(span);
+                }
+            }
 
             JetStream jetStream = connectionManager.getJetStream();
             jetStream.publish(subject, hwm.headers, encodedPayload);
