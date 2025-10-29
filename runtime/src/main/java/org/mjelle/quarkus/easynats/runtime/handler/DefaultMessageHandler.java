@@ -8,9 +8,12 @@ import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.context.Scope;
 import org.jboss.logging.Logger;
 import org.mjelle.quarkus.easynats.NatsMessage;
 import org.mjelle.quarkus.easynats.runtime.metadata.SubscriberMetadata;
+import org.mjelle.quarkus.easynats.runtime.observability.NatsTraceService;
 import org.mjelle.quarkus.easynats.runtime.subscriber.CloudEventException;
 import org.mjelle.quarkus.easynats.runtime.subscriber.CloudEventUnwrapper;
 import org.mjelle.quarkus.easynats.runtime.subscriber.DefaultNatsMessage;
@@ -40,9 +43,10 @@ public class DefaultMessageHandler implements MessageHandler {
     private final JavaType parameterType;
     private final boolean isExplicitMode;
     private final JavaType payloadType;
+    private final NatsTraceService traceService;
 
     /**
-     * Creates a new message handler.
+     * Creates a new message handler (without tracing).
      *
      * @param metadata the subscriber metadata
      * @param bean the bean instance containing the subscriber method
@@ -51,10 +55,25 @@ public class DefaultMessageHandler implements MessageHandler {
      */
     public DefaultMessageHandler(SubscriberMetadata metadata, Object bean, Method method,
             ObjectMapper objectMapper) {
+        this(metadata, bean, method, objectMapper, null);
+    }
+
+    /**
+     * Creates a new message handler.
+     *
+     * @param metadata the subscriber metadata
+     * @param bean the bean instance containing the subscriber method
+     * @param method the subscriber method
+     * @param objectMapper the Jackson ObjectMapper for typed deserialization
+     * @param traceService the OpenTelemetry tracing service (may be null if tracing not available)
+     */
+    public DefaultMessageHandler(SubscriberMetadata metadata, Object bean, Method method,
+            ObjectMapper objectMapper, NatsTraceService traceService) {
         this.metadata = metadata;
         this.bean = bean;
         this.method = method;
         this.objectMapper = objectMapper;
+        this.traceService = traceService;
 
         // Determine parameter type from the Method's generic parameter type
         // This avoids needing to Class.forName() user types which aren't available at runtime
@@ -102,7 +121,18 @@ public class DefaultMessageHandler implements MessageHandler {
 
     @Override
     public void handle(Message message) {
+        // Create a consumer span for this message processing (if tracing is available)
+        Span span = null;
+        Scope scope = null;
         try {
+            // Create tracing span if traceService is available
+            if (traceService != null) {
+                // Determine which subject to use for tracing
+                String subject = metadata.isDurableConsumer() ? metadata.stream() : metadata.subject();
+                span = traceService.createConsumerSpan(subject, message);
+                scope = traceService.activateSpan(span);
+            }
+
             Object payload;
 
             // 006-typed-subscriber: CloudEvent unwrap + typed deserialization
@@ -126,6 +156,10 @@ public class DefaultMessageHandler implements MessageHandler {
                 LOGGER.errorf(
                         "CloudEvent validation failed for subject=%s, method=%s, cause=%s",
                         metadata.subject(), metadata.methodName(), e.getMessage());
+                // Record error in span
+                if (span != null) {
+                    traceService.recordException(span, e);
+                }
                 // Only auto-nak if implicit mode; explicit mode developer handles it
                 if (!isExplicitMode) {
                     nakMessage(message);
@@ -143,6 +177,10 @@ public class DefaultMessageHandler implements MessageHandler {
                         "  Raw payload: %s",
                         metadata.subject(), metadata.methodName(), payloadType.getTypeName(),
                         e.getMessage(), payloadPreview);
+                // Record error in span
+                if (span != null) {
+                    traceService.recordException(span, e);
+                }
                 // Only auto-nak if implicit mode; explicit mode developer handles it
                 if (!isExplicitMode) {
                     nakMessage(message);
@@ -167,6 +205,10 @@ public class DefaultMessageHandler implements MessageHandler {
                     "Error processing message for subscriber: subject=%s, method=%s",
                     metadata.subject(),
                     metadata.methodName());
+            // Record error in span
+            if (span != null) {
+                traceService.recordException(span, e.getCause());
+            }
             // Only auto-nak if implicit mode; explicit mode developer handles it
             if (!isExplicitMode) {
                 nakMessage(message);
@@ -178,9 +220,21 @@ public class DefaultMessageHandler implements MessageHandler {
                     "Error processing message for subscriber: subject=%s, method=%s",
                     metadata.subject(),
                     metadata.methodName());
+            // Record error in span
+            if (span != null) {
+                traceService.recordException(span, e);
+            }
             // Only auto-nak if implicit mode; explicit mode developer handles it
             if (!isExplicitMode) {
                 nakMessage(message);
+            }
+        } finally {
+            // Clean up span and scope
+            if (scope != null) {
+                scope.close();
+            }
+            if (span != null) {
+                span.end();
             }
         }
     }

@@ -8,6 +8,7 @@ import jakarta.enterprise.inject.spi.InjectionPoint;
 import org.mjelle.quarkus.easynats.NatsConnectionManager;
 import org.mjelle.quarkus.easynats.NatsPublisher;
 import org.mjelle.quarkus.easynats.NatsSubject;
+import org.mjelle.quarkus.easynats.runtime.observability.NatsTraceService;
 
 @Recorder
 public class NatsPublisherRecorder {
@@ -26,11 +27,18 @@ public class NatsPublisherRecorder {
      */
     @Produces
     @Dependent
-    public <T> NatsPublisher<T> publisher(InjectionPoint injectionPoint, NatsConnectionManager connectionManager, ObjectMapper objectMapper) {
+    public <T> NatsPublisher<T> publisher(
+            InjectionPoint injectionPoint,
+            NatsConnectionManager connectionManager,
+            ObjectMapper objectMapper) {
         NatsSubject subject = injectionPoint.getAnnotated().getAnnotation(NatsSubject.class);
+        // Always create a fresh NatsTraceService instance which has a no-args constructor
+        // This ensures it's always available, using noop if OpenTelemetry is not available
+        NatsTraceService traceService = new NatsTraceService();
+
         if (subject != null) {
-            return new NatsPublisher<>(connectionManager, objectMapper, subject.value());
+            return new NatsPublisher<>(connectionManager, objectMapper, traceService, subject.value());
         }
-        return new NatsPublisher<>(connectionManager, objectMapper);
+        return new NatsPublisher<>(connectionManager, objectMapper, traceService);
     }
 }

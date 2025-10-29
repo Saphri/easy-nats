@@ -11,6 +11,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.mjelle.quarkus.easynats.runtime.observability.NatsTraceService;
 
 /**
  * Unit tests for NatsPublisher - Jackson-only encoding.
@@ -27,6 +28,7 @@ class NatsPublisherTest {
     private ObjectMapper objectMapper;
     private NatsConnectionManager connectionManager;
     private JetStream jetStream;
+    private NatsTraceService traceService;
     private NatsPublisher<TestPojo> pojoPublisher;
 
     @BeforeEach
@@ -34,9 +36,10 @@ class NatsPublisherTest {
         objectMapper = new ObjectMapper();
         connectionManager = mock(NatsConnectionManager.class, withSettings().lenient());
         jetStream = mock(JetStream.class, withSettings().lenient());
+        traceService = mock(NatsTraceService.class, withSettings().lenient());
         when(connectionManager.getJetStream()).thenReturn(jetStream);
 
-        pojoPublisher = new NatsPublisher<>(connectionManager, objectMapper);
+        pojoPublisher = new NatsPublisher<>(connectionManager, objectMapper, traceService);
     }
 
     @Test
@@ -90,7 +93,7 @@ class NatsPublisherTest {
         // Given
         TestPojo pojo = new TestPojo("default_value", 50);
         NatsPublisher<TestPojo> publisherWithDefault =
-            new NatsPublisher<>(connectionManager, objectMapper, "default.subject");
+            new NatsPublisher<>(connectionManager, objectMapper, traceService, "default.subject");
 
         // When
         publisherWithDefault.publish(pojo);
@@ -135,7 +138,7 @@ class NatsPublisherTest {
                 42.5);
 
         NatsPublisher<ComplexTestPojo> complexPublisher =
-            new NatsPublisher<>(connectionManager, objectMapper);
+            new NatsPublisher<>(connectionManager, objectMapper, traceService);
 
         // When
         complexPublisher.publish("complex.subject", complex);

@@ -1,6 +1,5 @@
 package org.mjelle.quarkus.easynats.it;
 
-import io.nats.client.JetStream;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.common.QuarkusTestResource;
 import jakarta.enterprise.context.ApplicationScoped;

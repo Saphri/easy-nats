@@ -18,7 +18,6 @@ import jakarta.enterprise.inject.spi.DefinitionException;
 import java.util.List;
 import org.jboss.jandex.AnnotationInstance;
 import org.jboss.jandex.DotName;
-import org.mjelle.quarkus.easynats.NatsConnection;
 import org.mjelle.quarkus.easynats.NatsConnectionManager;
 import org.mjelle.quarkus.easynats.NatsPublisher;
 import org.mjelle.quarkus.easynats.NatsSubject;
@@ -100,9 +99,9 @@ class QuarkusEasyNatsProcessor {
         subscriberBuildItems.stream()
                 .map(item -> item.getMetadata().declaringBeanClass())
                 .distinct()
-                .forEach(beanClassName -> {
-                    unremovableBeans.produce(UnremovableBeanBuildItem.beanClassNames(beanClassName));
-                });
+                .forEach(beanClassName -> 
+                    unremovableBeans.produce(UnremovableBeanBuildItem.beanClassNames(beanClassName))
+                );
     }
 
     @BuildStep

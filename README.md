@@ -15,6 +15,7 @@ A Quarkus extension for integrating with NATS JetStream, designed for simplicity
 *   **Quarkus Integration:** Automatically configures and manages the NATS connection lifecycle.
 *   **JetStream Support:** Built on top of NATS JetStream for reliable messaging.
 *   **Explicit Ack/Nak Control:** Manually acknowledge or reject messages for advanced error handling.
+*   **Distributed Tracing:** Automatic W3C Trace Context propagation with OpenTelemetry integration for end-to-end observability.
 
 ## Getting Started
 
@@ -202,12 +203,16 @@ To build the extension from source, clone the repository and run the following c
 - [Wrapper Pattern Guide](docs/WRAPPER_PATTERN.md) - Wrapping primitives and arrays
 - [Jackson Annotations Guide](docs/JACKSON_ANNOTATIONS_GUIDE.md) - Customization with annotations
 
+**Observability**
+- [Distributed Tracing Guide](docs/DISTRIBUTED_TRACING.md) - W3C Trace Context propagation and OpenTelemetry integration
+
 **Troubleshooting**
 - [Error Troubleshooting Guide](docs/ERROR_TROUBLESHOOTING.md) - Common errors & solutions
 
 **Architecture**
 - [Feature Specification](specs/007-typed-serialization/spec.md) - Requirements & design
 - [Implementation Tasks](specs/007-typed-serialization/tasks.md) - Status & metrics
+- [Distributed Tracing Specification](specs/012-distributed-tracing-spans/spec.md) - Tracing feature requirements
 
 **Key Concepts**
 - Publish and subscribe to strongly-typed Java objects
