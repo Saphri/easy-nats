@@ -58,10 +58,14 @@ public class NatsConnectionManager {
             this.jetStream = connection.jetStream();
             statusHolder.setStatus(ConnectionStatus.CONNECTED);
             LOGGER.info("Connected to NATS broker at nats://localhost:4222");
-        } catch (IOException | InterruptedException e) {
+        } catch (IOException e) {
             statusHolder.setStatus(ConnectionStatus.DISCONNECTED);
             LOGGER.warning("Failed to connect to NATS broker at nats://localhost:4222. " +
                     "NatsPublisher will not be functional until broker is available: " + e.getMessage());
+        } catch (InterruptedException e) {
+            statusHolder.setStatus(ConnectionStatus.DISCONNECTED);
+            Thread.currentThread().interrupt();
+            LOGGER.warning("NATS connection interrupted during startup: " + e.getMessage());
         }
     }
 
