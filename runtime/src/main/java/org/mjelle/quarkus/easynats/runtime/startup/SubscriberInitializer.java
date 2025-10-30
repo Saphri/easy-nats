@@ -99,7 +99,7 @@ public class SubscriberInitializer {
      *
      * @param event the shutdown event (not used)
      */
-    void onStop(@Observes @Priority(1) ShutdownEvent event) {
+    void onStop(@Observes @Priority(10) ShutdownEvent event) {
         LOGGER.info("Stopping NATS subscribers");
         for (MessageConsumer consumer : consumers) {
             try {
