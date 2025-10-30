@@ -6,6 +6,8 @@ import jakarta.ws.rs.core.MediaType;
 import org.jboss.logging.Logger;
 import org.mjelle.quarkus.easynats.NatsConnection;
 
+import io.smallrye.common.annotation.RunOnVirtualThread;
+
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
@@ -21,6 +23,7 @@ import java.util.Map;
  */
 @ApplicationScoped
 @Path("/connection")
+@RunOnVirtualThread
 public class ConnectionTestResource {
 
     private static final Logger LOGGER = Logger.getLogger(ConnectionTestResource.class);

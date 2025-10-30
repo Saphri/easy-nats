@@ -106,7 +106,7 @@ class QuarkusEasyNatsProcessor {
         subscriberBuildItems.stream()
                 .map(item -> item.getMetadata().declaringBeanClass())
                 .distinct()
-                .forEach(beanClassName -> 
+                .forEach(beanClassName ->
                     unremovableBeans.produce(UnremovableBeanBuildItem.beanClassNames(beanClassName))
                 );
     }
