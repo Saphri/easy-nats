@@ -259,5 +259,10 @@ class NatsConfigurationTest {
         public boolean logPayloadsOnError() {
             return logPayloadsOnError;
         }
+
+        @Override
+        public boolean sslEnabled() {
+            return false;
+        }
     }
 }
