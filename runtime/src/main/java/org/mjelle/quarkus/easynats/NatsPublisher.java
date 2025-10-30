@@ -13,8 +13,6 @@ import io.opentelemetry.context.Scope;
 import jakarta.enterprise.context.Dependent;
 import jakarta.inject.Inject;
 import org.mjelle.quarkus.easynats.runtime.observability.NatsTraceService;
-import org.mjelle.quarkus.easynats.runtime.subscriber.TypeValidator;
-import org.mjelle.quarkus.easynats.runtime.subscriber.TypeValidationResult;
 
 /**
  * Generic injectable wrapper for publishing typed messages to NATS JetStream as CloudEvents.
@@ -37,7 +35,6 @@ public class NatsPublisher<T> {
     private final NatsConnectionManager connectionManager;
     private final ObjectMapper objectMapper;
     private final String subject;
-    private final AtomicBoolean typeValidated = new AtomicBoolean(false);
     private final NatsTraceService traceService;
 
     /**
@@ -129,9 +126,6 @@ public class NatsPublisher<T> {
             throw new PublishingException("Cannot publish null object");
         }
 
-        // Validate type parameter T on first publish call
-        validateTypeOnce();
-
         Span span = null;
         Scope scope = null;
         try {
@@ -166,55 +160,6 @@ public class NatsPublisher<T> {
             }
         }
     }
-
-    /**
-     * Validates the generic type parameter T on the first publish call.
-     * Uses AtomicBoolean to ensure validation happens only once (thread-safe).
-     *
-     * @throws IllegalArgumentException if type T is not Jackson-compatible
-     */
-    private void validateTypeOnce() {
-        if (!typeValidated.getAndSet(true)) {
-            // First time - validate the type
-            Class<T> typeClass = extractGenericType();
-            if (typeClass != null) {
-                TypeValidator validator = new TypeValidator();
-                TypeValidationResult result = validator.validate(typeClass);
-
-                if (!result.isValid()) {
-                    String errorMsg = String.format(
-                        "Invalid type '%s' for NatsPublisher: %s",
-                        typeClass.getSimpleName(),
-                        result.getErrorMessage()
-                    );
-                    throw new IllegalArgumentException(errorMsg);
-                }
-            }
-        }
-    }
-
-    /**
-     * Extracts the generic type parameter T from NatsPublisher<T>.
-     * Uses Java reflection to retrieve type information.
-     *
-     * @return the Class object for type T, or null if it cannot be determined
-     */
-    @SuppressWarnings("unchecked")
-    private Class<T> extractGenericType() {
-        try {
-            Type genericSuperclass = getClass().getGenericSuperclass();
-            if (genericSuperclass instanceof ParameterizedType pt) {
-                Type[] typeArgs = pt.getActualTypeArguments();
-                if (typeArgs.length > 0 && typeArgs[0] instanceof Class<?>) {
-                    return (Class<T>) typeArgs[0];
-                }
-            }
-        } catch (Exception e) {
-            // If extraction fails, that's OK - type validation will be skipped
-        }
-        return null;
-    }
-
 
     /**
      * Encode a payload to JSON using Jackson.

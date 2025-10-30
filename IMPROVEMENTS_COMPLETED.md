@@ -161,7 +161,27 @@ quarkus.tls.nats-tls.trust-store.pem.certs=certificates/ca.crt
 
 ---
 
-### 🟠 Medium Priority Issues (2/12 Complete)
+### 🟠 Medium Priority Issues (3/12 Complete)
+
+#### ✅ Issue 2.5: Type Validation Happens Too Late
+**Status:** ✅ RESOLVED
+**Commit:** TBD
+**Changes:**
+- Moved `NatsPublisher` type validation from runtime to build time.
+- Implemented `validateNatsPublisherInjectionPoints` in `QuarkusEasyNatsProcessor`.
+- Validation failures now cause a build failure with a clear error message.
+- Removed redundant runtime validation logic from `NatsPublisher`.
+
+**Files Modified:**
+- `deployment/src/main/java/org/mjelle/quarkus/easynats/deployment/QuarkusEasyNatsProcessor.java`
+- `runtime/src/main/java/org/mjelle/quarkus/easynats/NatsPublisher.java`
+
+**Developer Experience Improvements:**
+- Invalid publisher types are caught at build time, not at runtime.
+- Fail-fast approach for configuration errors.
+- Clearer error messages for invalid `NatsPublisher` injection points.
+
+---
 
 #### ✅ Issue 6.3: Credentials Might Be Logged
 **Status:** ✅ RESOLVED
@@ -210,9 +230,9 @@ quarkus.tls.nats-tls.trust-store.pem.certs=certificates/ca.crt
 |----------|----------|-------|------------|
 | 🔴 Critical | 2 | 2 | 100% ✅ |
 | 🟡 High | 7 | 7 | 100% ✅ |
-| 🟠 Medium | 2 | 12 | 17% 🟡 |
+| 🟠 Medium | 3 | 12 | 25% 🟡 |
 | 🟢 Low | 0 | 9 | 0% ⚪ |
-| **Total** | **11** | **30** | **37%** |
+| **Total** | **12** | **30** | **40%** |
 
 ### Code Quality Improvements
 
