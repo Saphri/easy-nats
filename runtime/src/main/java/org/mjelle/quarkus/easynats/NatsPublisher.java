@@ -8,7 +8,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.nats.client.JetStream;
 import io.nats.client.JetStreamApiException;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.context.Scope;
 import jakarta.enterprise.context.Dependent;
+import jakarta.inject.Inject;
+import org.mjelle.quarkus.easynats.runtime.observability.NatsTraceService;
 import org.mjelle.quarkus.easynats.runtime.subscriber.TypeValidator;
 import org.mjelle.quarkus.easynats.runtime.subscriber.TypeValidationResult;
 
@@ -34,15 +38,16 @@ public class NatsPublisher<T> {
     private final ObjectMapper objectMapper;
     private final String subject;
     private final AtomicBoolean typeValidated = new AtomicBoolean(false);
+    private final NatsTraceService traceService;
 
     /**
-     * Constructor for dependency injection.
+     * Constructor for dependency injection without tracing (for test compatibility).
      *
      * @param connectionManager the NATS connection manager (injected by Quarkus)
      * @param objectMapper the Jackson ObjectMapper (injected by Quarkus)
      */
     public NatsPublisher(NatsConnectionManager connectionManager, ObjectMapper objectMapper) {
-        this(connectionManager, objectMapper, null);
+        this(connectionManager, objectMapper, null, null);
     }
 
     /**
@@ -53,8 +58,33 @@ public class NatsPublisher<T> {
      * @param subject the default NATS subject for this publisher
      */
     public NatsPublisher(NatsConnectionManager connectionManager, ObjectMapper objectMapper, String subject) {
+        this(connectionManager, objectMapper, null, subject);
+    }
+
+    /**
+     * Constructor for dependency injection with tracing.
+     *
+     * @param connectionManager the NATS connection manager (injected by Quarkus)
+     * @param objectMapper the Jackson ObjectMapper (injected by Quarkus)
+     * @param traceService the tracing service (injected by Quarkus)
+     */
+    @Inject
+    public NatsPublisher(NatsConnectionManager connectionManager, ObjectMapper objectMapper, NatsTraceService traceService) {
+        this(connectionManager, objectMapper, traceService, null);
+    }
+
+    /**
+     * Constructor for dependency injection with tracing and a default subject.
+     *
+     * @param connectionManager the NATS connection manager (injected by Quarkus)
+     * @param objectMapper the Jackson ObjectMapper (injected by Quarkus)
+     * @param traceService the tracing service (injected by Quarkus)
+     * @param subject the default NATS subject for this publisher
+     */
+    public NatsPublisher(NatsConnectionManager connectionManager, ObjectMapper objectMapper, NatsTraceService traceService, String subject) {
         this.connectionManager = connectionManager;
         this.objectMapper = objectMapper;
+        this.traceService = traceService;
         this.subject = subject;
     }
 
@@ -102,16 +132,38 @@ public class NatsPublisher<T> {
         // Validate type parameter T on first publish call
         validateTypeOnce();
 
+        Span span = null;
+        Scope scope = null;
         try {
             byte[] encodedPayload = encodePayload(payload);
             CloudEventsHeaders.HeadersWithMetadata hwm = CloudEventsHeaders.createHeadersWithMetadata(
                 payload.getClass(), null, null);
 
+            // Create a tracing span for this publish operation
+            if (traceService != null) {
+                span = traceService.createProducerSpan(subject, hwm.headers);
+                if (span != null) {
+                    scope = traceService.activateSpan(span);
+                }
+            }
+
             JetStream jetStream = connectionManager.getJetStream();
             jetStream.publish(subject, hwm.headers, encodedPayload);
         } catch (IOException | JetStreamApiException | SerializationException e) {
+            // Record the exception in the span before throwing
+            if (traceService != null && span != null) {
+                traceService.recordException(span, e);
+            }
             // Wrap other exceptions (NATS connection, broker errors, etc.)
             throw new PublishingException("Failed to publish message to subject '" + subject + "'", e);
+        } finally {
+            // Clean up span and scope
+            if (scope != null) {
+                scope.close();
+            }
+            if (span != null) {
+                span.end();
+            }
         }
     }
 

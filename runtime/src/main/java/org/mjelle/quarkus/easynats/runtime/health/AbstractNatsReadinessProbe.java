@@ -38,6 +38,15 @@ public abstract class AbstractNatsReadinessProbe implements HealthCheck {
 
     @Override
     public HealthCheckResponse call() {
+        // Handle case where statusHolder is not available (e.g., during early init or shutdown)
+        if (statusHolder == null) {
+            return HealthCheckResponse
+                    .named(checkName)
+                    .down()
+                    .withData("connectionStatus", "UNAVAILABLE")
+                    .build();
+        }
+
         ConnectionStatus status = statusHolder.getStatus();
 
         // Report UP only for fully connected states

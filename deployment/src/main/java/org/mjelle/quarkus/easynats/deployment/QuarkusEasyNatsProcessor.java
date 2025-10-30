@@ -18,7 +18,6 @@ import jakarta.enterprise.inject.spi.DefinitionException;
 import java.util.List;
 import org.jboss.jandex.AnnotationInstance;
 import org.jboss.jandex.DotName;
-import org.mjelle.quarkus.easynats.NatsConnection;
 import org.mjelle.quarkus.easynats.NatsConnectionManager;
 import org.mjelle.quarkus.easynats.NatsPublisher;
 import org.mjelle.quarkus.easynats.NatsSubject;
@@ -34,6 +33,7 @@ import org.mjelle.quarkus.easynats.runtime.NatsPublisherRecorder;
 import org.mjelle.quarkus.easynats.runtime.SubscriberRegistry;
 import org.mjelle.quarkus.easynats.runtime.SubscriberRegistryRecorder;
 import org.mjelle.quarkus.easynats.runtime.metadata.SubscriberMetadata;
+import org.mjelle.quarkus.easynats.runtime.observability.NatsTraceService;
 import org.mjelle.quarkus.easynats.runtime.startup.SubscriberInitializer;
 
 class QuarkusEasyNatsProcessor {
@@ -43,6 +43,12 @@ class QuarkusEasyNatsProcessor {
     @BuildStep
     FeatureBuildItem feature() {
         return new FeatureBuildItem(FEATURE);
+    }
+
+    @BuildStep
+    UnremovableBeanBuildItem unremovableTraceService() {
+        // This bean is looked up programmatically, so we need to mark it as unremovable
+        return UnremovableBeanBuildItem.beanClassNames(NatsTraceService.class.getName());
     }
 
     @BuildStep
@@ -100,9 +106,9 @@ class QuarkusEasyNatsProcessor {
         subscriberBuildItems.stream()
                 .map(item -> item.getMetadata().declaringBeanClass())
                 .distinct()
-                .forEach(beanClassName -> {
-                    unremovableBeans.produce(UnremovableBeanBuildItem.beanClassNames(beanClassName));
-                });
+                .forEach(beanClassName ->
+                    unremovableBeans.produce(UnremovableBeanBuildItem.beanClassNames(beanClassName))
+                );
     }
 
     @BuildStep
@@ -163,6 +169,7 @@ class QuarkusEasyNatsProcessor {
                 .addBeanClass(NatsHealthCheck.class)
                 .addBeanClass(NatsReadinessCheck.class)
                 .addBeanClass(NatsStartupCheck.class)
+                .addBeanClass(NatsTraceService.class)
                 .build();
     }
 }

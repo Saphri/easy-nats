@@ -8,6 +8,7 @@ import jakarta.enterprise.inject.spi.InjectionPoint;
 import org.mjelle.quarkus.easynats.NatsConnectionManager;
 import org.mjelle.quarkus.easynats.NatsPublisher;
 import org.mjelle.quarkus.easynats.NatsSubject;
+import org.mjelle.quarkus.easynats.runtime.observability.NatsTraceService;
 
 @Recorder
 public class NatsPublisherRecorder {
@@ -17,20 +18,29 @@ public class NatsPublisherRecorder {
      * <p>
      * This method is called by CDI to produce instances of {@link NatsPublisher}.
      * It uses the {@link NatsSubject} annotation to configure the default subject for the publisher.
+     * <p>
+     * NatsTraceService is injected by CDI at runtime. OpenTelemetry will be injected
+     * automatically by Quarkus when the quarkus-opentelemetry extension is present.
      *
      * @param injectionPoint      the injection point
      * @param connectionManager   the NATS connection manager
      * @param objectMapper        the Jackson object mapper
+     * @param traceService        the NATS tracing service (may be a no-op implementation if tracing is disabled)
      * @param <T>                 the type of the publisher
      * @return a configured {@link NatsPublisher} instance
      */
     @Produces
     @Dependent
-    public <T> NatsPublisher<T> publisher(InjectionPoint injectionPoint, NatsConnectionManager connectionManager, ObjectMapper objectMapper) {
+    public <T> NatsPublisher<T> publisher(
+            InjectionPoint injectionPoint,
+            NatsConnectionManager connectionManager,
+            ObjectMapper objectMapper,
+            NatsTraceService traceService) {
         NatsSubject subject = injectionPoint.getAnnotated().getAnnotation(NatsSubject.class);
+
         if (subject != null) {
-            return new NatsPublisher<>(connectionManager, objectMapper, subject.value());
+            return new NatsPublisher<>(connectionManager, objectMapper, traceService, subject.value());
         }
-        return new NatsPublisher<>(connectionManager, objectMapper);
+        return new NatsPublisher<>(connectionManager, objectMapper, traceService);
     }
 }
