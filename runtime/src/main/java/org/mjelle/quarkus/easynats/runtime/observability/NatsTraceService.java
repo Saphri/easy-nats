@@ -12,7 +12,6 @@ import io.opentelemetry.context.Scope;
 import io.opentelemetry.context.propagation.TextMapGetter;
 import io.opentelemetry.context.propagation.TextMapPropagator;
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.inject.Inject;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -55,10 +54,10 @@ public class NatsTraceService {
      *
      * OpenTelemetry is provided by Quarkus when the quarkus-opentelemetry extension is present.
      * If OpenTelemetry is not configured or no exporter is available, tracing will be disabled.
+     * Constructor injection is automatically detected by Quarkus CDI - no @Inject annotation needed.
      *
      * @param openTelemetry the OpenTelemetry instance provided by Quarkus (may be noop)
      */
-    @Inject
     public NatsTraceService(OpenTelemetry openTelemetry) {
         this.openTelemetry = openTelemetry;
 

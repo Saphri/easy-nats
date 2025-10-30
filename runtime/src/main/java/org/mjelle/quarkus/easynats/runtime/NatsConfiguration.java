@@ -53,13 +53,18 @@ public interface NatsConfiguration {
     Optional<String> password();
 
     /**
-     * Enable SSL/TLS connection to NATS server.
-     * Default is false.
+     * Name of the TLS configuration to use from Quarkus TLS registry.
+     * If not specified, the default TLS configuration will be used if available.
+     * <p>
+     * The NATS client will only use TLS if the server URL scheme is tls:// or wss://.
+     * This configuration makes the SSLContext available to the client, but doesn't
+     * force TLS usage - that's determined by the server URL scheme.
+     * <p>
+     * Example: quarkus.easynats.tls-configuration-name=my-nats-tls
      *
-     * @return true if SSL should be enabled
+     * @return optional TLS configuration name
      */
-    @WithDefault("false")
-    boolean sslEnabled();
+    Optional<String> tlsConfigurationName();
 
     /**
      * Validates the configuration and throws NatsConfigurationException if invalid.

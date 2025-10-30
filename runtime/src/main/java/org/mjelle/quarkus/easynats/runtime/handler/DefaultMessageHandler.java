@@ -122,7 +122,13 @@ public class DefaultMessageHandler implements MessageHandler {
     @Override
     public void handle(Message message) {
         if (objectMapper == null) {
-            LOGGER.warnf("Message received for subject=%s after application shutdown, ignoring.", message.getSubject());
+            LOGGER.errorf("Message received for subject=%s after application shutdown. " +
+                    "Sending nak to retry delivery.", message.getSubject());
+            try {
+                message.nak();  // Ensure message is redelivered
+            } catch (Exception e) {
+                LOGGER.error("Failed to nak message during shutdown", e);
+            }
             return;
         }
         // Create a consumer span for this message processing (if tracing is available)

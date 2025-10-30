@@ -24,7 +24,7 @@ class NatsConfigurationTest {
                 List.of("nats://localhost:4222"),
                 Optional.empty(),
                 Optional.empty(),
-                false
+                Optional.empty()
         );
 
         // When/Then - no exception should be thrown
@@ -39,7 +39,7 @@ class NatsConfigurationTest {
                 List.of("nats://server1:4222", "nats://server2:4222", "nats://server3:4222"),
                 Optional.empty(),
                 Optional.empty(),
-                false
+                Optional.empty()
         );
 
         // When/Then - no exception should be thrown
@@ -54,7 +54,7 @@ class NatsConfigurationTest {
                 List.of("nats://localhost:4222"),
                 Optional.of("testuser"),
                 Optional.of("testpass"),
-                false
+                Optional.empty()
         );
 
         // When/Then - no exception should be thrown
@@ -62,14 +62,14 @@ class NatsConfigurationTest {
     }
 
     @Test
-    @DisplayName("Valid configuration with SSL enabled should pass validation")
-    void testValidConfigWithSslEnabled() {
+    @DisplayName("Valid configuration with TLS configuration name should pass validation")
+    void testValidConfigWithTlsConfigurationName() {
         // Given
         NatsConfiguration config = new TestNatsConfiguration(
                 List.of("tls://localhost:4222"),
                 Optional.of("testuser"),
                 Optional.of("testpass"),
-                true
+                Optional.of("my-nats-tls")
         );
 
         // When/Then - no exception should be thrown
@@ -84,7 +84,7 @@ class NatsConfigurationTest {
                 null,
                 Optional.empty(),
                 Optional.empty(),
-                false
+                Optional.empty()
         );
 
         // When/Then
@@ -101,7 +101,7 @@ class NatsConfigurationTest {
                 List.of(),
                 Optional.empty(),
                 Optional.empty(),
-                false
+                Optional.empty()
         );
 
         // When/Then
@@ -118,7 +118,7 @@ class NatsConfigurationTest {
                 List.of("nats://localhost:4222", "", "nats://server2:4222"),
                 Optional.empty(),
                 Optional.empty(),
-                false
+                Optional.empty()
         );
 
         // When/Then
@@ -136,7 +136,7 @@ class NatsConfigurationTest {
                 List.of("nats://localhost:4222"),
                 Optional.of("testuser"),
                 Optional.empty(),
-                false
+                Optional.empty()
         );
 
         // When/Then
@@ -153,7 +153,7 @@ class NatsConfigurationTest {
                 List.of("nats://localhost:4222"),
                 Optional.empty(),
                 Optional.of("testpass"),
-                false
+                Optional.empty()
         );
 
         // When/Then
@@ -170,7 +170,7 @@ class NatsConfigurationTest {
                 List.of("nats://localhost:4222"),
                 Optional.of(""),
                 Optional.of("testpass"),
-                false
+                Optional.empty()
         );
 
         // When/Then
@@ -187,7 +187,7 @@ class NatsConfigurationTest {
                 List.of("nats://localhost:4222"),
                 Optional.of("testuser"),
                 Optional.of(""),
-                false
+                Optional.empty()
         );
 
         // When/Then
@@ -204,7 +204,7 @@ class NatsConfigurationTest {
                 List.of("nats://localhost:4222", "   ", "nats://server2:4222"),
                 Optional.empty(),
                 Optional.empty(),
-                false
+                Optional.empty()
         );
 
         // When/Then
@@ -220,13 +220,13 @@ class NatsConfigurationTest {
         private final List<String> servers;
         private final Optional<String> username;
         private final Optional<String> password;
-        private final boolean sslEnabled;
+        private final Optional<String> tlsConfigurationName;
 
-        TestNatsConfiguration(List<String> servers, Optional<String> username, Optional<String> password, boolean sslEnabled) {
+        TestNatsConfiguration(List<String> servers, Optional<String> username, Optional<String> password, Optional<String> tlsConfigurationName) {
             this.servers = servers;
             this.username = username;
             this.password = password;
-            this.sslEnabled = sslEnabled;
+            this.tlsConfigurationName = tlsConfigurationName;
         }
 
         @Override
@@ -245,8 +245,8 @@ class NatsConfigurationTest {
         }
 
         @Override
-        public boolean sslEnabled() {
-            return sslEnabled;
+        public Optional<String> tlsConfigurationName() {
+            return tlsConfigurationName;
         }
     }
 }

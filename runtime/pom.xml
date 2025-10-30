@@ -33,6 +33,10 @@
             <artifactId>quarkus-opentelemetry</artifactId>
         </dependency>
         <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-tls-registry</artifactId>
+        </dependency>
+        <dependency>
             <groupId>io.nats</groupId>
             <artifactId>jnats</artifactId>
         </dependency>

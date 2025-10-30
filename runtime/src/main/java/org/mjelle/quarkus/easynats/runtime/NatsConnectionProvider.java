@@ -16,11 +16,9 @@ import org.mjelle.quarkus.easynats.NatsConfigurationException;
 import org.mjelle.quarkus.easynats.NatsConnection;
 
 import java.io.IOException;
-import java.security.NoSuchAlgorithmException;
 import java.util.concurrent.ExecutorService;
 
-import javax.net.ssl.SSLContext;
-
+import io.quarkus.tls.TlsConfigurationRegistry;
 import io.quarkus.virtual.threads.VirtualThreads;
 
 /**
@@ -37,21 +35,25 @@ public class NatsConnectionProvider {
 
     private final NatsConfiguration config;
     private final ExecutorService executorService;
+    private final TlsConfigurationRegistry tlsRegistry;
     private Connection natsConnection;
     private NatsConnection wrappedConnection;
 
     /**
-     * Constructor injection of configuration and executor service.
+     * Constructor injection of configuration, executor service, and TLS registry.
      *
      * @param config          the NATS configuration
      * @param executorService the virtual thread executor service
+     * @param tlsRegistry     the Quarkus TLS configuration registry
      */
     public NatsConnectionProvider(
             NatsConfiguration config,
-            @VirtualThreads ExecutorService executorService
+            @VirtualThreads ExecutorService executorService,
+            TlsConfigurationRegistry tlsRegistry
     ) {
         this.config = config;
         this.executorService = executorService;
+        this.tlsRegistry = tlsRegistry;
     }
 
     /**
@@ -118,17 +120,23 @@ public class NatsConnectionProvider {
             // Add executor service for async operations
             optionsBuilder.executor(executorService);
 
-            // Note: SSL context would be added here when sslEnabled is true
-            // For now, we rely on the NATS client's default SSL handling based on URL scheme (nats:// vs tls://)
-            // Add authentication if configured
-            if (config.sslEnabled()) {
-                try {
-                    optionsBuilder.sslContext(SSLContext.getDefault());
-                } catch (NoSuchAlgorithmException e) {
-                    throw new NatsConfigurationException("Failed to create SSL context", e);
-                }
-            }
+            // Always set the SSLContext if a TLS configuration is available in Quarkus.
+            // The jnats client will only use it if the server URL has a TLS scheme (tls://, wss://).
+            var tlsConfiguration = config.tlsConfigurationName()
+                    .flatMap(tlsRegistry::get)
+                    .or(tlsRegistry::getDefault);
 
+            tlsConfiguration.ifPresent(cfg -> {
+                try {
+                    optionsBuilder.sslContext(cfg.sslContext());
+                    log.infof("Configured TLS for NATS connection using: %s",
+                            config.tlsConfigurationName().orElse("default"));
+                } catch (Exception e) {
+                    throw new NatsConfigurationException(
+                            "Failed to create SSLContext from TLS configuration: " +
+                                    config.tlsConfigurationName().orElse("default"), e);
+                }
+            });
 
             Options options = optionsBuilder.build();
 
