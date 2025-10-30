@@ -6,7 +6,6 @@ import org.jboss.shrinkwrap.api.spec.JavaArchive;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.mjelle.quarkus.easynats.NatsSubscriber;
-import jakarta.enterprise.inject.spi.DeploymentException;
 
 import io.quarkus.test.QuarkusUnitTest;
 

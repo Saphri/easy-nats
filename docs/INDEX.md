@@ -54,7 +54,14 @@ Customize serialization and deserialization behavior:
 
 ### Observability & Operations
 
-Monitor your application's health and NATS connection status:
+Monitor your application's health and message flows with end-to-end observability:
+
+- **[Distributed Tracing Guide](./DISTRIBUTED_TRACING.md)** - W3C Trace Context propagation
+  - Automatic producer and consumer spans for message flow visibility
+  - W3C Trace Context headers in NATS messages
+  - Redelivery detection and error recording
+  - OpenTelemetry integration with APM backends (Jaeger, Datadog, New Relic)
+  - Minimal performance overhead
 
 - **Health Checks** - Kubernetes-compatible health endpoints
   - Liveness probe (`/q/health/live`) - Is the application running?
@@ -106,6 +113,9 @@ For deeper understanding of the implementation:
 - `/q/health/ready` for readiness probe (Kubernetes)
 - `/q/health/started` for startup probe (Kubernetes)
 
+### I need to trace message flows end-to-end
+→ See [Distributed Tracing Guide](./DISTRIBUTED_TRACING.md)
+
 ### I'm getting an error
 → See [Error Troubleshooting Guide](./ERROR_TROUBLESHOOTING.md)
 
@@ -118,6 +128,7 @@ For deeper understanding of the implementation:
 - **Automatic Serialization** - Jackson handles JSON seamlessly
 - **CloudEvents Support** - CloudEvents 1.0 binary-mode wrapping
 - **Explicit Ack/Nak Control** - Full control over message lifecycle
+- **Distributed Tracing** - W3C Trace Context propagation with OpenTelemetry integration
 - **Health Checks** - Kubernetes-compatible liveness, readiness, and startup probes
 - **Clear Error Messages** - Detailed guidance when things go wrong
 - **Annotation Support** - Full Jackson annotation compatibility
@@ -132,6 +143,7 @@ For deeper understanding of the implementation:
 | WRAPPER_PATTERN | Handling limitations | Wrapping primitives/arrays |
 | JACKSON_ANNOTATIONS_GUIDE | Advanced customization | Custom serialization |
 | EXPLICIT_ACK_NAK_GUIDE | Advanced error handling | Implementing retries |
+| DISTRIBUTED_TRACING | End-to-end observability | Message flow monitoring |
 | ERROR_TROUBLESHOOTING | Problem solving | Debugging issues |
 
 ## 💡 Tips
@@ -149,10 +161,11 @@ All documentation has been tested with working code examples:
 - ✅ WRAPPER_PATTERN.md - Complete with examples
 - ✅ JACKSON_ANNOTATIONS_GUIDE.md - Deep dive guide
 - ✅ EXPLICIT_ACK_NAK_GUIDE.md - New guide for manual acknowledgment
+- ✅ DISTRIBUTED_TRACING.md - W3C Trace Context propagation and OpenTelemetry integration
 - ✅ ERROR_TROUBLESHOOTING.md - 9+ error scenarios covered
 
 ---
 
-**Last Updated**: 2025-10-28
-**Feature Version**: 009-explicit-ack-nak
+**Last Updated**: 2025-10-29
+**Feature Version**: 012-distributed-tracing-spans
 **Status**: ✅ Complete

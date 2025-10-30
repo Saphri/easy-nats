@@ -1,6 +1,7 @@
 package org.mjelle.quarkus.easynats.runtime.health;
 
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
 import org.eclipse.microprofile.health.Readiness;
 
 /**
@@ -20,6 +21,11 @@ import org.eclipse.microprofile.health.Readiness;
 @ApplicationScoped
 public class NatsReadinessCheck extends AbstractNatsReadinessProbe {
 
+    public NatsReadinessCheck() {
+        super(null, "NATS Connection (Readiness)");
+    }
+
+    @Inject
     public NatsReadinessCheck(ConnectionStatusHolder statusHolder) {
         super(statusHolder, "NATS Connection (Readiness)");
     }

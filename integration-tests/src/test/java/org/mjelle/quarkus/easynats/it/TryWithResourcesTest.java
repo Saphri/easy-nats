@@ -6,11 +6,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mjelle.quarkus.easynats.NatsConnection;
 
-import java.time.Duration;
-
 import static io.restassured.RestAssured.given;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.awaitility.Awaitility.await;
 
 /**
  * Integration tests for try-with-resources support in NatsConnection.
