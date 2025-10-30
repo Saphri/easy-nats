@@ -128,7 +128,7 @@ public class NatsConnectionProvider {
 
             tlsConfiguration.ifPresent(cfg -> {
                 try {
-                    optionsBuilder.sslContext(cfg.sslContext());
+                    optionsBuilder.sslContext(cfg.createSSLContext());
                     log.infof("Configured TLS for NATS connection using: %s",
                             config.tlsConfigurationName().orElse("default"));
                 } catch (Exception e) {

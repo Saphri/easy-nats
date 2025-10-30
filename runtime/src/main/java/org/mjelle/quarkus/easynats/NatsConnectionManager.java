@@ -6,7 +6,6 @@ import io.nats.client.Nats;
 import io.nats.client.Options;
 import io.quarkus.runtime.ShutdownEvent;
 import io.quarkus.runtime.StartupEvent;
-import io.quarkus.tls.TlsConfiguration;
 import io.quarkus.tls.TlsConfigurationRegistry;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Observes;
@@ -81,7 +80,7 @@ public class NatsConnectionManager {
 
             tlsConfiguration.ifPresent(cfg -> {
                 try {
-                    builder.sslContext(cfg.sslContext());
+                    builder.sslContext(cfg.createSSLContext());
                     LOGGER.infof("Configured TLS for NATS connection using: %s",
                             config.tlsConfigurationName().orElse("default"));
                 } catch (Exception e) {
