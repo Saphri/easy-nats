@@ -95,9 +95,15 @@ void onStartup(@Observes StartupEvent startupEvent) {
         // The jnats client will only use it if the server URL has a TLS scheme.
         var tlsConfiguration = config.tlsConfigurationName()
                 .flatMap(tlsRegistry::get)
-                .orElseGet(tlsRegistry::getDefault);
+                .or(tlsRegistry::getDefault);
 
-        tlsConfiguration.ifPresent(cfg -> builder.sslContext(cfg.createSSLContext()));
+        tlsConfiguration.ifPresent(cfg -> {
+            try {
+                builder.sslContext(cfg.createSSLContext());
+            } catch (Exception e) {
+                throw new NatsConfigurationException("Failed to create SSLContext from TLS configuration", e);
+            }
+        });
 
         this.connection = Nats.connect(builder.build());
         // ...
@@ -1238,7 +1244,7 @@ Remove the `ssl-enabled` flag and always provide an `SSLContext` from the Quarku
     tlsConfiguration.ifPresent(cfg -> {
         try {
             builder.sslContext(cfg.createSSLContext());
-        } catch (GeneralSecurityException e) {
+        } catch (Exception e) {
             throw new NatsConfigurationException("Failed to create SSLContext from TLS configuration", e);
         }
     });
