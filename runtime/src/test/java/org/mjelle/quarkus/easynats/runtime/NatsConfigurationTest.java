@@ -221,12 +221,18 @@ class NatsConfigurationTest {
         private final Optional<String> username;
         private final Optional<String> password;
         private final Optional<String> tlsConfigurationName;
+        private final boolean logPayloadsOnError;
 
         TestNatsConfiguration(List<String> servers, Optional<String> username, Optional<String> password, Optional<String> tlsConfigurationName) {
+            this(servers, username, password, tlsConfigurationName, true);
+        }
+
+        TestNatsConfiguration(List<String> servers, Optional<String> username, Optional<String> password, Optional<String> tlsConfigurationName, boolean logPayloadsOnError) {
             this.servers = servers;
             this.username = username;
             this.password = password;
             this.tlsConfigurationName = tlsConfigurationName;
+            this.logPayloadsOnError = logPayloadsOnError;
         }
 
         @Override
@@ -247,6 +253,11 @@ class NatsConfigurationTest {
         @Override
         public Optional<String> tlsConfigurationName() {
             return tlsConfigurationName;
+        }
+
+        @Override
+        public boolean logPayloadsOnError() {
+            return logPayloadsOnError;
         }
     }
 }

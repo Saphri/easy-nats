@@ -41,6 +41,7 @@ This is sufficient for development and testing with an unauthenticated NATS serv
 | `quarkus.easynats.username` | String | (optional) | Username for NATS authentication |
 | `quarkus.easynats.password` | String | (optional) | Password for NATS authentication |
 | `quarkus.easynats.tls-configuration-name` | String | (optional) | Name of the TLS configuration from Quarkus TLS registry |
+| `quarkus.easynats.log-payloads-on-error` | boolean | `true` | Whether to include message payloads in error logs. Set to `false` in production to prevent sensitive data exposure. |
 
 ---
 
@@ -215,6 +216,54 @@ Common TLS properties:
 
 ---
 
+## Payload Logging Configuration
+
+### Overview
+
+By default, when deserialization errors occur, EasyNATS includes a truncated preview of the message payload in error logs to aid debugging. In production environments with sensitive data (PII, credentials, etc.), you should disable this feature.
+
+### Disabling Payload Logging (Production)
+
+```properties
+# application.properties
+quarkus.easynats.log-payloads-on-error=false
+```
+
+**With payload logging disabled**, error messages will look like:
+
+```
+Message deserialization failed for subject=orders, method=handleOrder, type=OrderData
+  Root cause: Cannot deserialize value of type `java.math.BigDecimal` from String "invalid"
+  (Payload logging disabled. Set quarkus.easynats.log-payloads-on-error=true to enable)
+```
+
+**With payload logging enabled** (default), error messages include the payload:
+
+```
+Message deserialization failed for subject=orders, method=handleOrder, type=OrderData
+  Root cause: Cannot deserialize value of type `java.math.BigDecimal` from String "invalid"
+  Raw payload: {"orderId":"ORD-001","customerId":"CUST-123","amount":"invalid"}
+```
+
+### When to Disable
+
+Disable payload logging when:
+- ✅ Production environments
+- ✅ Messages contain personally identifiable information (PII)
+- ✅ Messages contain credentials or API keys
+- ✅ Compliance requirements (GDPR, HIPAA, etc.) restrict logging sensitive data
+- ✅ Logs are sent to external systems or third-party services
+
+### When to Keep Enabled
+
+Keep payload logging enabled when:
+- ✅ Development and testing environments
+- ✅ Messages contain non-sensitive data only
+- ✅ Debugging deserialization issues
+- ✅ You have secure log storage with appropriate access controls
+
+---
+
 ## Multiple Servers (Failover)
 
 NATS clients support automatic failover by specifying multiple server URLs. The client will try each server in order until a connection succeeds.
@@ -282,6 +331,9 @@ quarkus.easynats.servers=${NATS_SERVERS}
 quarkus.easynats.username=${NATS_USERNAME}
 quarkus.easynats.password=${NATS_PASSWORD}
 quarkus.easynats.tls-configuration-name=nats-tls
+
+# Security: Disable payload logging in production
+quarkus.easynats.log-payloads-on-error=false
 
 # TLS configuration
 quarkus.tls.nats-tls.trust-store.pem.certs=certificates/production-ca.crt
@@ -457,12 +509,14 @@ quarkus.tls.nats-tls.trust-store.pem.certs=certificates/ca.crt
 - Enable TLS for production environments
 - Use named TLS configurations for clarity
 - Validate server certificates in production
+- Disable payload logging in production (`log-payloads-on-error=false`)
 
 ❌ **Don't**:
 - Commit credentials to version control
 - Use `trust-all` in production
 - Embed credentials in server URLs
 - Use self-signed certificates without proper validation
+- Leave payload logging enabled when handling sensitive data
 
 ### Configuration Organization
 

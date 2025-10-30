@@ -12,6 +12,7 @@ import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.context.Scope;
 import org.jboss.logging.Logger;
 import org.mjelle.quarkus.easynats.NatsMessage;
+import org.mjelle.quarkus.easynats.runtime.NatsConfiguration;
 import org.mjelle.quarkus.easynats.runtime.metadata.SubscriberMetadata;
 import org.mjelle.quarkus.easynats.runtime.observability.NatsTraceService;
 import org.mjelle.quarkus.easynats.runtime.subscriber.CloudEventException;
@@ -44,6 +45,7 @@ public class DefaultMessageHandler implements MessageHandler {
     private final boolean isExplicitMode;
     private final JavaType payloadType;
     private final NatsTraceService traceService;
+    private final NatsConfiguration config;
 
     /**
      * Creates a new message handler (without tracing).
@@ -52,10 +54,11 @@ public class DefaultMessageHandler implements MessageHandler {
      * @param bean the bean instance containing the subscriber method
      * @param method the subscriber method
      * @param objectMapper the Jackson ObjectMapper for typed deserialization
+     * @param config the NATS configuration for logging settings
      */
     public DefaultMessageHandler(SubscriberMetadata metadata, Object bean, Method method,
-            ObjectMapper objectMapper) {
-        this(metadata, bean, method, objectMapper, null);
+            ObjectMapper objectMapper, NatsConfiguration config) {
+        this(metadata, bean, method, objectMapper, config, null);
     }
 
     /**
@@ -65,14 +68,16 @@ public class DefaultMessageHandler implements MessageHandler {
      * @param bean the bean instance containing the subscriber method
      * @param method the subscriber method
      * @param objectMapper the Jackson ObjectMapper for typed deserialization
+     * @param config the NATS configuration for logging settings
      * @param traceService the OpenTelemetry tracing service (may be null if tracing not available)
      */
     public DefaultMessageHandler(SubscriberMetadata metadata, Object bean, Method method,
-            ObjectMapper objectMapper, NatsTraceService traceService) {
+            ObjectMapper objectMapper, NatsConfiguration config, NatsTraceService traceService) {
         this.metadata = metadata;
         this.bean = bean;
         this.method = method;
         this.objectMapper = objectMapper;
+        this.config = config;
         this.traceService = traceService;
 
         // Determine parameter type from the Method's generic parameter type
@@ -179,16 +184,26 @@ public class DefaultMessageHandler implements MessageHandler {
                 return;
             } catch (DeserializationException e) {
                 // Log with detailed context for debugging
-                String payloadPreview = truncatePayload(
-                    eventData != null ? new String(eventData, StandardCharsets.UTF_8) : "[no data]",
-                    500
-                );
-                LOGGER.errorf(
-                        "Message deserialization failed for subject=%s, method=%s, type=%s\n" +
-                        "  Root cause: %s\n" +
-                        "  Raw payload: %s",
-                        metadata.subject(), metadata.methodName(), payloadType.getTypeName(),
-                        e.getMessage(), payloadPreview);
+                // Check configuration to determine if payload should be included in logs
+                if (config.logPayloadsOnError()) {
+                    String payloadPreview = truncatePayload(
+                        eventData != null ? new String(eventData, StandardCharsets.UTF_8) : "[no data]",
+                        500
+                    );
+                    LOGGER.errorf(
+                            "Message deserialization failed for subject=%s, method=%s, type=%s\n" +
+                            "  Root cause: %s\n" +
+                            "  Raw payload: %s",
+                            metadata.subject(), metadata.methodName(), payloadType.getTypeName(),
+                            e.getMessage(), payloadPreview);
+                } else {
+                    LOGGER.errorf(
+                            "Message deserialization failed for subject=%s, method=%s, type=%s\n" +
+                            "  Root cause: %s\n" +
+                            "  (Payload logging disabled. Set quarkus.easynats.log-payloads-on-error=true to enable)",
+                            metadata.subject(), metadata.methodName(), payloadType.getTypeName(),
+                            e.getMessage());
+                }
                 // Record error in span
                 if (span != null) {
                     traceService.recordException(span, e);

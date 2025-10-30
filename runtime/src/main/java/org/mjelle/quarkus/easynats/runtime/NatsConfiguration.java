@@ -67,6 +67,24 @@ public interface NatsConfiguration {
     Optional<String> tlsConfigurationName();
 
     /**
+     * Whether to include message payloads in error logs.
+     * <p>
+     * When enabled (default), deserialization errors will include a truncated
+     * preview of the message payload to help with debugging.
+     * <p>
+     * In production environments, you should disable this to prevent sensitive
+     * data (PII, credentials, etc.) from appearing in logs.
+     * <p>
+     * Default: true (enabled for development convenience)
+     * <p>
+     * Example: quarkus.easynats.log-payloads-on-error=false
+     *
+     * @return true if payloads should be logged in error messages
+     */
+    @WithDefault("true")
+    boolean logPayloadsOnError();
+
+    /**
      * Validates the configuration and throws NatsConfigurationException if invalid.
      * <p>
      * Validation rules:
