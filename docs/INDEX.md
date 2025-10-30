@@ -12,6 +12,13 @@ New to Quarkus EasyNATS? Start here:
   - Subscribe to typed messages
   - Handle common patterns
 
+- **[Configuration Guide](./CONFIGURATION.md)** - Complete configuration reference
+  - Basic connection setup
+  - Authentication (username/password)
+  - TLS/SSL configuration with Quarkus TLS Registry
+  - Multiple servers for failover
+  - Production deployment examples
+
 ## 📚 Documentation
 
 ### Type System & Compatibility
@@ -95,6 +102,12 @@ For deeper understanding of the implementation:
 
 ## 📖 Common Scenarios
 
+### I want to configure NATS connection settings
+→ See [Configuration Guide](./CONFIGURATION.md)
+
+### I need to set up TLS/SSL for NATS
+→ See [Configuration Guide - TLS/SSL section](./CONFIGURATION.md#tlsssl-configuration)
+
 ### I want to send/receive simple objects
 → See [Quick Start Guide](./QUICKSTART.md)
 
@@ -139,6 +152,7 @@ For deeper understanding of the implementation:
 | Section | Purpose | Best For |
 |---------|---------|----------|
 | QUICKSTART | Learn the basics | First-time users |
+| CONFIGURATION | Connection setup | Configuration & security |
 | JACKSON_COMPATIBILITY_GUIDE | Type reference | Understanding supported types |
 | WRAPPER_PATTERN | Handling limitations | Wrapping primitives/arrays |
 | JACKSON_ANNOTATIONS_GUIDE | Advanced customization | Custom serialization |
@@ -157,15 +171,16 @@ For deeper understanding of the implementation:
 
 All documentation has been tested with working code examples:
 - ✅ QUICKSTART.md - Verified with integration tests
+- ✅ CONFIGURATION.md - Complete configuration and TLS setup guide
 - ✅ JACKSON_COMPATIBILITY_GUIDE.md - Comprehensive reference
 - ✅ WRAPPER_PATTERN.md - Complete with examples
 - ✅ JACKSON_ANNOTATIONS_GUIDE.md - Deep dive guide
-- ✅ EXPLICIT_ACK_NAK_GUIDE.md - New guide for manual acknowledgment
+- ✅ EXPLICIT_ACK_NAK_GUIDE.md - Manual acknowledgment guide
 - ✅ DISTRIBUTED_TRACING.md - W3C Trace Context propagation and OpenTelemetry integration
 - ✅ ERROR_TROUBLESHOOTING.md - 9+ error scenarios covered
 
 ---
 
-**Last Updated**: 2025-10-29
-**Feature Version**: 012-distributed-tracing-spans
+**Last Updated**: 2025-10-30
+**Feature Version**: 1.0.0 (Configuration & Security)
 **Status**: ✅ Complete

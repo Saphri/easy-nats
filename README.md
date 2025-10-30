@@ -43,11 +43,19 @@ Add the following dependency to your project's `pom.xml`:
 Add the following configuration to your `application.properties` file:
 
 ```properties
-# The NATS server URL
-nats.servers=nats://localhost:4222
-nats.username=admin
-nats.password=secret
+# Required: NATS server URL(s)
+quarkus.easynats.servers=nats://localhost:4222
+
+# Optional: Authentication
+quarkus.easynats.username=admin
+quarkus.easynats.password=secret
+
+# Optional: TLS/SSL configuration (for tls:// URLs)
+# quarkus.easynats.tls-configuration-name=nats-tls
+# quarkus.tls.nats-tls.trust-store.pem.certs=certificates/ca.crt
 ```
+
+📖 For complete configuration options including TLS/SSL setup, multiple servers, and production examples, see the **[Configuration Guide](docs/CONFIGURATION.md)**.
 
 ## Usage
 
@@ -197,6 +205,7 @@ To build the extension from source, clone the repository and run the following c
 
 **Getting Started**
 - [Quick Start Guide](docs/QUICKSTART.md) - 5-minute introduction
+- [Configuration Guide](docs/CONFIGURATION.md) - Connection, authentication, TLS/SSL setup
 
 **Type System**
 - [Jackson Compatibility Guide](docs/JACKSON_COMPATIBILITY_GUIDE.md) - Supported types & best practices
