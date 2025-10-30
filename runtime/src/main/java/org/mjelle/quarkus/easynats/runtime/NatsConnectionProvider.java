@@ -14,6 +14,9 @@ import jakarta.annotation.Priority;
 import org.jboss.logging.Logger;
 import org.mjelle.quarkus.easynats.NatsConfigurationException;
 import org.mjelle.quarkus.easynats.NatsConnection;
+import org.mjelle.quarkus.easynats.runtime.health.ConnectionStatus;
+import org.mjelle.quarkus.easynats.runtime.health.ConnectionStatusHolder;
+import org.mjelle.quarkus.easynats.runtime.health.NatsConnectionListener;
 
 import java.io.IOException;
 import java.util.concurrent.ExecutorService;
@@ -36,6 +39,7 @@ public class NatsConnectionProvider {
     private final NatsConfiguration config;
     private final ExecutorService executorService;
     private final TlsConfigurationRegistry tlsRegistry;
+    private final ConnectionStatusHolder statusHolder;
     private Connection natsConnection;
     private NatsConnection wrappedConnection;
 
@@ -49,11 +53,13 @@ public class NatsConnectionProvider {
     public NatsConnectionProvider(
             NatsConfiguration config,
             @VirtualThreads ExecutorService executorService,
-            TlsConfigurationRegistry tlsRegistry
+            TlsConfigurationRegistry tlsRegistry,
+            ConnectionStatusHolder statusHolder
     ) {
         this.config = config;
         this.executorService = executorService;
         this.tlsRegistry = tlsRegistry;
+        this.statusHolder = statusHolder;
     }
 
     /**
@@ -120,28 +126,34 @@ public class NatsConnectionProvider {
             // Add executor service for async operations
             optionsBuilder.executor(executorService);
 
+            // Add connection listener for health checks
+            optionsBuilder.connectionListener(new NatsConnectionListener(statusHolder));
+
             // Always set the SSLContext if a TLS configuration is available in Quarkus.
             // The jnats client will only use it if the server URL has a TLS scheme (tls://, wss://).
-            var tlsConfiguration = config.tlsConfigurationName()
-                    .flatMap(tlsRegistry::get)
-                    .or(tlsRegistry::getDefault);
+            if (config.sslEnabled()) {
+                var tlsConfiguration = config.tlsConfigurationName()
+                        .flatMap(tlsRegistry::get)
+                        .or(tlsRegistry::getDefault);
 
-            tlsConfiguration.ifPresent(cfg -> {
-                try {
-                    optionsBuilder.sslContext(cfg.createSSLContext());
-                    log.infof("Configured TLS for NATS connection using: %s",
-                            config.tlsConfigurationName().orElse("default"));
-                } catch (Exception e) {
-                    throw new NatsConfigurationException(
-                            "Failed to create SSLContext from TLS configuration: " +
-                                    config.tlsConfigurationName().orElse("default"), e);
-                }
-            });
+                tlsConfiguration.ifPresent(cfg -> {
+                    try {
+                        optionsBuilder.sslContext(cfg.createSSLContext());
+                        log.infof("Configured TLS for NATS connection using: %s",
+                                config.tlsConfigurationName().orElse("default"));
+                    } catch (Exception e) {
+                        throw new NatsConfigurationException(
+                                "Failed to create SSLContext from TLS configuration: " +
+                                        config.tlsConfigurationName().orElse("default"), e);
+                    }
+                });
+            }
 
             Options options = optionsBuilder.build();
 
             // Connect to NATS
             this.natsConnection = Nats.connect(options);
+            statusHolder.setStatus(ConnectionStatus.CONNECTED);
 
             // Validate connection
             if (natsConnection == null) {
@@ -157,21 +169,38 @@ public class NatsConnectionProvider {
             // Wrap connection in facade
             this.wrappedConnection = new NatsConnection(natsConnection);
 
-            log.infof("Successfully connected to NATS server(s): %s", String.join(", ", config.servers()));
+            String servers = String.join(", ", sanitizeUrls(config.servers()));
+            log.infof("Successfully connected to NATS server(s): %s", servers);
             log.infof("Connected to: %s", natsConnection.getConnectedUrl());
 
             return wrappedConnection;
 
-        } catch (IOException e) {
-            String errorMsg = "Failed to connect to NATS server(s): " + String.join(", ", config.servers());
-            log.errorf(e, errorMsg);
-            throw new NatsConfigurationException(errorMsg, e);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            String errorMsg = "Connection to NATS was interrupted";
-            log.errorf(e, errorMsg);
-            throw new NatsConfigurationException(errorMsg, e);
+        } catch (IOException | InterruptedException e) {
+            if (e instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
+            statusHolder.setStatus(ConnectionStatus.DISCONNECTED);
+
+            // Fail fast - application cannot function without NATS
+            String servers = String.join(", ", sanitizeUrls(config.servers()));
+            throw new RuntimeException(
+                    "Failed to connect to NATS broker(s) at startup: " + servers + ". " +
+                            "Application requires NATS connection to function. " +
+                            "Ensure NATS server is running and configuration is correct.", e);
         }
+    }
+
+    /**
+     * Sanitizes URLs by removing embedded credentials for logging.
+     * Prevents credentials from appearing in logs.
+     *
+     * @param urls list of URLs to sanitize
+     * @return list of sanitized URLs
+     */
+    private java.util.List<String> sanitizeUrls(java.util.List<String> urls) {
+        return urls.stream()
+                .map(url -> url.replaceAll("://[^:]+:[^@]+@", "://***:***@"))
+                .toList();
     }
 
     /**
@@ -184,6 +213,7 @@ public class NatsConnectionProvider {
             try {
                 log.info("Closing NATS connection on application shutdown");
                 natsConnection.close();
+                statusHolder.setStatus(ConnectionStatus.CLOSED);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 log.warnf(e, "Connection close was interrupted");
