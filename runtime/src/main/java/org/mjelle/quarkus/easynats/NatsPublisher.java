@@ -151,7 +151,7 @@ public class NatsPublisher<T> {
             jetStream.publish(subject, hwm.headers, encodedPayload);
         } catch (IOException | JetStreamApiException | SerializationException e) {
             // Record the exception in the span before throwing
-            if (span != null) {
+            if (traceService != null && span != null) {
                 traceService.recordException(span, e);
             }
             // Wrap other exceptions (NATS connection, broker errors, etc.)

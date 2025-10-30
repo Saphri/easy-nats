@@ -121,6 +121,10 @@ public class DefaultMessageHandler implements MessageHandler {
 
     @Override
     public void handle(Message message) {
+        if (objectMapper == null) {
+            LOGGER.warnf("Message received for subject=%s after application shutdown, ignoring.", message.getSubject());
+            return;
+        }
         // Create a consumer span for this message processing (if tracing is available)
         Span span = null;
         Scope scope = null;

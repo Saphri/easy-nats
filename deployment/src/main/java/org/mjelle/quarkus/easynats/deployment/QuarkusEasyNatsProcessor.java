@@ -46,6 +46,12 @@ class QuarkusEasyNatsProcessor {
     }
 
     @BuildStep
+    UnremovableBeanBuildItem unremovableTraceService() {
+        // This bean is looked up programmatically, so we need to mark it as unremovable
+        return UnremovableBeanBuildItem.beanClassNames(NatsTraceService.class.getName());
+    }
+
+    @BuildStep
     ExtensionSslNativeSupportBuildItem activateSslNativeSupport() {
         return new ExtensionSslNativeSupportBuildItem(FEATURE);
     }
