@@ -91,9 +91,13 @@ void onStartup(@Observes StartupEvent startupEvent) {
             builder.userInfo(config.username().get(), config.password().get());
         }
 
-        if (config.sslEnabled()) {
-            builder.secure();
-        }
+        // Always set the SSLContext if a TLS configuration is available in Quarkus.
+        // The jnats client will only use it if the server URL has a TLS scheme.
+        var tlsConfiguration = config.tlsConfigurationName()
+                .flatMap(tlsRegistry::get)
+                .orElseGet(tlsRegistry::getDefault);
+
+        tlsConfiguration.ifPresent(cfg -> builder.sslContext(cfg.createSSLContext()));
 
         this.connection = Nats.connect(builder.build());
         // ...
@@ -420,35 +424,33 @@ private boolean validateType() {
 
 ---
 
-### 2.8 🟢 **Missing Validation for Stream/Consumer Names**
+### 2.8 🟢 **Improved Error Surfacing for Invalid Stream/Consumer Names**
 
 **Location:** `SubscriberInitializer.java:148-165`
 
 **Issue:**
-No validation that stream and consumer names follow NATS naming conventions.
+If a developer provides an invalid stream or consumer name, the error from the NATS server might not be clearly surfaced, making it difficult to debug. While the library could implement its own validation, the NATS server is the ultimate source of truth for naming rules.
 
 **Recommendation:**
-Add validation method:
+Instead of adding client-side validation, ensure that any `JetStreamApiException` or other errors from the NATS client during stream/consumer operations are caught and re-thrown with a clear, informative error message. This message should guide the developer to check their configuration and the NATS documentation for naming conventions. This approach avoids duplicating validation logic and ensures that the library respects the server's authority on what is valid.
 
+For example:
 ```java
-private void validateNatsName(String name, String type) {
-    if (name == null || name.trim().isEmpty()) {
-        throw new IllegalArgumentException(type + " name cannot be empty");
-    }
-    if (name.contains(" ")) {
-        throw new IllegalArgumentException(
-            type + " name cannot contain spaces: '" + name + "'"
-        );
-    }
-    if (name.length() > 255) {
-        throw new IllegalArgumentException(
-            type + " name exceeds maximum length (255): '" + name + "'"
-        );
-    }
+try {
+    // ... NATS JetStream operations ...
+} catch (JetStreamApiException e) {
+    throw new NatsConfigurationException(
+        String.format(
+            "NATS server rejected the configuration for stream '%s' and consumer '%s'. " +
+            "Please verify that the names are valid according to NATS naming conventions. " +
+            "Server error: %s",
+            streamName, consumerName, e.getMessage()
+        ), e
+    );
 }
 ```
 
-**Priority:** 🟢 **LOW** - Better error messages
+**Priority:** 🟢 **LOW** - Better developer experience
 
 ---
 
@@ -1202,29 +1204,51 @@ Already covered in Critical Issues section.
 
 ---
 
-### 6.2 🟡 **No SSL/TLS by Default**
+### 6.2 🟡 **Unconditional SSLContext Configuration via Quarkus TLS Registry**
 
 **Location:** `NatsConnectionManager.java:51`
 
 **Issue:**
-The hardcoded connection uses plain NATS protocol:
-
-```java
-.server("nats://localhost:4222")  // ❌ No TLS
-```
-
-Even though `NatsConfiguration` has `sslEnabled()` option, it's not used.
+The current logic relies on a misleading `ssl-enabled` flag. The `jnats` client library determines whether to use TLS based on the server URL prefix (e.g., `tls://`), not on the presence of an `SSLContext`. This can lead to confusion where a user sets `ssl-enabled=true` but provides a `nats://` URL, resulting in an insecure connection. Conversely, if a user provides a `tls://` URL but does not configure TLS in this extension, the `jnats` client might fall back to the default JVM `SSLContext`, bypassing any TLS configuration defined within the Quarkus application.
 
 **Recommendation:**
-Once NatsConfiguration is integrated (Issue 1.1), default to TLS for production:
+Remove the `ssl-enabled` flag and always provide an `SSLContext` from the Quarkus `TlsRegistry` if one is configured. This ensures that if a user has configured TLS in their Quarkus application, it will be available to the NATS client, which will use it if a TLS-enabled server URL is provided.
 
-```java
-if (config.sslEnabled() || isProductionEnvironment()) {
-    builder.secure();
-}
-```
+1.  **Remove `ssl-enabled` from `NatsConfiguration`**: This flag is misleading and should be removed.
 
-**Priority:** 🟡 **HIGH** - Security best practice
+2.  **Unconditionally configure the `SSLContext`**: In `NatsConnectionManager`, always attempt to resolve a TLS configuration and set it on the NATS client builder. The client itself will decide whether to use it based on the URL scheme.
+
+    ```java
+    // In NatsConnectionManager.java
+
+    @Inject
+    TlsConfigurationRegistry tlsRegistry;
+
+    // ... inside onStartup()
+    Options.Builder builder = new Options.Builder()
+        .servers(config.servers().toArray(String[]::new))
+        // ... other options
+
+    // Always set the SSLContext if a TLS configuration is available in Quarkus.
+    // The jnats client will only use it if the server URL has a TLS scheme.
+    var tlsConfiguration = config.tlsConfigurationName()
+            .flatMap(tlsRegistry::get)
+            .or(tlsRegistry::getDefault); // Use .or() to handle Optional
+
+    tlsConfiguration.ifPresent(cfg -> {
+        try {
+            builder.sslContext(cfg.createSSLContext());
+        } catch (GeneralSecurityException e) {
+            throw new NatsConfigurationException("Failed to create SSLContext from TLS configuration", e);
+        }
+    });
+
+    this.connection = Nats.connect(builder.build());
+    ```
+
+This change simplifies the configuration for the user, removes ambiguity, and correctly aligns the extension's behavior with both the `jnats` client and Quarkus's TLS management philosophy.
+
+**Priority:** 🟡 **HIGH** - Security, Correctness, and Usability
 
 ---
 
@@ -1255,45 +1279,17 @@ LOGGER.info("Connected to NATS broker at " + sanitizeUrl(serverUrl));
 
 ---
 
-### 6.4 🟠 **No Input Validation on Subject Names**
+### 6.4 🟠 **Improved Error Surfacing for Invalid Subject Names**
 
 **Location:** Multiple annotation processors
 
 **Issue:**
-Subject names from `@NatsSubscriber` annotations are not validated for potentially dangerous characters:
-
-```java
-@NatsSubscriber(subject = "orders.*.delete")  // Wildcards OK
-@NatsSubscriber(subject = "orders\u0000injection")  // Null byte? Special chars?
-```
+If a developer provides an invalid subject name in a `@NatsSubscriber` or `@NatsSubject` annotation, the error from the NATS server might not be clearly surfaced, making it difficult to debug.
 
 **Recommendation:**
-Add validation in `SubscriberDiscoveryProcessor`:
+Similar to the recommendation for stream and consumer names (2.8), the library should not implement its own subject validation logic. Instead, it should ensure that any errors from the NATS client related to invalid subjects are caught and re-thrown with a clear, informative error message. This message should point the developer to the invalid subject and the underlying error from the NATS server. This reinforces the principle that the NATS server is the source of truth for validation.
 
-```java
-private void validateSubjectName(String subject) {
-    if (subject == null || subject.trim().isEmpty()) {
-        throw new IllegalArgumentException("Subject name cannot be empty");
-    }
-
-    // Check for potentially dangerous characters
-    if (subject.contains("\u0000")) {
-        throw new IllegalArgumentException(
-            "Subject name cannot contain null bytes: " + subject
-        );
-    }
-
-    // NATS allows: alphanumeric, -, _, ., *, >
-    if (!subject.matches("^[a-zA-Z0-9._*>-]+$")) {
-        throw new IllegalArgumentException(
-            "Subject name contains invalid characters: " + subject + "\n" +
-            "Allowed: alphanumeric, dash, underscore, dot, *, >"
-        );
-    }
-}
-```
-
-**Priority:** 🟠 **MEDIUM** - Input validation
+**Priority:** 🟠 **MEDIUM** - Better developer experience
 
 ---
 
@@ -1518,6 +1514,84 @@ The **two critical issues** (hardcoded configuration and credentials) appear to 
 
 **Overall Rating:** ⭐⭐⭐⭐☆ (4/5) - Very Good
 With critical issues addressed: ⭐⭐⭐⭐⭐ (5/5) - Excellent
+
+---
+
+## 9. Additional Findings (Jules)
+
+This section includes new findings that were not present in the original code review.
+
+### 9.1 🟢 **Redundant `UnremovableBeanBuildItem` for `NatsTraceService`**
+
+**Location:** `deployment/src/main/java/org/mjelle/quarkus/easynats/deployment/QuarkusEasyNatsProcessor.java:51`
+
+**Issue:**
+The `unremovableTraceService` build step, which marks `NatsTraceService` as an unremovable bean, appears to be redundant. The `beans()` build step already includes `NatsTraceService` in the list of additional beans, which should be sufficient to prevent it from being removed by Arc.
+
+**Recommendation:**
+Remove the `unremovableTraceService` build step and rely on the existing bean registration in the `beans()` build step to ensure `NatsTraceService` is not removed.
+
+**Priority:** 🟢 **LOW** - Code cleanup
+
+### 9.2 🟢 **Insufficient Comment on `initializeSecureRandomRelatedClassesAtRuntime`**
+
+**Location:** `deployment/src/main/java/org/mjelle/quarkus/easynats/deployment/QuarkusEasyNatsProcessor.java:57`
+
+**Issue:**
+The comment for the `initializeSecureRandomRelatedClassesAtRuntime` method is missing context. It does not explain *why* these classes need to be initialized at runtime.
+
+**Recommendation:**
+Add more detail to the comment to explain that these classes are related to secure random number generation and need to be initialized at runtime to avoid build-time errors.
+
+**Priority:** 🟢 **LOW** - Documentation improvement
+
+### 9.3 🟢 **Vague Error Message in `discoverSubscribers`**
+
+**Location:** `deployment/src/main/java/org/mjelle/quarkus/easynats/deployment/QuarkusEasyNatsProcessor.java:71`
+
+**Issue:**
+The error message in the `discoverSubscribers` build step is too generic. It simply states that a "Subscriber validation error" occurred, which is not very helpful for debugging.
+
+**Recommendation:**
+Make the error message more specific by including the details of the validation error.
+
+**Priority:** 🟢 **LOW** - Better error messages
+
+### 9.4 🟢 **Inefficient Injection Point Validation**
+
+**Location:** `deployment/src/main/java/org/mjelle/quarkus/easynats/deployment/QuarkusEasyNatsProcessor.java:132`
+
+**Issue:**
+The `validateNatsSubjectInjectionPoints` method iterates over all beans and their injection points, which can be inefficient.
+
+**Recommendation:**
+Optimize the method by iterating only over the injection points of type `NatsPublisher`.
+
+**Priority:** 🟢 **LOW** - Minor performance optimization
+
+### 9.5 🟢 **Missing JavaDoc in `NatsPublisherRecorder`**
+
+**Location:** `runtime/src/main/java/org/mjelle/quarkus/easynats/runtime/NatsPublisherRecorder.java`
+
+**Issue:**
+The `NatsPublisherRecorder` class is missing a class-level JavaDoc.
+
+**Recommendation:**
+Add a class-level JavaDoc to explain the purpose of the class.
+
+**Priority:** 🟢 **LOW** - Documentation improvement
+
+### 9.6 🟢 **Unused `injectionPoint` Parameter in `NatsPublisherRecorder`**
+
+**Location:** `runtime/src/main/java/org/mjelle/quarkus/easynats/runtime/NatsPublisherRecorder.java:36`
+
+**Issue:**
+The `injectionPoint` parameter is passed to the `publisher` method but is only used to get the `NatsSubject` annotation. This can be done more directly.
+
+**Recommendation:**
+Modify the method to get the `NatsSubject` annotation directly, without needing the `injectionPoint` parameter.
+
+**Priority:** 🟢 **LOW** - Code cleanup
 
 ---
 
