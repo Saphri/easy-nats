@@ -4,12 +4,17 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.nats.client.ConsumerContext;
 import io.nats.client.JetStream;
 import io.nats.client.JetStreamManagement;
+import io.nats.client.MessageConsumer;
 import io.nats.client.api.ConsumerConfiguration;
 import io.quarkus.arc.Arc;
+import io.quarkus.runtime.ShutdownEvent;
 import io.quarkus.runtime.StartupEvent;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Observes;
+import jakarta.annotation.Priority;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.List;
 import org.jboss.logging.Logger;
 import org.mjelle.quarkus.easynats.NatsConnectionManager;
 import org.mjelle.quarkus.easynats.runtime.SubscriberRegistry;
@@ -45,6 +50,7 @@ public class SubscriberInitializer {
     private final SubscriberRegistry subscriberRegistry;
     private final NatsConnectionManager connectionManager;
     private final ObjectMapper objectMapper;
+    private final List<MessageConsumer> consumers = new ArrayList<>();
 
     /**
      * Creates a new subscriber initializer.
@@ -87,6 +93,18 @@ public class SubscriberInitializer {
                 "Successfully initialized %d NATS subscribers",
                 subscriberRegistry.getSubscribers().size());
     }
+
+    /**
+     * Stops all NATS subscribers on application shutdown.
+     *
+     * @param event the shutdown event (not used)
+     */
+    void onStop(@Observes @Priority(100) ShutdownEvent event) {
+        LOGGER.info("Stopping NATS subscribers");
+        consumers.forEach(MessageConsumer::stop);
+        LOGGER.infof("Successfully stopped %d NATS subscribers", consumers.size());
+    }
+
 
     /**
      * Initializes a single subscriber.
@@ -150,7 +168,7 @@ public class SubscriberInitializer {
         ConsumerContext consumerContext = js.getConsumerContext(streamName, consumerInfo.getName());
 
         // Start consuming messages using the ConsumerContext API
-        consumerContext.consume(handler::handle);
+        consumers.add(consumerContext.consume(handler::handle));
 
         if (metadata.isDurableConsumer()) {
             LOGGER.infof(

@@ -9,6 +9,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Observes;
 import jakarta.enterprise.inject.Produces;
 import jakarta.inject.Singleton;
+import jakarta.annotation.Priority;
 
 import org.jboss.logging.Logger;
 import org.mjelle.quarkus.easynats.NatsConfigurationException;
@@ -170,7 +171,7 @@ public class NatsConnectionProvider {
      *
      * @param shutdownEvent the shutdown event
      */
-    void onShutdown(@Observes ShutdownEvent shutdownEvent) {
+    void onShutdown(@Observes @Priority(1) ShutdownEvent shutdownEvent) {
         if (natsConnection != null && natsConnection.getStatus() != Connection.Status.CLOSED) {
             try {
                 log.info("Closing NATS connection on application shutdown");
