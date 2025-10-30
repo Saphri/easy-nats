@@ -490,63 +490,60 @@ public class ConnectionStatusHolder {
 
 ---
 
-### 3.2 🟡 **No Automatic Reconnection Logic**
+### 3.2 🟡 **Application Continues When NATS Connection Fails at Startup**
 
 **Location:** `NatsConnectionManager.java:61-69`
 
 **Issue:**
-If NATS connection fails at startup, the application continues but never retries:
+If NATS connection fails at startup, the application continues running in a degraded state:
 
 ```java
 } catch (IOException e) {
     statusHolder.setStatus(ConnectionStatus.DISCONNECTED);
-    LOGGER.warning("Failed to connect to NATS broker...");  // ❌ No retry
+    LOGGER.warning("Failed to connect to NATS broker...");  // ❌ Exception swallowed
+    // Application continues to start
 }
 ```
 
 **Impact:**
-- Application starts in degraded state
-- Manual intervention required to restore functionality
-- No automatic recovery from transient network issues
+- Application starts without critical messaging infrastructure
+- All publish operations will fail with NullPointerException (see issue 2.2)
+- Difficult to detect in production (no obvious failure signal)
+- Violates fail-fast principle
 
 **Recommendation:**
-Implement retry logic with exponential backoff:
+Fail startup if NATS connection cannot be established:
 
 ```java
 void onStartup(@Observes StartupEvent startupEvent) {
-    int maxRetries = 5;
-    int retryDelayMs = 1000;
+    try {
+        Options options = new Options.Builder()
+            .server("nats://localhost:4222")
+            .userInfo("guest", "guest")
+            .executor(executorService)
+            .connectionListener(new NatsConnectionListener(statusHolder))
+            .build();
 
-    for (int attempt = 1; attempt <= maxRetries; attempt++) {
-        try {
-            Options options = buildOptions();
-            this.connection = Nats.connect(options);
-            this.jetStream = connection.jetStream();
-            statusHolder.setStatus(ConnectionStatus.CONNECTED);
-            LOGGER.info("Connected to NATS broker on attempt " + attempt);
-            return;  // Success
-        } catch (IOException e) {
-            if (attempt < maxRetries) {
-                LOGGER.warnf("Failed to connect to NATS (attempt %d/%d). " +
-                    "Retrying in %dms...", attempt, maxRetries, retryDelayMs);
-                try {
-                    Thread.sleep(retryDelayMs);
-                    retryDelayMs *= 2;  // Exponential backoff
-                } catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
-                    throw new RuntimeException("Connection interrupted", ie);
-                }
-            } else {
-                statusHolder.setStatus(ConnectionStatus.DISCONNECTED);
-                throw new RuntimeException(
-                    "Failed to connect to NATS after " + maxRetries + " attempts", e);
-            }
+        this.connection = Nats.connect(options);
+        this.jetStream = connection.jetStream();
+        statusHolder.setStatus(ConnectionStatus.CONNECTED);
+        LOGGER.info("Connected to NATS broker at nats://localhost:4222");
+    } catch (IOException | InterruptedException e) {
+        if (e instanceof InterruptedException) {
+            Thread.currentThread().interrupt();
         }
+        // Fail fast - application cannot function without NATS
+        throw new RuntimeException(
+            "Failed to connect to NATS broker at startup. " +
+            "Application requires NATS connection to function. " +
+            "Ensure NATS server is running and configuration is correct.", e);
     }
 }
 ```
 
-**Priority:** 🟡 **HIGH** - Production resilience
+**Note:** JNats client library automatically handles reconnection logic for connection drops after initial connection is established. Custom reconnection logic is **not needed** - JNats does this internally with exponential backoff and connection listeners.
+
+**Priority:** 🟡 **HIGH** - Fail-fast principle
 
 ---
 
@@ -1414,7 +1411,7 @@ if (classLoader == null) {
 
 - **Custom Exceptions**: Domain-specific exceptions (`PublishingException`, `DeserializationException`, etc.)
 - **Detailed Error Messages**: Error messages include context (subject, method, payload preview)
-- **Graceful Degradation**: Application starts even if NATS is unavailable (though this could be improved)
+- **Connection Resilience**: JNats client library automatically handles reconnection after initial connection
 
 ### 7.6 ✅ **Type Safety**
 
@@ -1452,10 +1449,10 @@ if (classLoader == null) {
 
 ### Phase 2: High Priority Improvements (Week 2)
 
-5. **🟡 Issue 3.2**: Implement automatic reconnection with backoff
-   - Estimated effort: 4 hours
+5. **🟡 Issue 3.2**: Make application fail at startup when NATS unavailable
+   - Estimated effort: 30 minutes
    - Files: `NatsConnectionManager.java`
-   - Test: Verify reconnection works after NATS restart
+   - Test: Verify application fails to start when NATS is down
 
 6. **🟡 Issue 2.3**: Fix silent message dropping on shutdown
    - Estimated effort: 2 hours
