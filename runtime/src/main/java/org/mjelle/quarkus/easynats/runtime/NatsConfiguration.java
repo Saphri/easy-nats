@@ -53,13 +53,36 @@ public interface NatsConfiguration {
     Optional<String> password();
 
     /**
-     * Enable SSL/TLS connection to NATS server.
-     * Default is false.
+     * Name of the TLS configuration to use from Quarkus TLS registry.
+     * If not specified, the default TLS configuration will be used if available.
+     * <p>
+     * The NATS client will only use TLS if the server URL scheme is tls:// or wss://.
+     * This configuration makes the SSLContext available to the client, but doesn't
+     * force TLS usage - that's determined by the server URL scheme.
+     * <p>
+     * Example: quarkus.easynats.tls-configuration-name=my-nats-tls
      *
-     * @return true if SSL should be enabled
+     * @return optional TLS configuration name
      */
-    @WithDefault("false")
-    boolean sslEnabled();
+    Optional<String> tlsConfigurationName();
+
+    /**
+     * Whether to include message payloads in error logs.
+     * <p>
+     * When enabled (default), deserialization errors will include a truncated
+     * preview of the message payload to help with debugging.
+     * <p>
+     * In production environments, you should disable this to prevent sensitive
+     * data (PII, credentials, etc.) from appearing in logs.
+     * <p>
+     * Default: true (enabled for development convenience)
+     * <p>
+     * Example: quarkus.easynats.log-payloads-on-error=false
+     *
+     * @return true if payloads should be logged in error messages
+     */
+    @WithDefault("true")
+    boolean logPayloadsOnError();
 
     /**
      * Validates the configuration and throws NatsConfigurationException if invalid.

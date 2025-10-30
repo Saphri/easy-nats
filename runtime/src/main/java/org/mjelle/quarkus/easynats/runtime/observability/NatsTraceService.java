@@ -12,12 +12,12 @@ import io.opentelemetry.context.Scope;
 import io.opentelemetry.context.propagation.TextMapGetter;
 import io.opentelemetry.context.propagation.TextMapPropagator;
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.inject.Inject;
 
 import java.util.HashMap;
 import java.util.Map;
 
 import org.jboss.logging.Logger;
+import org.mjelle.quarkus.easynats.runtime.NatsConstants;
 
 /**
  * Service for managing distributed tracing spans across NATS messaging operations.
@@ -55,10 +55,10 @@ public class NatsTraceService {
      *
      * OpenTelemetry is provided by Quarkus when the quarkus-opentelemetry extension is present.
      * If OpenTelemetry is not configured or no exporter is available, tracing will be disabled.
+     * Constructor injection is automatically detected by Quarkus CDI - no @Inject annotation needed.
      *
      * @param openTelemetry the OpenTelemetry instance provided by Quarkus (may be noop)
      */
-    @Inject
     public NatsTraceService(OpenTelemetry openTelemetry) {
         this.openTelemetry = openTelemetry;
 
@@ -113,14 +113,14 @@ public class NatsTraceService {
         if (!tracingEnabled || tracer == null) {
             return null;
         }
-        Span span = tracer.spanBuilder("NATS publish to " + subject)
+        Span span = tracer.spanBuilder(NatsConstants.SPAN_NAME_PUBLISH_PREFIX + subject)
             .setSpanKind(SpanKind.PRODUCER)
             .startSpan();
 
         // Set standard messaging attributes
-        span.setAttribute("messaging.system", "nats");
-        span.setAttribute("messaging.destination", subject);
-        span.setAttribute("messaging.operation", "publish");
+        span.setAttribute(NatsConstants.MESSAGING_SYSTEM, NatsConstants.MESSAGING_SYSTEM_VALUE);
+        span.setAttribute(NatsConstants.MESSAGING_DESTINATION, subject);
+        span.setAttribute(NatsConstants.MESSAGING_OPERATION, NatsConstants.OPERATION_PUBLISH);
 
         // Inject W3C Trace Context into NATS message headers
         injectTraceContext(headers);
@@ -145,15 +145,15 @@ public class NatsTraceService {
         // Extract trace context from message headers
         Context extractedContext = extractTraceContext(message);
 
-        Span span = tracer.spanBuilder("NATS receive from " + subject)
+        Span span = tracer.spanBuilder(NatsConstants.SPAN_NAME_RECEIVE_PREFIX + subject)
             .setSpanKind(SpanKind.CONSUMER)
             .setParent(extractedContext)
             .startSpan();
 
         // Set standard messaging attributes
-        span.setAttribute("messaging.system", "nats");
-        span.setAttribute("messaging.destination", subject);
-        span.setAttribute("messaging.operation", "receive");
+        span.setAttribute(NatsConstants.MESSAGING_SYSTEM, NatsConstants.MESSAGING_SYSTEM_VALUE);
+        span.setAttribute(NatsConstants.MESSAGING_DESTINATION, subject);
+        span.setAttribute(NatsConstants.MESSAGING_OPERATION, NatsConstants.OPERATION_RECEIVE);
 
         // Add redelivery flag if this is a redelivery attempt
         if (message != null && message.metaData() != null) {

@@ -17,6 +17,7 @@ import java.util.ArrayList;
 import java.util.List;
 import org.jboss.logging.Logger;
 import org.mjelle.quarkus.easynats.NatsConnectionManager;
+import org.mjelle.quarkus.easynats.runtime.NatsConfiguration;
 import org.mjelle.quarkus.easynats.runtime.SubscriberRegistry;
 import org.mjelle.quarkus.easynats.runtime.consumer.EphemeralConsumerFactory;
 import org.mjelle.quarkus.easynats.runtime.handler.DefaultMessageHandler;
@@ -51,6 +52,7 @@ public class SubscriberInitializer {
     private final SubscriberRegistry subscriberRegistry;
     private final NatsConnectionManager connectionManager;
     private final ObjectMapper objectMapper;
+    private final NatsConfiguration config;
     private final List<MessageConsumer> consumers = new ArrayList<>();
 
     /**
@@ -59,13 +61,17 @@ public class SubscriberInitializer {
      * @param subscriberRegistry the subscriber registry containing build-time metadata
      * @param connectionManager the NATS connection manager
      * @param objectMapper the Jackson ObjectMapper for typed deserialization
+     * @param config the NATS configuration for logging settings
      */
     public SubscriberInitializer(
-            SubscriberRegistry subscriberRegistry, NatsConnectionManager connectionManager,
-            ObjectMapper objectMapper) {
+            SubscriberRegistry subscriberRegistry,
+            NatsConnectionManager connectionManager,
+            ObjectMapper objectMapper,
+            NatsConfiguration config) {
         this.subscriberRegistry = subscriberRegistry;
         this.connectionManager = connectionManager;
         this.objectMapper = objectMapper;
+        this.config = config;
     }
 
     /**
@@ -137,8 +143,8 @@ public class SubscriberInitializer {
         }
 
         DefaultMessageHandler handler = (traceService != null) ?
-                new DefaultMessageHandler(metadata, bean, method, objectMapper, traceService) :
-                new DefaultMessageHandler(metadata, bean, method, objectMapper);
+                new DefaultMessageHandler(metadata, bean, method, objectMapper, config, traceService) :
+                new DefaultMessageHandler(metadata, bean, method, objectMapper, config);
 
         JetStreamManagement jsm = connectionManager.getConnection().jetStreamManagement();
         JetStream js = connectionManager.getJetStream();
