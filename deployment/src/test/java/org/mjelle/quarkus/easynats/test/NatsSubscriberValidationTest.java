@@ -6,7 +6,7 @@ import org.jboss.shrinkwrap.api.spec.JavaArchive;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.mjelle.quarkus.easynats.NatsSubscriber;
-
+import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.QuarkusUnitTest;
 
 /**
@@ -19,6 +19,7 @@ import io.quarkus.test.QuarkusUnitTest;
  * - Invalid combinations fail with clear error messages
  * </p>
  */
+@QuarkusTestResource(NatsTestResource.class)
 public class NatsSubscriberValidationTest {
 
     /**

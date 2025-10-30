@@ -171,7 +171,7 @@ public class NatsConnectionProvider {
      *
      * @param shutdownEvent the shutdown event
      */
-    void onShutdown(@Observes @Priority(1) ShutdownEvent shutdownEvent) {
+    void onShutdown(@Observes @Priority(100) ShutdownEvent shutdownEvent) {
         if (natsConnection != null && natsConnection.getStatus() != Connection.Status.CLOSED) {
             try {
                 log.info("Closing NATS connection on application shutdown");

@@ -21,7 +21,6 @@ import org.mjelle.quarkus.easynats.runtime.SubscriberRegistry;
 import org.mjelle.quarkus.easynats.runtime.consumer.EphemeralConsumerFactory;
 import org.mjelle.quarkus.easynats.runtime.handler.DefaultMessageHandler;
 import org.mjelle.quarkus.easynats.runtime.metadata.SubscriberMetadata;
-import org.mjelle.quarkus.easynats.runtime.observability.NatsTraceService;
 
 /**
  * Initializes subscriber consumers at application startup.
@@ -100,10 +99,17 @@ public class SubscriberInitializer {
      *
      * @param event the shutdown event (not used)
      */
-    void onStop(@Observes @Priority(100) ShutdownEvent event) {
+    void onStop(@Observes @Priority(1) ShutdownEvent event) {
         LOGGER.info("Stopping NATS subscribers");
-        consumers.forEach(MessageConsumer::stop);
-        LOGGER.infof("Successfully stopped %d NATS subscribers", consumers.size());
+        for (MessageConsumer consumer : consumers) {
+            try {
+                consumer.stop();
+            } catch (Exception e) {
+                LOGGER.error("Error stopping NATS consumer", e);
+            }
+        }
+        consumers.clear();
+        LOGGER.infof("Successfully stopped subscribers", consumers.size());
     }
 
 
@@ -121,17 +127,8 @@ public class SubscriberInitializer {
         Method method = getSubscriberMethod(bean, metadata);
 
         // Create the message handler with ObjectMapper for typed deserialization
-        // Tracing will be added if traceService is available in the container
-        NatsTraceService traceService = null;
-        try {
-            traceService = Arc.container().instance(NatsTraceService.class).get();
-        } catch (Exception e) {
-            // Tracing not available; continue without it
-        }
-
-        DefaultMessageHandler handler = (traceService != null) ?
-                new DefaultMessageHandler(metadata, bean, method, objectMapper, traceService) :
-                new DefaultMessageHandler(metadata, bean, method, objectMapper);
+        DefaultMessageHandler handler = new DefaultMessageHandler(metadata, bean, method,
+                objectMapper);
 
         JetStreamManagement jsm = connectionManager.getConnection().jetStreamManagement();
         JetStream js = connectionManager.getJetStream();
