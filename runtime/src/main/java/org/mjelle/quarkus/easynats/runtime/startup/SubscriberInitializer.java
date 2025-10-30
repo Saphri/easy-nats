@@ -21,6 +21,7 @@ import org.mjelle.quarkus.easynats.runtime.SubscriberRegistry;
 import org.mjelle.quarkus.easynats.runtime.consumer.EphemeralConsumerFactory;
 import org.mjelle.quarkus.easynats.runtime.handler.DefaultMessageHandler;
 import org.mjelle.quarkus.easynats.runtime.metadata.SubscriberMetadata;
+import org.mjelle.quarkus.easynats.runtime.observability.NatsTraceService;
 
 /**
  * Initializes subscriber consumers at application startup.
@@ -127,8 +128,17 @@ public class SubscriberInitializer {
         Method method = getSubscriberMethod(bean, metadata);
 
         // Create the message handler with ObjectMapper for typed deserialization
-        DefaultMessageHandler handler = new DefaultMessageHandler(metadata, bean, method,
-                objectMapper);
+        // Tracing will be added if traceService is available in the container
+        NatsTraceService traceService = null;
+        try {
+            traceService = Arc.container().instance(NatsTraceService.class).get();
+        } catch (Exception e) {
+            // Tracing not available; continue without it
+        }
+
+        DefaultMessageHandler handler = (traceService != null) ?
+                new DefaultMessageHandler(metadata, bean, method, objectMapper, traceService) :
+                new DefaultMessageHandler(metadata, bean, method, objectMapper);
 
         JetStreamManagement jsm = connectionManager.getConnection().jetStreamManagement();
         JetStream js = connectionManager.getJetStream();
