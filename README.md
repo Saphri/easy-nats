@@ -134,25 +134,6 @@ public class MyTypedProducer {
 }
 ```
 
-### CloudEvents
-
-To publish a message with CloudEvents headers, use the `publishCloudEvent` method.
-
-```java
-// ... (inside a service)
-public void sendCloudEvent(MyEvent event) {
-    try {
-        // The ce-type and ce-source are optional and will be auto-generated if null
-        publisher.publishCloudEvent(event, "my.event.type", "/my-service");
-        System.out.println("CloudEvent published: " + event.message);
-    } catch (Exception e) {
-        System.err.println("Failed to publish CloudEvent: " + e.getMessage());
-    }
-}
-```
-
-The extension will automatically add the required CloudEvents headers to the message, such as `ce-id`, `ce-time`, and `ce-specversion`.
-
 ### Explicit Acknowledgment
 
 For advanced error handling, you can take full control over message acknowledgment. To do this, change your subscriber method to accept a `NatsMessage<T>` parameter. This disables automatic acknowledgment and gives you access to `ack()` and `nak()` methods.

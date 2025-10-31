@@ -397,27 +397,12 @@ spec:
 
 ---
 
-## Migration from Previous Versions
-
-### Removed: `quarkus.easynats.ssl-enabled`
-
-**⚠️ BREAKING CHANGE in v1.0.0**
-
-The `ssl-enabled` boolean flag has been removed in favor of the Quarkus TLS Registry approach.
-
-#### Old Configuration (v0.x)
-
-```properties
-# ❌ NO LONGER SUPPORTED
-quarkus.easynats.servers=nats://localhost:4222
-quarkus.easynats.ssl-enabled=true
-```
-
 #### New Configuration (v1.0+)
 
 ```properties
 # ✅ NEW APPROACH
 quarkus.easynats.servers=tls://localhost:4222  # Note: tls:// scheme
+quarkus.easynats.ssl-enabled=true
 quarkus.easynats.tls-configuration-name=nats-tls  # Optional: reference named config
 
 # Configure TLS in Quarkus TLS Registry
@@ -434,7 +419,7 @@ quarkus.tls.nats-tls.trust-store.pem.certs=certificates/ca.crt
 ### Migration Steps
 
 1. **Change server URL scheme**: `nats://` → `tls://`
-2. **Remove `ssl-enabled` property**
+2. **Keep `ssl-enabled` property**
 3. **Add TLS configuration** using Quarkus TLS Registry
 4. **Test connection** with new configuration
 

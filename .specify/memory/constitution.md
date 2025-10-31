@@ -111,15 +111,12 @@ All publish/subscribe operations MUST be able to serialize and deserialize Cloud
 using the CloudEvents Protocol Binding for HTTP with NATS headers as the carrier.
 
 **Non-negotiable Rules**:
-- Message payload MUST contain only the event body (content-mode: structured or binary)
 - CloudEvents attributes MUST be stored in NATS message headers with `ce-` prefix:
   - Example: `ce-specversion: 1.0`, `ce-type: com.example.event`, `ce-source: /myapp`
   - All standard CloudEvents attributes (id, source, type, specversion, time, etc.)
     MUST be mapped to corresponding `ce-` header fields per spec
 - Binary content mode: payload is raw event data, attributes in `ce-` headers
-- Structured content mode: entire CloudEvents event in payload (JSON/Avro), no `ce-` headers
-- CloudEvents schema MUST be validated on publish if strict mode is enabled
-- Documentation MUST provide clear examples of both binary and structured modes
+- Structured content mode NOT used: entire CloudEvents event in payload (JSON/Avro), no `ce-` headers
 - Header mapping MUST conform to CloudEvents Protocol Binding specification
 
 **Rationale**: Using headers as carrier format keeps NATS message bodies clean for event
