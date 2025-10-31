@@ -857,3 +857,30 @@ By setting the acknowledgment policy to `explicit`, you tell NATS JetStream that
 - [JACKSON_COMPATIBILITY_GUIDE.md](./JACKSON_COMPATIBILITY_GUIDE.md) - Which types are supported
 - [WRAPPER_PATTERN.md](./WRAPPER_PATTERN.md) - How to wrap unsupported types
 - [JACKSON_ANNOTATIONS_GUIDE.md](./JACKSON_ANNOTATIONS_GUIDE.md) - Using Jackson annotations
+
+---
+
+## Health Probe Behavior: Startup Probe vs. Readiness/Liveness
+
+### Observation: Startup Probe (`/q/health/started`) Stays "UP" After NATS Disconnection
+
+You may notice that after your application has started successfully, the startup probe continues to report `"status": "UP"` even if the connection to the NATS server is lost.
+
+### Why This Happens (Intended Behavior)
+
+This is the **correct and intended behavior** for a startup probe in a containerized environment like Kubernetes.
+
+- **Purpose of the Startup Probe**: The startup probe's only job is to tell the orchestrator that the application has successfully initialized one time. Once it reports "UP", it has fulfilled its purpose.
+- **Latching Mechanism**: The startup probe is intentionally designed to "latch" in the "UP" state. It will not revert to "DOWN" after the initial successful connection. This prevents the orchestrator from killing the application due to transient network issues or a temporary NATS server outage that occurs *after* the application was already running correctly.
+
+### Which Probe to Use for Connection Status
+
+- **For real-time connection status**, use the **readiness probe** (`/q/health/ready`) or the **liveness probe** (`/q/health/live`).
+- **Readiness Probe**: This probe will report "DOWN" if the NATS connection is lost, signaling to the orchestrator to temporarily stop sending traffic to the application.
+- **Liveness Probe**: This probe will also report "DOWN" on connection loss. If it remains "DOWN" for a configured period, the orchestrator will restart the application, assuming it's in an unrecoverable state.
+
+| Probe | Endpoint | Behavior |
+|---|---|---|
+| **Startup** | `/q/health/started` | Reports "UP" once after the first successful connection, then stays "UP". |
+| **Readiness** | `/q/health/ready` | Reports the real-time connection status. |
+| **Liveness** | `/q/health/live` | Reports the real-time connection status. |

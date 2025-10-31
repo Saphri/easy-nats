@@ -1,0 +1,29 @@
+{
+  "name": "test-stream-2",
+  "subjects": [
+    "test2.>"
+  ],
+  "retention": "workqueue",
+  "max_consumers": -1,
+  "max_msgs_per_subject": 100,
+  "max_msgs": 1000,
+  "max_bytes": 1000,
+  "max_age": 1800000000000,
+  "max_msg_size": 500,
+  "storage": "memory",
+  "discard": "old",
+  "num_replicas": 1,
+  "duplicate_window": 120000000000,
+  "sealed": false,
+  "deny_delete": true,
+  "deny_purge": false,
+  "allow_rollup_hdrs": true,
+  "allow_direct": true,
+  "mirror_direct": false,
+  "metadata": {
+    "_nats.level": "1",
+    "_nats.req.level": "0",
+    "_nats.ver": "2.11.8"
+  },
+  "consumer_limits": {}
+}

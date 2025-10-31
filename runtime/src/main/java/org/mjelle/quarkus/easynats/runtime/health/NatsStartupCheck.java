@@ -2,22 +2,29 @@ package org.mjelle.quarkus.easynats.runtime.health;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import org.eclipse.microprofile.health.HealthCheckResponse;
 import org.eclipse.microprofile.health.Startup;
+
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Kubernetes startup probe for NATS connection.
  *
  * The startup probe indicates whether the application has completed its initialization.
- * It returns:
- * - UP if the NATS connection is CONNECTED, RECONNECTED, or RESUBSCRIBED
- * - DOWN if the connection is DISCONNECTED, RECONNECTING, CLOSED, or in LAME_DUCK state
+ * Once the NATS connection is established for the first time, this probe will report "UP"
+ * and will continue to do so for the life of the application. This "latching" behavior
+ * prevents the application from being terminated if the NATS connection is lost after a
+ * successful startup.
  *
- * The startup probe has the same logic as the readiness probe, ensuring that the
- * application reports success only when it is fully initialized and ready to process messages.
+ * It returns:
+ * - UP if the NATS connection has been established at least once.
+ * - DOWN if the NATS connection has not yet been established.
  */
 @Startup
 @ApplicationScoped
 public class NatsStartupCheck extends AbstractNatsReadinessProbe {
+
+    private final AtomicBoolean isReady = new AtomicBoolean(false);
 
     public NatsStartupCheck() {
         super(null, "NATS Connection (Startup)");
@@ -26,5 +33,19 @@ public class NatsStartupCheck extends AbstractNatsReadinessProbe {
     @Inject
     public NatsStartupCheck(ConnectionStatusHolder statusHolder) {
         super(statusHolder, "NATS Connection (Startup)");
+    }
+
+    @Override
+    public HealthCheckResponse call() {
+        if (isReady.get()) {
+            return HealthCheckResponse.named("NATS Connection (Startup)").up().build();
+        }
+
+        HealthCheckResponse response = super.call();
+        if (response.getStatus() == HealthCheckResponse.Status.UP) {
+            isReady.set(true);
+        }
+
+        return response;
     }
 }
