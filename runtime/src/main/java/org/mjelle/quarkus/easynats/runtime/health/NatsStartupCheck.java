@@ -37,15 +37,19 @@ public class NatsStartupCheck extends AbstractNatsReadinessProbe {
 
     @Override
     public HealthCheckResponse call() {
-        if (isReady.get()) {
-            return HealthCheckResponse.named("NATS Connection (Startup)").up().build();
-        }
-
         HealthCheckResponse response = super.call();
+
+        // Once the connection is up, we latch the ready state.
         if (response.getStatus() == HealthCheckResponse.Status.UP) {
             isReady.set(true);
         }
 
+        // If latched, always report UP, but preserve the underlying connection status data for observability.
+        if (isReady.get()) {
+            return HealthCheckResponse.named("NATS Connection (Startup)").up().build();
+        }
+
+        // Before the first successful connection, return the real-time status.
         return response;
     }
 }
