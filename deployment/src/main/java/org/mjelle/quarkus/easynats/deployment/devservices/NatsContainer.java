@@ -1,7 +1,7 @@
 package org.mjelle.quarkus.easynats.deployment.devservices;
 
 import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.containers.wait.strategy.HttpWaitStrategy;
+import org.testcontainers.containers.wait.strategy.Wait;
 
 public class NatsContainer extends GenericContainer<NatsContainer> {
 
@@ -9,7 +9,7 @@ public class NatsContainer extends GenericContainer<NatsContainer> {
         super(dockerImageName);
         withCommand("-js");
         withExposedPorts(4222, 8222);
-        waitingFor(new HttpWaitStrategy().forPort(8222).forPath("/healthz").forStatusCode(200));
+        waitingFor(Wait.forLogMessage(".*Server is ready.*\\n", 1));
     }
 
     public String getNatsUrl() {
