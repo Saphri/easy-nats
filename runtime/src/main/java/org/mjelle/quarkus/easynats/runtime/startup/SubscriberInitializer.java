@@ -77,22 +77,25 @@ public class SubscriberInitializer {
 
     /**
      * Initializes subscribers on application startup.
-     *
-     * Since validation is now lenient about servers being empty (Dev Services will provide them),
-     * we defer initialization until the first component actually tries to use the NATS connection.
+     * Runs after StreamInitializer (@Priority(10)) to ensure streams exist first.
      *
      * @param event the startup event (not used)
      */
-    void onStart(@Observes StartupEvent event) {
-        LOGGER.info("Deferring NATS subscriber initialization until connection is first used (Dev Services may still be starting)");
-        // No initialization here - will happen lazily when NatsConnection is first used
+    void onStart(@Observes @Priority(100) StartupEvent event) {
+        LOGGER.info("Initializing NATS subscribers on startup (priority 100 - runs after streams are created)");
+        try {
+            config.validate();
+            initializeAllSubscribers();
+        } catch (Exception e) {
+            LOGGER.errorf(e, "Failed to initialize NATS subscribers at startup");
+            throw new IllegalStateException("Failed to initialize NATS subscribers at startup", e);
+        }
     }
 
     /**
      * Ensures subscribers are initialized.
      *
-     * This method is called lazily when the NATS connection is first accessed.
-     * It is idempotent - calling it multiple times only initializes once.
+     * This method is idempotent - calling it multiple times only initializes once.
      *
      * @throws IllegalStateException if any subscriber initialization fails
      */
@@ -103,13 +106,11 @@ public class SubscriberInitializer {
 
         try {
             config.validate();
+            initializeAllSubscribers();
         } catch (Exception e) {
-            LOGGER.errorf(e, "NATS configuration is invalid for subscriber initialization");
-            throw new IllegalStateException("NATS configuration invalid for subscriber initialization", e);
+            LOGGER.errorf(e, "Failed to ensure NATS subscribers are initialized");
+            throw new IllegalStateException("Failed to ensure NATS subscribers are initialized", e);
         }
-
-        LOGGER.info("Initializing NATS subscribers (lazy initialization on first connection use)");
-        initializeAllSubscribers();
     }
 
     /**

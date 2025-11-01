@@ -5,6 +5,7 @@ import io.nats.client.Nats;
 import io.nats.client.Options;
 import io.quarkus.arc.Arc;
 import io.quarkus.runtime.ShutdownEvent;
+import io.quarkus.runtime.StartupEvent;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Observes;
 import jakarta.enterprise.inject.Produces;
@@ -66,11 +67,8 @@ public class NatsConnectionProvider {
     /**
      * Produces a singleton NatsConnection bean that can be injected throughout the application.
      * <p>
-     * This producer method is called by the CDI container when NatsConnection is requested.
-     * The connection is created on first access (lazy initialization) to allow Dev Services
-     * time to inject its configuration before the connection is established.
-     *
-     * After the connection is created, subscribers are lazily initialized.
+     * The connection is created during application startup via onStartup() method.
+     * This producer simply returns the pre-created connection.
      *
      * @return a wrapped NATS connection
      * @throws NatsConfigurationException if configuration is invalid or connection fails
@@ -80,20 +78,29 @@ public class NatsConnectionProvider {
     public NatsConnection produceConnection() {
         if (wrappedConnection == null) {
             createConnection();
-            // Now that connection is ready, initialize subscribers if they haven't been yet
-            try {
-                SubscriberInitializer subscriberInitializer = Arc.container().instance(SubscriberInitializer.class).get();
-                subscriberInitializer.ensureInitialized();
-            } catch (Exception e) {
-                log.debugf(e, "SubscriberInitializer not available or already initialized");
-            }
         }
         return wrappedConnection;
     }
 
     /**
+     * Ensures the NATS connection is created early during application startup.
+     * Runs first (priority 1) to ensure connection is ready for all other startup tasks.
+     *
+     * @param startupEvent the startup event
+     */
+    void onStartup(@Observes @Priority(1) StartupEvent startupEvent) {
+        log.info("NatsConnectionProvider: Initializing connection on startup (priority 1 - runs first)");
+        try {
+            produceConnection();
+            log.info("NatsConnectionProvider: Connection established at startup");
+        } catch (Exception e) {
+            log.errorf(e, "NatsConnectionProvider: Failed to establish connection at startup");
+            throw new RuntimeException("Failed to establish NATS connection at startup", e);
+        }
+    }
+
+    /**
      * Gracefully closes the NATS connection on application shutdown.
-     * Note: Connection is created lazily on first injection, not at startup.
      *
      * @param shutdownEvent the shutdown event
      */

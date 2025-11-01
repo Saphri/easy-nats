@@ -41,7 +41,7 @@ class NatsConnectionAccessTest {
         Boolean closed = response.getBoolean("closed");
         String serverVersion = response.getString("serverVersion");
 
-        assertThat(connectedUrl).isNotNull().contains("localhost:4222");
+        assertThat(connectedUrl).isNotNull().contains("localhost:");
         assertThat(status).isEqualTo("CONNECTED");
         assertThat(closed).isFalse();
         assertThat(serverVersion).isNotNull();

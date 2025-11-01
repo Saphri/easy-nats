@@ -7,6 +7,7 @@ import io.nats.client.api.StorageType;
 import io.nats.client.api.StreamConfiguration;
 import io.nats.client.api.StreamInfo;
 import io.quarkus.runtime.StartupEvent;
+import jakarta.annotation.Priority;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Observes;
 import org.jboss.logging.Logger;
@@ -31,9 +32,9 @@ public class StreamInitializer {
         this.connectionManager = connectionManager;
     }
 
-    void initializeStreamsOnStartup(@Observes StartupEvent event) {
+    void initializeStreamsOnStartup(@Observes @Priority(10) StartupEvent event) {
         try {
-            logger.info("Initializing NATS streams for integration tests");
+            logger.info("Initializing NATS streams for integration tests (priority 10 - runs early)");
             Connection connection = connectionManager.getConnection();
             createStreamIfNotExists(connection);
             createDurableConsumerIfNotExists(connection);
