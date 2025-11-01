@@ -155,8 +155,8 @@ public class EventProcessor {
         Event event = msg.payload();
 
         // Extract CloudEvents headers
-        String traceId = msg.headers().get("traceparent");
-        String eventType = msg.headers().get("ce-type");
+        String traceId = msg.headers().getFirst("traceparent");
+        String eventType = msg.headers().getFirst("ce-type");
 
         // Access NATS metadata for retry logic
         long deliveryAttempt = msg.metadata().deliveredCount();
@@ -195,7 +195,7 @@ public class EventProcessor {
 ```
 
 **Key Points**:
-- `msg.headers().get("ce-...")` accesses CloudEvents attributes.
+- `msg.headers().getFirst("ce-...")` accesses CloudEvents attributes.
 - `msg.metadata().deliveredCount()` tracks the number of delivery attempts (1 for the first time).
 - This metadata is crucial for building robust retry strategies like exponential backoff.
 
@@ -213,7 +213,7 @@ public class DataValidator {
 
     private static final Logger log = LoggerFactory.getLogger(DataValidator.class);
 
-    @NatsSubscriber(subject = "data.new", stream = "DATA", consumer = "validator")
+    @NatsSubscriber(stream = "DATA", consumer = "validator")
     public void handleData(NatsMessage<RawData> msg) {
         try {
             // The payload() call might not throw; validation is key.
