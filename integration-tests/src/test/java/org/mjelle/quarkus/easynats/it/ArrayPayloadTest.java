@@ -44,9 +44,7 @@ class ArrayPayloadTest {
                 .statusCode(200)
                 .extract().as(MyArrayItemEvent[].class);
 
-            assertThat(result).hasSize(2);
-            assertThat(result[0].getData()).isEqualTo("one");
-            assertThat(result[1].getData()).isEqualTo("two");
+            assertThat(result).extracting(MyArrayItemEvent::getData).containsExactly("one", "two");
         });
     }
 }
