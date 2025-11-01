@@ -15,6 +15,7 @@ import io.quarkus.runtime.LaunchMode;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.OptionalInt;
 import org.jboss.logging.Logger;
 import org.mjelle.quarkus.easynats.deployment.devservices.DevServicesBuildTimeConfiguration;
 import org.mjelle.quarkus.easynats.deployment.devservices.NatsContainer;
@@ -47,15 +48,6 @@ public class NatsDevServicesProcessor {
             return;
         }
 
-        // Only skip Dev Services if NATS servers are explicitly configured by the user
-        // (from environment variables or system properties, not from previous Dev Services injections)
-        Optional<String> explicitNatsUrl = getExplicitConfigValue(NATS_URL_PROPERTY);
-        if (explicitNatsUrl.isPresent()) {
-            log.infof("NATS server URL is explicitly configured to '%s', skipping Dev Services startup",
-                    explicitNatsUrl.get());
-            return;
-        }
-
         log.infof("Preparing NATS Dev Services container with image: %s", config.imageName());
 
         try {
@@ -71,7 +63,8 @@ public class NatsDevServicesProcessor {
                                 NatsContainer container = new NatsContainer(
                                         DockerImageName.parse(config.imageName()),
                                         config.username(),
-                                        config.password()
+                                        config.password(),
+                                        config.port()
                                 );
                                 if (config.shared()) {
                                     log.debug("Dev Services: Adding shared service label for container reuse");
@@ -98,9 +91,9 @@ public class NatsDevServicesProcessor {
             String errorMessage = String.format(
                     "Unable to start NATS Dev Services container for NATS image '%s'. " +
                     "Ensure Docker is installed and running, and the image is available. " +
-                    "You can disable Dev Services by setting '%s=false' in your application.properties or environment. " +
+                    "You can disable Dev Services by setting 'quarkus.easynats.devservices.enabled=false' in your application.properties or environment. " +
                     "Original error: %s",
-                    config.imageName(), config.enabled(), e.getMessage());
+                    config.imageName(), e.getMessage());
             throw new RuntimeException(errorMessage, e);
         }
     }
@@ -142,31 +135,5 @@ public class NatsDevServicesProcessor {
                                     "quarkus.easynats.ssl-enabled", String.valueOf(config.sslEnabled())))
                             .build();
                 }).orElse(null);
-    }
-
-    /**
-     * Get explicit configuration value (from env vars or system properties).
-     * Only checks user-provided configuration sources, NOT runtime/injected configuration.
-     * This prevents Dev Services injections from the previous test run from blocking new Dev Services startup.
-     */
-    private Optional<String> getExplicitConfigValue(String propertyName) {
-        try {
-            // Check environment variables first (most explicit user config)
-            // e.g. "quarkus.easynats.servers" -> "QUARKUS_EASYNATS_SERVERS"
-            String envVar = propertyName.toUpperCase().replace(".", "_").replace("-", "_");
-            String value = System.getenv(envVar);
-            if (value != null && !value.isEmpty()) {
-                log.debugf("Found explicit configuration '%s' from environment variable '%s': %s",
-                        propertyName, envVar, value);
-                return Optional.of(value);
-            }
-
-            // Note: We deliberately do NOT check system properties or ConfigProvider.getConfig()
-            // because they can be polluted by Dev Services injections from previous builds.
-            return Optional.empty();
-        } catch (Exception e) {
-            log.debugf(e, "Failed to read explicit configuration property: %s", propertyName);
-            return Optional.empty();
-        }
     }
 }
