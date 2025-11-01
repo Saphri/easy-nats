@@ -23,15 +23,23 @@ public class NatsContainer extends GenericContainer<NatsContainer> implements St
     static final Integer NATS_HTTP_PORT = 8222;
 
     private final OptionalInt fixedExposedPort;
+    private final boolean useSharedNetwork;
+    private final String hostName;
 
     public NatsContainer(DockerImageName imageName, String username, String password) {
-        this(imageName, username, password, OptionalInt.empty());
+        this(imageName, username, password, OptionalInt.empty(), false, null);
     }
 
     public NatsContainer(DockerImageName imageName, String username, String password, OptionalInt fixedExposedPort) {
+        this(imageName, username, password, fixedExposedPort, false, null);
+    }
+
+    public NatsContainer(DockerImageName imageName, String username, String password, OptionalInt fixedExposedPort,
+                        boolean useSharedNetwork, String defaultNetworkId) {
         super(imageName);
 
         this.fixedExposedPort = fixedExposedPort;
+        this.useSharedNetwork = useSharedNetwork;
 
         super.withNetworkAliases("nats");
         super.waitingFor(Wait.forHttp("/healthz").forPort(NATS_HTTP_PORT));
@@ -45,13 +53,23 @@ public class NatsContainer extends GenericContainer<NatsContainer> implements St
         addExposedPort(NATS_HTTP_PORT);
         super.withCommand("--jetstream", "--user", username, "--pass", password, "--http_port", NATS_HTTP_PORT.toString());
         super.withLogConsumer(outputFrame -> logger.info(outputFrame.getUtf8String().replace("\n", "")));
+
+        this.hostName = ConfigureUtil.configureNetwork(this, defaultNetworkId, useSharedNetwork, "nats");
     }
 
     public NatsContainer withSharedServiceLabel(LaunchMode launchMode, String serviceName) {
         return configureSharedServiceLabel(this, launchMode, CONTAINER_LABEL, serviceName);
     }
 
+    @Override
+    public String getHost() {
+        return useSharedNetwork ? hostName : super.getHost();
+    }
+
     public int getPort() {
+        if (useSharedNetwork) {
+            return NATS_PORT;
+        }
         if (fixedExposedPort.isPresent()) {
             return fixedExposedPort.getAsInt();
         }

@@ -6,6 +6,7 @@ import io.quarkus.deployment.annotations.BuildStep;
 import io.quarkus.deployment.annotations.BuildSteps;
 import io.quarkus.deployment.builditem.DevServicesComposeProjectBuildItem;
 import io.quarkus.deployment.builditem.DevServicesResultBuildItem;
+import io.quarkus.deployment.builditem.DevServicesSharedNetworkBuildItem;
 import io.quarkus.deployment.builditem.LaunchModeBuildItem;
 import io.quarkus.deployment.dev.devservices.DevServicesConfig;
 import io.quarkus.devservices.common.ComposeLocator;
@@ -14,8 +15,6 @@ import io.quarkus.runtime.LaunchMode;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
-import java.util.OptionalInt;
 import org.jboss.logging.Logger;
 import org.mjelle.quarkus.easynats.deployment.devservices.DevServicesBuildTimeConfiguration;
 import org.mjelle.quarkus.easynats.deployment.devservices.NatsContainer;
@@ -41,6 +40,8 @@ public class NatsDevServicesProcessor {
     void startNatsDevService(LaunchModeBuildItem launchMode,
             DevServicesComposeProjectBuildItem composeProjectBuildItem,
             DevServicesBuildTimeConfiguration config,
+            DevServicesConfig devServicesConfig,
+            List<DevServicesSharedNetworkBuildItem> devServicesSharedNetworkBuildItem,
             BuildProducer<DevServicesResultBuildItem> devServicesResult) {
         // Check if Dev Services are explicitly disabled
         if (!config.enabled()) {
@@ -55,6 +56,11 @@ public class NatsDevServicesProcessor {
             if (discovered != null) {
                 devServicesResult.produce(discovered);
             } else {
+                // Determine if shared network is required
+                boolean useSharedNetwork = DevServicesSharedNetworkBuildItem.isSharedNetworkRequired(devServicesConfig,
+                devServicesSharedNetworkBuildItem);
+                String defaultNetworkId = composeProjectBuildItem.getDefaultNetworkId();
+
                 devServicesResult.produce(DevServicesResultBuildItem.owned().name(FEATURE)
                         .serviceName(config.serviceName())
                         .startable(() -> {
@@ -64,9 +70,11 @@ public class NatsDevServicesProcessor {
                                         DockerImageName.parse(config.imageName()),
                                         config.username(),
                                         config.password(),
-                                        config.port()
+                                        config.port(),
+                                        useSharedNetwork,
+                                        defaultNetworkId
                                 );
-                                if (config.shared()) {
+                                if (useSharedNetwork) {
                                     log.debug("Dev Services: Adding shared service label for container reuse");
                                     container.withSharedServiceLabel(LaunchMode.DEVELOPMENT, FEATURE);
                                 }
