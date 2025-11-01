@@ -1,4 +1,4 @@
-package org.mjelle.quarkus.easynats.deployment;
+package org.mjelle.quarkus.easynats.deployment.devservices;
 
 import io.quarkus.deployment.IsDevServicesSupportedByLaunchMode;
 import io.quarkus.deployment.annotations.BuildProducer;
@@ -16,8 +16,6 @@ import io.quarkus.runtime.LaunchMode;
 import java.util.List;
 import java.util.Map;
 import org.jboss.logging.Logger;
-import org.mjelle.quarkus.easynats.deployment.devservices.DevServicesBuildTimeConfiguration;
-import org.mjelle.quarkus.easynats.deployment.devservices.NatsContainer;
 import org.testcontainers.utility.DockerImageName;
 
 /**
@@ -39,7 +37,7 @@ public class NatsDevServicesProcessor {
     @BuildStep
     void startNatsDevService(LaunchModeBuildItem launchMode,
             DevServicesComposeProjectBuildItem composeProjectBuildItem,
-            DevServicesBuildTimeConfiguration config,
+            NatsDevServicesBuildTimeConfiguration config,
             DevServicesConfig devServicesConfig,
             List<DevServicesSharedNetworkBuildItem> devServicesSharedNetworkBuildItem,
             BuildProducer<DevServicesResultBuildItem> devServicesResult) {
@@ -112,7 +110,7 @@ public class NatsDevServicesProcessor {
      * @param config the Dev Services configuration
      * @return a map of property names to configuration provider functions
      */
-    private Map<String, java.util.function.Function<NatsContainer, String>> buildConfigProvider(DevServicesBuildTimeConfiguration config) {
+    private Map<String, java.util.function.Function<NatsContainer, String>> buildConfigProvider(NatsDevServicesBuildTimeConfiguration config) {
         String scheme = config.sslEnabled() ? "tls" : "nats";
         return Map.of(
                 NATS_URL_PROPERTY, s -> scheme + "://" + s.getConnectionInfo(),
@@ -124,7 +122,7 @@ public class NatsDevServicesProcessor {
 
     private DevServicesResultBuildItem discoverRunningService(DevServicesComposeProjectBuildItem composeProjectBuildItem,
             LaunchMode launchMode,
-            DevServicesBuildTimeConfiguration config) {
+            NatsDevServicesBuildTimeConfiguration config) {
         String scheme = config.sslEnabled() ? "tls" : "nats";
         int port = config.port().orElse(4222);
         return natsContainerLocator

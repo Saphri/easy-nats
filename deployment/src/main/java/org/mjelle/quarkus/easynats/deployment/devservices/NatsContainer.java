@@ -12,7 +12,7 @@ import io.quarkus.deployment.builditem.Startable;
 import io.quarkus.devservices.common.ConfigureUtil;
 import io.quarkus.runtime.LaunchMode;
 
-import static org.mjelle.quarkus.easynats.deployment.NatsDevServicesProcessor.CONTAINER_LABEL;
+import static org.mjelle.quarkus.easynats.deployment.devservices.NatsDevServicesProcessor.CONTAINER_LABEL;
 import static io.quarkus.devservices.common.ConfigureUtil.configureSharedServiceLabel;
 
 public class NatsContainer extends GenericContainer<NatsContainer> implements Startable {

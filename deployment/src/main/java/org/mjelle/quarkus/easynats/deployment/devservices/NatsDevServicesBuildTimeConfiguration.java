@@ -28,7 +28,7 @@ import java.util.OptionalInt;
  */
 @ConfigMapping(prefix = "quarkus.easynats.devservices")
 @ConfigRoot(phase = ConfigPhase.BUILD_TIME)
-public interface DevServicesBuildTimeConfiguration {
+public interface NatsDevServicesBuildTimeConfiguration {
 
     /**
      * Whether Dev Services for NATS are enabled.
