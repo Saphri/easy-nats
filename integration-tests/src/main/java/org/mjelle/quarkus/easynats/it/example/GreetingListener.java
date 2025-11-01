@@ -25,7 +25,7 @@ public class GreetingListener {
      *
      * @param message the greeting message received from NATS
      */
-    @NatsSubscriber("test.example.greetings")
+    @NatsSubscriber(subject = "test.example.greetings")
     public void onGreeting(GreetingRequest message) {
         LOGGER.infof("📩 Received greeting: %s", message.name());
 

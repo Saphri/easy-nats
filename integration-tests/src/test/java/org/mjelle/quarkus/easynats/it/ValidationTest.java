@@ -38,7 +38,7 @@ class ValidationTest {
      */
     @ApplicationScoped
     public static class ValidSubscriber {
-        @NatsSubscriber("test.validation.message")
+        @NatsSubscriber(subject = "test.validation.message")
         public void onMessage(String message) {
             // Valid subscriber method
         }

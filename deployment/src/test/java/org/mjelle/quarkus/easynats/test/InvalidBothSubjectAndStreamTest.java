@@ -35,7 +35,7 @@ public class InvalidBothSubjectAndStreamTest {
 
     @ApplicationScoped
     public static class InvalidBothSubjectAndStream {
-        @NatsSubscriber(value = "logs.>", stream = "orders", consumer = "processor")
+        @NatsSubscriber(subject = "logs.>", stream = "orders", consumer = "processor")
         public void onMessage(String message) {
             // Invalid: both ephemeral and durable modes
         }

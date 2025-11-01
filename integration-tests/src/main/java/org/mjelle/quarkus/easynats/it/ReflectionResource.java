@@ -24,7 +24,7 @@ public class ReflectionResource {
     @Inject
     NatsPublisher<ReflectionTestMessage> publisher;
 
-    @NatsSubscriber("test.reflection-test")
+    @NatsSubscriber(subject = "test.reflection-test")
     public void onMessage(ReflectionTestMessage message) {
         receivedMessages.add(message);
     }

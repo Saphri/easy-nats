@@ -25,7 +25,7 @@ class AnnotationContractTest {
         NatsSubscriber annotation = method.getAnnotation(NatsSubscriber.class);
 
         assertThat(annotation).isNotNull();
-        assertThat(annotation.value()).isEqualTo("test.annotation.subject");
+        assertThat(annotation.subject()).isEqualTo("test.annotation.subject");
     }
 
     @Test
@@ -41,7 +41,7 @@ class AnnotationContractTest {
      * Not a CDI bean - just for annotation contract testing via reflection.
      */
     public static class TestSubscriber {
-        @NatsSubscriber("test.annotation.subject")
+        @NatsSubscriber(subject = "test.annotation.subject")
         public void onMessage(String message) {
             // Test method
         }
