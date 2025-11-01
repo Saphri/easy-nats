@@ -76,13 +76,27 @@ public class SubscriberInitializer {
 
     /**
      * Initializes subscribers on application startup.
+     * Runs after StreamInitializer (@Priority(10)) to ensure streams exist first.
      *
      * @param event the startup event (not used)
+     */
+    void onStart(@Observes @Priority(100) StartupEvent event) {
+        LOGGER.info("Initializing NATS subscribers on startup (priority 100 - runs after streams are created)");
+        try {
+            config.validate();
+            initializeAllSubscribers();
+        } catch (Exception e) {
+            LOGGER.errorf(e, "Failed to initialize NATS subscribers at startup");
+            throw new IllegalStateException("Failed to initialize NATS subscribers at startup", e);
+        }
+    }
+
+    /**
+     * Initializes all registered subscribers.
+     *
      * @throws IllegalStateException if any subscriber initialization fails
      */
-    void onStart(@Observes StartupEvent event) {
-        LOGGER.info("Initializing NATS subscribers");
-
+    private void initializeAllSubscribers() {
         for (SubscriberMetadata metadata : subscriberRegistry.getSubscribers()) {
             try {
                 initializeSubscriber(metadata);
@@ -127,7 +141,7 @@ public class SubscriberInitializer {
      * @throws Exception if consumer creation, verification, or handler registration fails
      */
     private void initializeSubscriber(SubscriberMetadata metadata)
-            throws Exception, ClassNotFoundException {
+            throws Exception {
 
         // Get the bean instance and method from the registry
         Object bean = getBeanInstance(metadata);

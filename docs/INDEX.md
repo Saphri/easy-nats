@@ -12,6 +12,13 @@ New to Quarkus EasyNATS? Start here:
   - Subscribe to typed messages
   - Handle common patterns
 
+- **[Dev Services Guide](./DEV_SERVICES_GUIDE.md)** - Zero-config NATS for development
+  - Automatic container provisioning
+  - Configuration options
+  - Docker integration
+  - Troubleshooting
+  - CI/CD integration
+
 - **[Configuration Guide](./CONFIGURATION.md)** - Complete configuration reference
   - Basic connection setup
   - Authentication (username/password)
@@ -102,6 +109,12 @@ For deeper understanding of the implementation:
 
 ## 📖 Common Scenarios
 
+### I want to get started quickly with zero configuration
+→ See [Dev Services Guide](./DEV_SERVICES_GUIDE.md#quick-start-zero-config)
+
+### I want to understand Dev Services options
+→ See [Dev Services Guide](./DEV_SERVICES_GUIDE.md#configuration)
+
 ### I want to configure NATS connection settings
 → See [Configuration Guide](./CONFIGURATION.md)
 
@@ -152,6 +165,7 @@ For deeper understanding of the implementation:
 | Section | Purpose | Best For |
 |---------|---------|----------|
 | QUICKSTART | Learn the basics | First-time users |
+| DEV_SERVICES_GUIDE | Automatic NATS provisioning | Development & testing |
 | CONFIGURATION | Connection setup | Configuration & security |
 | JACKSON_COMPATIBILITY_GUIDE | Type reference | Understanding supported types |
 | WRAPPER_PATTERN | Handling limitations | Wrapping primitives/arrays |
@@ -171,6 +185,7 @@ For deeper understanding of the implementation:
 
 All documentation has been tested with working code examples:
 - ✅ QUICKSTART.md - Verified with integration tests
+- ✅ DEV_SERVICES_GUIDE.md - Zero-config development with Quarkus Dev Services
 - ✅ CONFIGURATION.md - Complete configuration and TLS setup guide
 - ✅ JACKSON_COMPATIBILITY_GUIDE.md - Comprehensive reference
 - ✅ WRAPPER_PATTERN.md - Complete with examples
@@ -181,6 +196,6 @@ All documentation has been tested with working code examples:
 
 ---
 
-**Last Updated**: 2025-10-30
-**Feature Version**: 1.0.0 (Configuration & Security)
-**Status**: ✅ Complete
+**Last Updated**: 2025-11-02
+**Feature Version**: 1.0.0 + Dev Services
+**Status**: ✅ Complete with automatic NATS provisioning

@@ -77,7 +77,7 @@ class NatsConfigurationTest {
     }
 
     @Test
-    @DisplayName("Configuration with null servers should fail validation")
+    @DisplayName("Configuration with null servers should pass validation (Dev Services will provide servers)")
     void testConfigWithNullServers() {
         // Given
         NatsConfiguration config = new TestNatsConfiguration(
@@ -87,14 +87,12 @@ class NatsConfigurationTest {
                 Optional.empty()
         );
 
-        // When/Then
-        assertThatThrownBy(config::validate)
-                .isInstanceOf(NatsConfigurationException.class)
-                .hasMessageContaining("At least one NATS server must be configured");
+        // When/Then - validation should pass because Dev Services will provide servers
+        config.validate();
     }
 
     @Test
-    @DisplayName("Configuration with empty servers list should fail validation")
+    @DisplayName("Configuration with empty servers list should pass validation (Dev Services will provide servers)")
     void testConfigWithEmptyServersList() {
         // Given
         NatsConfiguration config = new TestNatsConfiguration(
@@ -104,10 +102,8 @@ class NatsConfigurationTest {
                 Optional.empty()
         );
 
-        // When/Then
-        assertThatThrownBy(config::validate)
-                .isInstanceOf(NatsConfigurationException.class)
-                .hasMessageContaining("At least one NATS server must be configured");
+        // When/Then - validation should pass because Dev Services will provide servers
+        config.validate();
     }
 
     @Test
@@ -217,7 +213,7 @@ class NatsConfigurationTest {
      * Test implementation of NatsConfiguration interface for unit testing.
      */
     private static class TestNatsConfiguration implements NatsConfiguration {
-        private final List<String> servers;
+        private final Optional<List<String>> servers;
         private final Optional<String> username;
         private final Optional<String> password;
         private final Optional<String> tlsConfigurationName;
@@ -228,7 +224,7 @@ class NatsConfigurationTest {
         }
 
         TestNatsConfiguration(List<String> servers, Optional<String> username, Optional<String> password, Optional<String> tlsConfigurationName, boolean logPayloadsOnError) {
-            this.servers = servers;
+            this.servers = servers == null ? Optional.empty() : Optional.of(servers);
             this.username = username;
             this.password = password;
             this.tlsConfigurationName = tlsConfigurationName;
@@ -236,7 +232,7 @@ class NatsConfigurationTest {
         }
 
         @Override
-        public List<String> servers() {
+        public Optional<List<String>> servers() {
             return servers;
         }
 

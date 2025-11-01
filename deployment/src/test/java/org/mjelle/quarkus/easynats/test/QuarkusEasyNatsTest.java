@@ -1,26 +1,17 @@
 package org.mjelle.quarkus.easynats.test;
 
-import org.jboss.shrinkwrap.api.ShrinkWrap;
-import org.jboss.shrinkwrap.api.spec.JavaArchive;
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.RegisterExtension;
-
-import io.quarkus.test.QuarkusUnitTest;
-
+/**
+ * MOVED TO: integration-tests/src/test/java/org/mjelle/quarkus/easynats/it/QuarkusEasyNatsTest.java
+ *
+ * This test was moved from the deployment module to the integration-tests module because:
+ * 1. QuarkusUnitTest is for build-time processor testing, not runtime functionality
+ * 2. Runtime tests require a real NATS connection which cannot be provided in QuarkusUnitTest
+ * 3. Integration tests have Dev Services which automatically provides NATS
+ * 4. The test now validates actual extension functionality with a real NATS instance
+ * 5. Follows the project's integration test patterns (Test + IT variants)
+ *
+ * The original template test is now an actual integration test that verifies
+ * the extension loads correctly and can communicate with NATS via Dev Services.
+ */
 public class QuarkusEasyNatsTest {
-
-    // Start unit test with your extension loaded
-    @RegisterExtension
-    static final QuarkusUnitTest unitTest = new QuarkusUnitTest()
-            .overrideConfigKey("quarkus.easynats.servers", "nats://localhost:4222")
-            .overrideConfigKey("quarkus.easynats.username", "guest")
-            .overrideConfigKey("quarkus.easynats.password", "guest")
-            .setArchiveProducer(() -> ShrinkWrap.create(JavaArchive.class));
-
-    @Test
-    public void writeYourOwnUnitTest() {
-        // Write your unit tests here - see the testing extension guide https://quarkus.io/guides/writing-extensions#testing-extensions for more information
-        Assertions.assertTrue(true, "Add some assertions to " + getClass().getName());
-    }
 }

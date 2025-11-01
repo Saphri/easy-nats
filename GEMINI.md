@@ -35,10 +35,12 @@ The project follows the standard conventions for Quarkus extensions. The code is
 The project uses the standard Quarkus testing framework for integration tests. The tests are located in the `integration-tests` module.
 
 ## Active Technologies
-- Java 21 + Quarkus 3.27.0
+- Quarkus 3.27.0
 - NATS JetStream client (jnats 2.23.0)
 - Jackson Databind
 - SmallRye Health
+- N/A (The feature manages a transient container, no persistent storage) (015-dev-services-processor)
+- Java 21 (as per constitution) + Quarkus Build-Time Processor API (`quarkus-arc`, `quarkus-core-deployment`), Internal `NatsContainer` (`org.mjelle.quarkus.easynats.deployment.devservices.NatsContainer`) (015-dev-services-processor)
 
 ## Recent Changes
 - 011-nats-health-endpoints: Implemented Kubernetes health check endpoints (liveness, readiness, startup probes)

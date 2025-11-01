@@ -11,10 +11,13 @@ docs/
 ├── INDEX.md                              # Documentation hub and navigation guide
 ├── README.md                             # This file
 ├── QUICKSTART.md                         # 5-minute quick start guide
+├── DEV_SERVICES_GUIDE.md                 # Automatic NATS provisioning for development
+├── CONFIGURATION.md                      # Connection, auth, TLS configuration
 ├── JACKSON_COMPATIBILITY_GUIDE.md        # Type support reference
 ├── WRAPPER_PATTERN.md                    # Wrapping unsupported types
 ├── JACKSON_ANNOTATIONS_GUIDE.md          # Jackson annotation customization
 ├── EXPLICIT_ACK_NAK_GUIDE.md             # Manual ack/nak control guide
+├── DISTRIBUTED_TRACING.md                # OpenTelemetry integration
 └── ERROR_TROUBLESHOOTING.md              # Common errors and solutions
 ```
 
@@ -23,6 +26,7 @@ docs/
 ### 🚀 Getting Started
 - **[Start Here: Documentation Index](./INDEX.md)** - Complete navigation hub
 - **[Quick Start Guide](./QUICKSTART.md)** - 5-minute introduction
+- **[Dev Services Guide](./DEV_SERVICES_GUIDE.md)** - Zero-config development with automatic NATS provisioning
 
 ### 📚 Learn the Type System
 - **[Jackson Compatibility Guide](./JACKSON_COMPATIBILITY_GUIDE.md)** - What types are supported
@@ -55,25 +59,31 @@ docs/
 
 | File | Size | Content |
 |------|------|---------|
-| INDEX.md | 4.5 KB | Navigation hub & quick links |
+| INDEX.md | 5 KB | Navigation hub & quick links |
 | QUICKSTART.md | 11 KB | Getting started guide |
+| DEV_SERVICES_GUIDE.md | 14 KB | Automatic provisioning (6+ sections) |
+| CONFIGURATION.md | 18 KB | Connection & security (3+ sections) |
 | JACKSON_COMPATIBILITY_GUIDE.md | 13 KB | Type reference (5+ sections) |
 | WRAPPER_PATTERN.md | 14 KB | Wrapping guide (3 examples) |
 | JACKSON_ANNOTATIONS_GUIDE.md | 12 KB | Annotations reference (7+ annotations) |
 | EXPLICIT_ACK_NAK_GUIDE.md | 8 KB | Manual ack/nak guide |
+| DISTRIBUTED_TRACING.md | 7 KB | OpenTelemetry integration |
 | ERROR_TROUBLESHOOTING.md | 20 KB | Troubleshooting (10+ error types) |
-| **Total** | **82.5 KB** | **Complete documentation** |
+| **Total** | **122 KB** | **Complete documentation** |
 
 ## Feature Coverage
 
 ✅ **Complete Documentation**
+- Dev Services automatic provisioning documented with examples
 - Type system fully documented with examples
 - All supported types explained
 - Unsupported types handling covered
+- Connection configuration for production deployments
 - Jackson annotations guide included
 - Explicit ack/nak control for advanced error handling
+- Distributed tracing with OpenTelemetry integration
 - Error troubleshooting for 10+ common scenarios
-- 80+ code examples across all guides
+- 100+ code examples across all guides
 - Best practices and patterns included
 
 ✅ **Verified Examples**

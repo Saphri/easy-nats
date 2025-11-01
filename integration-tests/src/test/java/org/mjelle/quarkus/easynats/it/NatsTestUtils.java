@@ -9,6 +9,7 @@ import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.api.StorageType;
 import io.nats.client.api.StreamConfiguration;
 import io.nats.client.api.StreamInfo;
+import org.eclipse.microprofile.config.ConfigProvider;
 import org.mjelle.quarkus.easynats.NatsConnection;
 
 import java.util.concurrent.atomic.AtomicReference;
@@ -21,9 +22,23 @@ public class NatsTestUtils {
 
     public static Connection getConnection() throws Exception {
         if (connectionRef.get() == null || connectionRef.get().getStatus() != Connection.Status.CONNECTED) {
+            // Get connection URL from Quarkus configuration (populated by Dev Services)
+            // Falls back to localhost:4222 for compatibility with explicit configuration
+            String natsUrl = ConfigProvider.getConfig()
+                    .getOptionalValue("quarkus.easynats.servers", String.class)
+                    .orElse("nats://localhost:4222");
+
+            String username = ConfigProvider.getConfig()
+                    .getOptionalValue("quarkus.easynats.username", String.class)
+                    .orElse("guest");
+
+            String password = ConfigProvider.getConfig()
+                    .getOptionalValue("quarkus.easynats.password", String.class)
+                    .orElse("guest");
+
             Options options = new Options.Builder()
-                    .server("nats://localhost:4222")
-                    .userInfo("guest", "guest")
+                    .server(natsUrl)
+                    .userInfo(username, password)
                     .build();
             Connection nc = Nats.connect(options);
             connectionRef.set(nc);
