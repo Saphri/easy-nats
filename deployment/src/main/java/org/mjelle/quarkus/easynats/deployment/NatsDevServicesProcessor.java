@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.jboss.logging.Logger;
+import org.mjelle.quarkus.easynats.deployment.devservices.DevServicesBuildTimeConfiguration;
 import org.mjelle.quarkus.easynats.deployment.devservices.NatsContainer;
 import org.testcontainers.utility.DockerImageName;
 
@@ -30,20 +31,18 @@ public class NatsDevServicesProcessor {
 
     private static final Logger log = Logger.getLogger(NatsDevServicesProcessor.class);
     private static final String FEATURE = "quarkus-easynats-devservices";
-    private static final String NATS_IMAGE_NAME = "nats:latest";
     private static final String NATS_URL_PROPERTY = "quarkus.easynats.servers";
-    private static final String DEVSERVICES_ENABLED_PROPERTY = "quarkus.easynats.devservices.enabled";
     public static final String CONTAINER_LABEL = "quarkus-easynats";
 
-    private static final ContainerLocator jetStreamContainerLocator = new ContainerLocator(CONTAINER_LABEL, 4442);
+    private static final ContainerLocator natsContainerLocator = new ContainerLocator(CONTAINER_LABEL, 4442);
 
     @BuildStep
     void startNatsDevService(LaunchModeBuildItem launchMode,
             DevServicesComposeProjectBuildItem composeProjectBuildItem,
+            DevServicesBuildTimeConfiguration config,
             BuildProducer<DevServicesResultBuildItem> devServicesResult) {
         // Check if Dev Services are explicitly disabled
-        boolean devServicesEnabled = getConfigValue(DEVSERVICES_ENABLED_PROPERTY, true);
-        if (!devServicesEnabled) {
+        if (!config.enabled()) {
             log.info("NATS Dev Services are disabled via configuration");
             return;
         }
@@ -57,30 +56,33 @@ public class NatsDevServicesProcessor {
             return;
         }
 
-        log.info("Preparing NATS Dev Services container with image: " + NATS_IMAGE_NAME);
+        log.infof("Preparing NATS Dev Services container with image: %s", config.imageName());
 
         try {
-            DevServicesResultBuildItem discovered = discoverRunningService(composeProjectBuildItem, launchMode.getLaunchMode());
+            DevServicesResultBuildItem discovered = discoverRunningService(composeProjectBuildItem, launchMode.getLaunchMode(), config);
             if (discovered != null) {
                 devServicesResult.produce(discovered);
             } else {
                 devServicesResult.produce(DevServicesResultBuildItem.owned().name(FEATURE)
-                        .serviceName("nats")
+                        .serviceName(config.serviceName())
                         .startable(() -> {
                             try {
-                                log.infof("Dev Services: Creating and starting NATS container (image: %s)", NATS_IMAGE_NAME);
+                                log.infof("Dev Services: Creating and starting NATS container (image: %s)", config.imageName());
                                 NatsContainer container = new NatsContainer(
-                                        DockerImageName.parse(NATS_IMAGE_NAME),
-                                        "guest",              // Default username
-                                        "guest"               // Default password
+                                        DockerImageName.parse(config.imageName()),
+                                        config.username(),
+                                        config.password()
                                 );
-                                log.debug("Dev Services: Adding shared service label for container reuse");
-                                container.withSharedServiceLabel(LaunchMode.DEVELOPMENT, FEATURE);
+                                if (config.shared()) {
+                                    log.debug("Dev Services: Adding shared service label for container reuse");
+                                    container.withSharedServiceLabel(LaunchMode.DEVELOPMENT, FEATURE);
+                                }
 
                                 log.info("Dev Services: Starting NATS container...");
                                 container.start();
 
-                                String connectionUrl = "nats://" + container.getConnectionInfo();
+                                String scheme = config.sslEnabled() ? "tls" : "nats";
+                                String connectionUrl = scheme + "://" + container.getConnectionInfo();
                                 log.infof("Dev Services: NATS container started successfully. Connection URL: %s", connectionUrl);
                                 return container;
                             } catch (Exception e) {
@@ -88,11 +90,7 @@ public class NatsDevServicesProcessor {
                                 throw new RuntimeException("Failed to start NATS Dev Services container", e);
                             }
                         })
-                        .configProvider(Map.of(NATS_URL_PROPERTY,
-                                s -> "nats://" + s.getConnectionInfo(),
-                                "quarkus.easynats.username", s -> "guest",
-                                "quarkus.easynats.password", s -> "guest",
-                                "quarkus.easynats.ssl-enabled", s -> "false"))
+                        .configProvider(buildConfigProvider(config))
                         .build());
             }
         } catch (Exception e) {
@@ -102,27 +100,46 @@ public class NatsDevServicesProcessor {
                     "Ensure Docker is installed and running, and the image is available. " +
                     "You can disable Dev Services by setting '%s=false' in your application.properties or environment. " +
                     "Original error: %s",
-                    NATS_IMAGE_NAME, DEVSERVICES_ENABLED_PROPERTY, e.getMessage());
+                    config.imageName(), config.enabled(), e.getMessage());
             throw new RuntimeException(errorMessage, e);
         }
     }
 
+    /**
+     * Builds a configuration provider map from the Dev Services configuration.
+     *
+     * @param config the Dev Services configuration
+     * @return a map of property names to configuration provider functions
+     */
+    private Map<String, java.util.function.Function<NatsContainer, String>> buildConfigProvider(DevServicesBuildTimeConfiguration config) {
+        String scheme = config.sslEnabled() ? "tls" : "nats";
+        return Map.of(
+                NATS_URL_PROPERTY, s -> scheme + "://" + s.getConnectionInfo(),
+                "quarkus.easynats.username", s -> config.username(),
+                "quarkus.easynats.password", s -> config.password(),
+                "quarkus.easynats.ssl-enabled", s -> String.valueOf(config.sslEnabled())
+        );
+    }
+
     private DevServicesResultBuildItem discoverRunningService(DevServicesComposeProjectBuildItem composeProjectBuildItem,
-            LaunchMode launchMode) {
-        return jetStreamContainerLocator
+            LaunchMode launchMode,
+            DevServicesBuildTimeConfiguration config) {
+        String scheme = config.sslEnabled() ? "tls" : "nats";
+        int port = config.port().orElse(4222);
+        return natsContainerLocator
                 .locateContainer("nats", true, launchMode)
                 .or(() -> ComposeLocator.locateContainer(composeProjectBuildItem,
-                        List.of("nats:latest"),
-                        4222, launchMode, false))
+                        List.of(config.imageName()),
+                        port, launchMode, false))
                 .map(containerAddress -> {
-                    String serverUrl = "nats://" + containerAddress.getUrl();
+                    String serverUrl = scheme + "://" + containerAddress.getUrl();
                     return DevServicesResultBuildItem.discovered()
                             .name(FEATURE)
                             .containerId(containerAddress.getId())
                             .config(Map.of("quarkus.easynats.servers", serverUrl,
-                                    "quarkus.easynats.username", "guest",
-                                    "quarkus.easynats.password", "guest",
-                                    "quarkus.easynats.ssl-enabled", "false"))
+                                    "quarkus.easynats.username", config.username(),
+                                    "quarkus.easynats.password", config.password(),
+                                    "quarkus.easynats.ssl-enabled", String.valueOf(config.sslEnabled())))
                             .build();
                 }).orElse(null);
     }
@@ -150,69 +167,6 @@ public class NatsDevServicesProcessor {
         } catch (Exception e) {
             log.debugf(e, "Failed to read explicit configuration property: %s", propertyName);
             return Optional.empty();
-        }
-    }
-
-    /**
-     * Get a configuration value as a String Optional.
-     * Checks explicit sources (environment variables and system properties) only,
-     * NOT the runtime configuration which includes Dev Services injections.
-     * This ensures Dev Services starts correctly in multi-test scenarios where
-     * previous Dev Services injections should not prevent new containers from starting.
-     */
-    private Optional<String> getConfigValue(String propertyName) {
-        try {
-            // Check system properties first (highest priority)
-            String value = System.getProperty(propertyName);
-            if (value != null && !value.isEmpty()) {
-                log.debugf("Found configuration '%s' from system property: %s", propertyName, value);
-                return Optional.of(value);
-            }
-
-            // Check environment variables (convert property name to env var format)
-            // e.g. "quarkus.easynats.servers" -> "QUARKUS_EASYNATS_SERVERS"
-            String envVar = propertyName.toUpperCase().replace(".", "_").replace("-", "_");
-            value = System.getenv(envVar);
-            if (value != null && !value.isEmpty()) {
-                log.debugf("Found configuration '%s' from environment variable '%s': %s",
-                        propertyName, envVar, value);
-                return Optional.of(value);
-            }
-
-            // Note: We deliberately do NOT check ConfigProvider.getConfig() here
-            // because it includes Dev Services injections from previous builds.
-            // Properties files are typically handled through system properties or env vars in tests.
-            return Optional.empty();
-        } catch (Exception e) {
-            log.debugf(e, "Failed to read configuration property: %s", propertyName);
-            return Optional.empty();
-        }
-    }
-
-    /**
-     * Get a configuration value as a boolean with a default.
-     * Checks explicit sources (system properties and environment variables) only.
-     */
-    private boolean getConfigValue(String propertyName, boolean defaultValue) {
-        try {
-            // Check system properties first
-            String value = System.getProperty(propertyName);
-            if (value != null && !value.isEmpty()) {
-                return Boolean.parseBoolean(value);
-            }
-
-            // Check environment variables
-            String envVar = propertyName.toUpperCase().replace(".", "_").replace("-", "_");
-            value = System.getenv(envVar);
-            if (value != null && !value.isEmpty()) {
-                return Boolean.parseBoolean(value);
-            }
-
-            return defaultValue;
-        } catch (Exception e) {
-            log.debugf(e, "Failed to read configuration property: %s, using default: %s",
-                    propertyName, defaultValue);
-            return defaultValue;
         }
     }
 }
