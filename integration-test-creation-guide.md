@@ -10,9 +10,20 @@ This document provides a comprehensive guide and template for creating new nativ
 
 ---
 
-## Test Class Template
+## Test Class Structure
 
-All new integration tests must follow this structure. Use this template as a starting point.
+To ensure that tests run in both JVM and native modes, all integration tests must follow the `*Test.java` and `*IT.java` pattern.
+
+*   **`*Test.java`**: This class contains the actual test logic. It is annotated with `@QuarkusTest` and `@QuarkusTestResource(NatsStreamTestResource.class)`.
+*   **`*IT.java`**: This class extends the `*Test.java` class and is annotated with `@QuarkusIntegrationTest`. It contains no test logic itself, but inherits it from the `*Test` class.
+
+This structure allows the same tests to be run against the JVM application (in the `*Test` class) and the native executable (in the `*IT` class).
+
+## Test Class Templates
+
+All new integration tests must follow this structure. Use these templates as a starting point.
+
+### `*Test.java` Template
 
 ```java
 package org.mjelle.quarkus.easynats.it; // Or a suitable sub-package
@@ -34,7 +45,7 @@ import java.util.concurrent.TimeUnit;
  */
 @QuarkusTest
 @QuarkusTestResource(NatsStreamTestResource.class) // This line is ESSENTIAL to start the NATS server
-class MyNewFeatureIT {
+class MyNewFeatureTest {
 
     @Test
     @DisplayName("A clear, descriptive name for the test case")
@@ -66,6 +77,18 @@ class MyNewFeatureIT {
             assertThat(result).isEqualTo("some-data");
         });
     }
+}
+```
+
+### `*IT.java` Template
+
+```java
+package org.mjelle.quarkus.easynats.it;
+
+import io.quarkus.test.junit.QuarkusIntegrationTest;
+
+@QuarkusIntegrationTest
+class MyNewFeatureIT extends MyNewFeatureTest {
 }
 ```
 
