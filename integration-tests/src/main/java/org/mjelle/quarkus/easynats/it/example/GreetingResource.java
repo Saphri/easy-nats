@@ -9,7 +9,6 @@ import org.mjelle.quarkus.easynats.NatsPublisher;
 import org.mjelle.quarkus.easynats.NatsSubject;
 import org.mjelle.quarkus.easynats.PublishingException;
 
-import io.quarkus.runtime.annotations.RegisterForReflection;
 import io.smallrye.common.annotation.RunOnVirtualThread;
 
 /**
@@ -60,6 +59,5 @@ public class GreetingResource {
     /**
      * Request body for greeting endpoint.
      */
-    @RegisterForReflection
     public record GreetingRequest(String name) {}
 }

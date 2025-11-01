@@ -91,12 +91,9 @@ public class MyNatsProducer {
 
 You can also publish any Java object as a JSON payload by using a typed `NatsPublisher<T>`.
 
-First, define your domain object. For native compilation, you'll need to add the `@RegisterForReflection` annotation.
+First, define your domain object.
 
 ```java
-import io.quarkus.runtime.annotations.RegisterForReflection;
-
-@RegisterForReflection
 public class MyEvent {
     public String message;
 

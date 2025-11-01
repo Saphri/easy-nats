@@ -1,18 +1,14 @@
 <!--
-SYNC IMPACT REPORT (v0.1.12 → v0.2.0 Typed Publisher Integration)
+SYNC IMPACT REPORT (v0.2.0 → v0.2.1 Template Synchronization)
 ================================================================
-- Version: 0.1.12 → v0.2.0 (MINOR: Principle VI fully adopted, MVP limitation removed)
-- Modified Principles:
-  - VI. Developer Experience First: Removed "MVP 001 Scope Limitation" section. The typed publisher (`NatsPublisher<T>`) and `@NatsSubject` annotation are now considered implemented.
-- Removed Sections:
-  - Principle VI subsection "MVP 001 Scope Limitation"
+- Version: 0.2.0 → v0.2.1 (PATCH: Synchronized development gates with plan template)
+- Modified Principles: None
+- Added Sections: None
+- Removed Sections: None
 - Amendment Rationale:
-  - The typed publisher and annotation-driven features previously deferred are now implemented, bringing the extension in line with the full vision of Principle VI.
+  - The `.specify/templates/plan-template.md` file contained a placeholder for constitution checks. This update populates it with the specific "Development Quality Gates" from this constitution, ensuring consistency.
 - Template Status:
-  ✅ plan-template.md - updated
-  ✅ spec-template.md - no changes required
-  ✅ tasks-template.md - updated
-  ✅ README.md - no changes required (already reflects typed publisher)
+  ✅ .specify/templates/plan-template.md - updated
 - Deferred Items: None
 - Follow-up: None
 -->
@@ -318,4 +314,4 @@ This constitution is the authoritative guide for all development decisions.
 - Runtime developers reference CLAUDE.md for build commands and architecture patterns
 - Extension users reference generated Quarkus docs for API usage
 
-**Version**: 0.2.0 | **Ratified**: 2025-10-25 | **Last Amended**: 2025-10-27
+**Version**: 0.2.1 | **Ratified**: 2025-10-25 | **Last Amended**: 2025-11-01

@@ -15,9 +15,17 @@ import io.quarkus.deployment.builditem.FeatureBuildItem;
 import io.quarkus.deployment.builditem.nativeimage.ReflectiveClassBuildItem;
 import io.quarkus.deployment.builditem.nativeimage.RuntimeInitializedClassBuildItem;
 import jakarta.enterprise.inject.spi.DefinitionException;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
+import java.util.Queue;
+import java.util.Set;
 import org.jboss.jandex.AnnotationInstance;
 import org.jboss.jandex.DotName;
+import org.jboss.jandex.IndexView;
+import org.jboss.jandex.MethodInfo;
+import org.jboss.jandex.ParameterizedType;
+import org.jboss.jandex.Type;
 import org.mjelle.quarkus.easynats.NatsConnectionManager;
 import org.mjelle.quarkus.easynats.NatsPublisher;
 import org.mjelle.quarkus.easynats.NatsSubject;
@@ -82,17 +90,58 @@ class QuarkusEasyNatsProcessor {
 
     @BuildStep
     void registerSubscribersForReflection(
-            List<SubscriberBuildItem> subscriberBuildItems,
-            BuildProducer<ReflectiveClassBuildItem> reflectiveClasses) {
-        for (SubscriberBuildItem item : subscriberBuildItems) {
-            SubscriberMetadata metadata = item.getMetadata();
+            CombinedIndexBuildItem combinedIndex,
+            BuildProducer<ReflectiveClassBuildItem> reflectiveClass) {
+        IndexView index = combinedIndex.getIndex();
+        DotName natsSubscriber = DotName.createSimple("org.mjelle.quarkus.easynats.NatsSubscriber");
+        Collection<AnnotationInstance> annotations = index.getAnnotations(natsSubscriber);
 
-            // Register the class that declares the subscriber method
-            reflectiveClasses.produce(ReflectiveClassBuildItem.builder(metadata.declaringBeanClass()).methods().build());
+        for (AnnotationInstance annotation : annotations) {
+            MethodInfo method = annotation.target().asMethod();
+            reflectiveClass.produce(ReflectiveClassBuildItem.builder(method.declaringClass().name().toString()).methods().build());
+            for (Type parameterType : method.parameterTypes()) {
+                processTypeForReflection(parameterType, reflectiveClass);
+            }
+        }
+    }
 
-            // Register the parameter types of the subscriber method
-            for (String paramType : metadata.parameterTypes()) {
-                reflectiveClasses.produce(ReflectiveClassBuildItem.builder(paramType).build());
+    @BuildStep
+    void registerPublisherTypesForReflection(
+            ValidationPhaseBuildItem validationPhase,
+            BuildProducer<ReflectiveClassBuildItem> reflectiveClass) {
+        DotName natsPublisherDotName = DotName.createSimple(NatsPublisher.class.getName());
+
+        for (BeanInfo bean : validationPhase.getContext().beans()) {
+            for (InjectionPointInfo injectionPoint : bean.getAllInjectionPoints()) {
+                Type injectionPointType = injectionPoint.getType();
+
+                if (injectionPointType.name().equals(natsPublisherDotName) && injectionPointType.kind() == Type.Kind.PARAMETERIZED_TYPE) {
+                    ParameterizedType parameterizedType = injectionPointType.asParameterizedType();
+                    if (!parameterizedType.arguments().isEmpty()) {
+                        Type payloadType = parameterizedType.arguments().get(0);
+                        processTypeForReflection(payloadType, reflectiveClass);
+                    }
+                }
+            }
+        }
+    }
+
+    private void processTypeForReflection(Type type, BuildProducer<ReflectiveClassBuildItem> reflectiveClass) {
+        final List<DotName> SUPPORTED_COLLECTIONS = List.of(
+                DotName.createSimple(List.class.getName()),
+                DotName.createSimple(Set.class.getName()),
+                DotName.createSimple(Queue.class.getName()),
+                DotName.createSimple(Map.class.getName())
+        );
+
+        if (type.kind() == Type.Kind.CLASS) {
+            reflectiveClass.produce(ReflectiveClassBuildItem.builder(type.asClassType().name().toString()).build());
+        } else if (type.kind() == Type.Kind.PARAMETERIZED_TYPE) {
+            ParameterizedType parameterizedType = type.asParameterizedType();
+            if (SUPPORTED_COLLECTIONS.contains(parameterizedType.name())) {
+                for (Type argument : parameterizedType.arguments()) {
+                    processTypeForReflection(argument, reflectiveClass);
+                }
             }
         }
     }
