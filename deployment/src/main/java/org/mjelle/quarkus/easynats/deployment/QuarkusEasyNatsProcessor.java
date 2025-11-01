@@ -142,6 +142,9 @@ class QuarkusEasyNatsProcessor {
                     processTypeForReflection(argument, reflectiveClass);
                 }
             }
+        } else if (type.kind() == Type.Kind.ARRAY) {
+            Type componentType = type.asArrayType().component();
+            processTypeForReflection(componentType, reflectiveClass);
         }
     }
 

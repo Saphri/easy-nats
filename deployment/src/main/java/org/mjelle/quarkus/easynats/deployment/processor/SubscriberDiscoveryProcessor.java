@@ -163,19 +163,6 @@ public class SubscriberDiscoveryProcessor {
                             getPrimitiveWrapperName(paramTypeName)));
         }
 
-        // Check for array types
-        if (parameterType.kind() == Type.Kind.ARRAY) {
-            Type componentType = parameterType.asArrayType().componentType();
-            throw new IllegalArgumentException(
-                    String.format(
-                            "Array type '%s' is not supported for @NatsSubscriber parameter in method %s.%s. " +
-                            "Wrap it in a POJO: public class %sList { public %s[] items; public %sList() {}; }",
-                            paramTypeName,
-                            declaringClass.name(), method.name(),
-                            componentType.name(),
-                            componentType.name(),
-                            componentType.name()));
-        }
     }
 
     /**
