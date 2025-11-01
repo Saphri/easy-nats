@@ -28,6 +28,7 @@ import org.jboss.jandex.ParameterizedType;
 import org.jboss.jandex.Type;
 import org.mjelle.quarkus.easynats.NatsConnectionManager;
 import org.mjelle.quarkus.easynats.NatsPublisher;
+import org.mjelle.quarkus.easynats.NatsSubscriber;
 import org.mjelle.quarkus.easynats.NatsSubject;
 import org.mjelle.quarkus.easynats.runtime.NatsConnectionProvider;
 import org.mjelle.quarkus.easynats.runtime.health.ConnectionStatusHolder;
@@ -47,6 +48,14 @@ import org.mjelle.quarkus.easynats.runtime.startup.SubscriberInitializer;
 class QuarkusEasyNatsProcessor {
 
     private static final String FEATURE = "quarkus-easy-nats";
+    private static final DotName NATS_SUBSCRIBER = DotName.createSimple(NatsSubscriber.class.getName());
+    private static final DotName NATS_PUBLISHER = DotName.createSimple(NatsPublisher.class.getName());
+    private static final DotName NATS_SUBJECT = DotName.createSimple(NatsSubject.class.getName());
+    private static final DotName LIST = DotName.createSimple(List.class.getName());
+    private static final DotName SET = DotName.createSimple(Set.class.getName());
+    private static final DotName QUEUE = DotName.createSimple(Queue.class.getName());
+    private static final DotName MAP = DotName.createSimple(Map.class.getName());
+    private static final List<DotName> SUPPORTED_COLLECTIONS = List.of(LIST, SET, QUEUE, MAP);
 
     @BuildStep
     FeatureBuildItem feature() {
@@ -93,8 +102,7 @@ class QuarkusEasyNatsProcessor {
             CombinedIndexBuildItem combinedIndex,
             BuildProducer<ReflectiveClassBuildItem> reflectiveClass) {
         IndexView index = combinedIndex.getIndex();
-        DotName natsSubscriber = DotName.createSimple("org.mjelle.quarkus.easynats.NatsSubscriber");
-        Collection<AnnotationInstance> annotations = index.getAnnotations(natsSubscriber);
+        Collection<AnnotationInstance> annotations = index.getAnnotations(NATS_SUBSCRIBER);
 
         for (AnnotationInstance annotation : annotations) {
             MethodInfo method = annotation.target().asMethod();
@@ -109,13 +117,11 @@ class QuarkusEasyNatsProcessor {
     void registerPublisherTypesForReflection(
             ValidationPhaseBuildItem validationPhase,
             BuildProducer<ReflectiveClassBuildItem> reflectiveClass) {
-        DotName natsPublisherDotName = DotName.createSimple(NatsPublisher.class.getName());
-
         for (BeanInfo bean : validationPhase.getContext().beans()) {
             for (InjectionPointInfo injectionPoint : bean.getAllInjectionPoints()) {
                 Type injectionPointType = injectionPoint.getType();
 
-                if (injectionPointType.name().equals(natsPublisherDotName) && injectionPointType.kind() == Type.Kind.PARAMETERIZED_TYPE) {
+                if (injectionPointType.name().equals(NATS_PUBLISHER) && injectionPointType.kind() == Type.Kind.PARAMETERIZED_TYPE) {
                     ParameterizedType parameterizedType = injectionPointType.asParameterizedType();
                     if (!parameterizedType.arguments().isEmpty()) {
                         Type payloadType = parameterizedType.arguments().get(0);
@@ -127,13 +133,6 @@ class QuarkusEasyNatsProcessor {
     }
 
     private void processTypeForReflection(Type type, BuildProducer<ReflectiveClassBuildItem> reflectiveClass) {
-        final List<DotName> SUPPORTED_COLLECTIONS = List.of(
-                DotName.createSimple(List.class.getName()),
-                DotName.createSimple(Set.class.getName()),
-                DotName.createSimple(Queue.class.getName()),
-                DotName.createSimple(Map.class.getName())
-        );
-
         if (type.kind() == Type.Kind.CLASS) {
             reflectiveClass.produce(ReflectiveClassBuildItem.builder(type.asClassType().name().toString()).build());
         } else if (type.kind() == Type.Kind.PARAMETERIZED_TYPE) {
@@ -179,14 +178,12 @@ class QuarkusEasyNatsProcessor {
     @BuildStep
     void validateNatsSubjectInjectionPoints(ValidationPhaseBuildItem validationPhase,
             BuildProducer<ValidationPhaseBuildItem.ValidationErrorBuildItem> errors) {
-        DotName natsPublisherDotName = DotName.createSimple(NatsPublisher.class.getName());
-
         for (BeanInfo bean : validationPhase.getContext().beans()) {
             for (InjectionPointInfo injectionPoint : bean.getAllInjectionPoints()) {
                 for (AnnotationInstance qualifier : injectionPoint.getRequiredQualifiers()) {
-                    if (qualifier.name().equals(DotName.createSimple(NatsSubject.class.getName()))) {
+                    if (qualifier.name().equals(NATS_SUBJECT)) {
                         // Validate that the injection point is a NatsPublisher
-                        if (!injectionPoint.getType().name().equals(natsPublisherDotName)) {
+                        if (!injectionPoint.getType().name().equals(NATS_PUBLISHER)) {
                             errors.produce(new ValidationPhaseBuildItem.ValidationErrorBuildItem(
                                     new DefinitionException(
                                             "@NatsSubject can only be applied to fields of type NatsPublisher. Injection point: "
