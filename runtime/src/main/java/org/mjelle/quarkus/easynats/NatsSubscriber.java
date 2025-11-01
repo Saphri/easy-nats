@@ -66,6 +66,7 @@ import java.lang.annotation.Target;
  * </pre>
  *
  * @see NatsConnectionManager
+ * @see org.mjelle.quarkus.easynats.NatsMessage
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
