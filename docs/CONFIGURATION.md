@@ -428,7 +428,7 @@ quarkus.tls.nats-tls.trust-store.pem.certs=certificates/ca.crt
 
 ## Native Image and Reflection
 
-The Quarkus EasyNATS extension automatically detects and registers your `NatsPublisher` and `NatsSubscriber` payload types for reflection, so you do not need to manually configure them with `@RegisterForReflection` in most cases. This includes support for common generic collections like `List<MyType>` and `Map<String, MyType>`.
+The Quarkus EasyNATS extension automatically detects and registers your `NatsPublisher` and `NatsSubscriber` payload types for reflection, so you do not need to manually configure them with `@RegisterForReflection` in most cases. This includes support for common generic collections like `List<MyType>`, `Set<MyType>`, `Queue<MyType>`, `Map<String, MyType>`, and arrays (e.g., `MyType[]`).
 
 However, the automatic detection may not cover extremely complex, user-defined generic type hierarchies (e.g., `MyWrapper<T extends SomeClass>`).
 
