@@ -32,9 +32,11 @@ public interface NatsConfiguration {
      * Example: nats://localhost:4222
      * Multiple servers can be specified for failover.
      *
-     * @return list of server URLs
+     * When using Dev Services, this will be automatically injected by the Dev Services processor.
+     *
+     * @return optional list of server URLs
      */
-    List<String> servers();
+    Optional<List<String>> servers();
 
     /**
      * Username for authentication.
@@ -103,27 +105,31 @@ public interface NatsConfiguration {
      * Validates the configuration and throws NatsConfigurationException if invalid.
      * <p>
      * Validation rules:
-     * - At least one server must be specified
+     * - At least one server must be specified (via configuration or Dev Services)
      * - If username is specified, password must also be specified
      * - If password is specified, username must also be specified
+     *
+     * Dev Services will automatically inject servers if not explicitly configured,
+     * so validation allows empty servers during startup (Dev Services will provide them).
      *
      * @throws NatsConfigurationException if configuration is invalid
      */
     default void validate() {
-        if (servers() == null || servers().isEmpty()) {
-            throw new NatsConfigurationException(
-                    "At least one NATS server must be configured. " +
-                            "Set 'quarkus.easynats.servers' property in application.properties"
-            );
-        }
-
-        // Check for empty strings in servers list
-        for (String server : servers()) {
-            if (server == null || server.trim().isEmpty()) {
-                throw new NatsConfigurationException(
-                        "NATS server URL cannot be empty. " +
-                                "Check 'quarkus.easynats.servers' property in application.properties"
-                );
+        // servers() is optional because Dev Services will inject it if not explicitly configured
+        // If servers are empty at validation time, that's OK - Dev Services will provide them
+        // Only validate servers if they're actually present
+        if (servers().isPresent()) {
+            List<String> serverList = servers().get();
+            if (serverList != null && !serverList.isEmpty()) {
+                // Check for empty strings in servers list
+                for (String server : serverList) {
+                    if (server == null || server.trim().isEmpty()) {
+                        throw new NatsConfigurationException(
+                                "NATS server URL cannot be empty. " +
+                                        "Check 'quarkus.easynats.servers' property in application.properties"
+                        );
+                    }
+                }
             }
         }
 

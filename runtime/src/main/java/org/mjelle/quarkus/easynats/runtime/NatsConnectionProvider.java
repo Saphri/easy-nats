@@ -3,8 +3,8 @@ package org.mjelle.quarkus.easynats.runtime;
 import io.nats.client.Connection;
 import io.nats.client.Nats;
 import io.nats.client.Options;
+import io.quarkus.arc.Arc;
 import io.quarkus.runtime.ShutdownEvent;
-import io.quarkus.runtime.StartupEvent;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Observes;
 import jakarta.enterprise.inject.Produces;
@@ -17,6 +17,7 @@ import org.mjelle.quarkus.easynats.NatsConnection;
 import org.mjelle.quarkus.easynats.runtime.health.ConnectionStatus;
 import org.mjelle.quarkus.easynats.runtime.health.ConnectionStatusHolder;
 import org.mjelle.quarkus.easynats.runtime.health.NatsConnectionListener;
+import org.mjelle.quarkus.easynats.runtime.startup.SubscriberInitializer;
 
 import java.io.IOException;
 import java.util.concurrent.ExecutorService;
@@ -63,22 +64,13 @@ public class NatsConnectionProvider {
     }
 
     /**
-     * Initializes the NATS connection on application startup.
-     * This ensures the connection is established early in the application lifecycle.
-     *
-     * @param startupEvent the startup event
-     */
-    void onStartup(@Observes StartupEvent startupEvent) {
-        if (wrappedConnection == null) {
-            createConnection();
-        }
-    }
-
-    /**
      * Produces a singleton NatsConnection bean that can be injected throughout the application.
      * <p>
      * This producer method is called by the CDI container when NatsConnection is requested.
-     * The connection is created on first access and reused for all subsequent injections.
+     * The connection is created on first access (lazy initialization) to allow Dev Services
+     * time to inject its configuration before the connection is established.
+     *
+     * After the connection is created, subscribers are lazily initialized.
      *
      * @return a wrapped NATS connection
      * @throws NatsConfigurationException if configuration is invalid or connection fails
@@ -88,8 +80,34 @@ public class NatsConnectionProvider {
     public NatsConnection produceConnection() {
         if (wrappedConnection == null) {
             createConnection();
+            // Now that connection is ready, initialize subscribers if they haven't been yet
+            try {
+                SubscriberInitializer subscriberInitializer = Arc.container().instance(SubscriberInitializer.class).get();
+                subscriberInitializer.ensureInitialized();
+            } catch (Exception e) {
+                log.debugf(e, "SubscriberInitializer not available or already initialized");
+            }
         }
         return wrappedConnection;
+    }
+
+    /**
+     * Gracefully closes the NATS connection on application shutdown.
+     * Note: Connection is created lazily on first injection, not at startup.
+     *
+     * @param shutdownEvent the shutdown event
+     */
+    void onShutdown(@Observes @Priority(100) ShutdownEvent shutdownEvent) {
+        if (natsConnection != null && natsConnection.getStatus() != Connection.Status.CLOSED) {
+            try {
+                log.info("Closing NATS connection on application shutdown");
+                natsConnection.close();
+                statusHolder.setStatus(ConnectionStatus.CLOSED);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                log.warnf(e, "Connection close was interrupted");
+            }
+        }
     }
 
     /**
@@ -102,6 +120,12 @@ public class NatsConnectionProvider {
      * @throws NatsConfigurationException if configuration is invalid or connection fails
      */
     NatsConnection createConnection() {
+        // Log what configuration is actually available
+        log.infof("NatsConnectionProvider: Creating connection. Servers present: %s, Servers value: %s",
+                config.servers().isPresent(),
+                config.servers().map(list -> list.isEmpty() ? "[empty list]" : String.join(", ", list))
+                        .orElse("[not present]"));
+
         // Validate configuration first
         try {
             config.validate();
@@ -110,12 +134,20 @@ public class NatsConnectionProvider {
             throw e;
         }
 
+        // Verify servers are available (they should be provided by Dev Services or explicit config by now)
+        if (config.servers().isEmpty() || config.servers().get() == null || config.servers().get().isEmpty()) {
+            throw new NatsConfigurationException(
+                    "NATS servers configuration is empty. " +
+                    "Ensure Dev Services is enabled or set 'quarkus.easynats.servers' property explicitly"
+            );
+        }
+
         try {
             // Build connection options
             Options.Builder optionsBuilder = new Options.Builder();
 
-            // Add servers
-            String[] serverUrls = config.servers().toArray(new String[0]);
+            // Add servers (guaranteed to exist after checks above)
+            String[] serverUrls = config.servers().get().toArray(new String[0]);
             optionsBuilder.servers(serverUrls);
 
             // Add authentication if configured
@@ -169,7 +201,7 @@ public class NatsConnectionProvider {
             // Wrap connection in facade
             this.wrappedConnection = new NatsConnection(natsConnection);
 
-            String servers = String.join(", ", sanitizeUrls(config.servers()));
+            String servers = String.join(", ", sanitizeUrls(config.servers().get()));
             log.infof("Successfully connected to NATS server(s): %s", servers);
             log.infof("Connected to: %s", natsConnection.getConnectedUrl());
 
@@ -182,7 +214,7 @@ public class NatsConnectionProvider {
             statusHolder.setStatus(ConnectionStatus.DISCONNECTED);
 
             // Fail fast - application cannot function without NATS
-            String servers = String.join(", ", sanitizeUrls(config.servers()));
+            String servers = String.join(", ", sanitizeUrls(config.servers().get()));
             throw new RuntimeException(
                     "Failed to connect to NATS broker(s) at startup: " + servers + ". " +
                             "Application requires NATS connection to function. " +
@@ -201,24 +233,6 @@ public class NatsConnectionProvider {
         return urls.stream()
                 .map(url -> url.replaceAll("://[^:]+:[^@]+@", "://***:***@"))
                 .toList();
-    }
-
-    /**
-     * Gracefully closes the NATS connection on application shutdown.
-     *
-     * @param shutdownEvent the shutdown event
-     */
-    void onShutdown(@Observes @Priority(100) ShutdownEvent shutdownEvent) {
-        if (natsConnection != null && natsConnection.getStatus() != Connection.Status.CLOSED) {
-            try {
-                log.info("Closing NATS connection on application shutdown");
-                natsConnection.close();
-                statusHolder.setStatus(ConnectionStatus.CLOSED);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                log.warnf(e, "Connection close was interrupted");
-            }
-        }
     }
 
     /**

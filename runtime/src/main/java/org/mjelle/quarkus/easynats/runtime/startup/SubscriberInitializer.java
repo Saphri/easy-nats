@@ -54,6 +54,7 @@ public class SubscriberInitializer {
     private final ObjectMapper objectMapper;
     private final NatsConfiguration config;
     private final List<MessageConsumer> consumers = new ArrayList<>();
+    private boolean subscribersInitialized = false;
 
     /**
      * Creates a new subscriber initializer.
@@ -77,12 +78,46 @@ public class SubscriberInitializer {
     /**
      * Initializes subscribers on application startup.
      *
+     * Since validation is now lenient about servers being empty (Dev Services will provide them),
+     * we defer initialization until the first component actually tries to use the NATS connection.
+     *
      * @param event the startup event (not used)
-     * @throws IllegalStateException if any subscriber initialization fails
      */
     void onStart(@Observes StartupEvent event) {
-        LOGGER.info("Initializing NATS subscribers");
+        LOGGER.info("Deferring NATS subscriber initialization until connection is first used (Dev Services may still be starting)");
+        // No initialization here - will happen lazily when NatsConnection is first used
+    }
 
+    /**
+     * Ensures subscribers are initialized.
+     *
+     * This method is called lazily when the NATS connection is first accessed.
+     * It is idempotent - calling it multiple times only initializes once.
+     *
+     * @throws IllegalStateException if any subscriber initialization fails
+     */
+    public synchronized void ensureInitialized() {
+        if (subscribersInitialized) {
+            return;
+        }
+
+        try {
+            config.validate();
+        } catch (Exception e) {
+            LOGGER.errorf(e, "NATS configuration is invalid for subscriber initialization");
+            throw new IllegalStateException("NATS configuration invalid for subscriber initialization", e);
+        }
+
+        LOGGER.info("Initializing NATS subscribers (lazy initialization on first connection use)");
+        initializeAllSubscribers();
+    }
+
+    /**
+     * Initializes all registered subscribers.
+     *
+     * @throws IllegalStateException if any subscriber initialization fails
+     */
+    private void initializeAllSubscribers() {
         for (SubscriberMetadata metadata : subscriberRegistry.getSubscribers()) {
             try {
                 initializeSubscriber(metadata);
@@ -96,6 +131,7 @@ public class SubscriberInitializer {
             }
         }
 
+        subscribersInitialized = true;
         LOGGER.infof(
                 "Successfully initialized %d NATS subscribers",
                 subscriberRegistry.getSubscribers().size());

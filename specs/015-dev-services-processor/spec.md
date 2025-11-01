@@ -5,6 +5,16 @@
 **Status**: Draft
 **Input**: User description: "**Goal:** Implement the Dev Services processor that uses the custom `NatsContainer` to automatically start a NATS server. **Context:** This step connects the `NatsContainer` class created previous to the Quarkus build process. The focus is solely on launching the container and injecting its configuration into the application."
 
+## Clarifications
+
+### Session 2025-11-01
+- Q: What are the security considerations for the NATS container in dev mode? → A: Security is not a primary concern for dev mode; focus on functionality and ease of use.
+- Q: Which version of the NATS server should be used in the container? → A: Use the latest stable version of the NATS server.
+- Q: What should be the configuration property names for the NATS server URL and for disabling Dev Services? → A: `quarkus.easynats.servers` for the NATS server URL and `quarkus.easynats.devservices.enabled` for disabling Dev Services.
+
+### Session 2025-11-01
+- Q: How should the Dev Service handle multiple Quarkus applications running simultaneously? → A: A single, shared NATS container is started for all applications.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Automatic NATS Server in Dev Mode (Priority: P1)
@@ -34,9 +44,15 @@ As a Quarkus application developer, I want the NATS server to start automaticall
 
 - **FR-001**: The system MUST detect when a Quarkus application is running in "dev" or "test" mode.
 - **FR-002**: The system MUST automatically start a NATS server in a container if no NATS server URL is explicitly configured by the user.
-- **FR-003**: The system MUST inject the container's NATS server URL into the application's configuration properties.
+- **FR-003**: The system MUST inject the container's NATS server URL into the application's configuration properties using the property name `quarkus.easynats.servers`.
 - **FR-004**: The system MUST shut down the NATS container when the Quarkus application stops.
-- **FR-005**: The system MUST provide a way for users to disable the automatic startup of the NATS server.
+- **FR-005**: The system MUST provide a way for users to disable the automatic startup of the NATS server using the property name `quarkus.easynats.devservices.enabled`.
+- **FR-006**: The NATS server used in the Dev Services container MUST be the latest stable version.
+- **FR-007**: The Dev Services MUST ensure that only a single NATS container is started and shared across multiple co-located Quarkus applications running simultaneously.
+
+### Non-Functional Requirements
+
+- **NFR-001**: Security for the Dev Services container is not a primary concern; the focus is on ease of use and rapid development cycles. The container may run with relaxed security settings (e.g., no authentication).
 
 ## Success Criteria *(mandatory)*
 
@@ -46,3 +62,4 @@ As a Quarkus application developer, I want the NATS server to start automaticall
 - **SC-002**: The application successfully connects to the Dev Services NATS server within 5 seconds of starting.
 - **SC-003**: When the Quarkus application is shut down, the associated NATS container is stopped within 5 seconds.
 - **SC-004**: If `quarkus.easynats.devservices.enabled=false` is set, no NATS container is started.
+- **SC-005**: When multiple Quarkus applications with the extension are run in dev mode on the same machine, only one NATS container is started and shared among them.
