@@ -53,7 +53,7 @@ public class SubscriberDiscoveryProcessor {
             ClassInfo declaringClass = method.declaringClass();
 
             // Extract annotation properties
-            String subject = getAnnotationValue(annotation, "value");
+            String subject = getAnnotationValue(annotation, "subject");
             String stream = getAnnotationValue(annotation, "stream");
             String consumer = getAnnotationValue(annotation, "consumer");
 

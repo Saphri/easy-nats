@@ -40,7 +40,7 @@ public class NatsSubscriberValidationTest {
 
     @ApplicationScoped
     public static class ValidEphemeralSubscriber {
-        @NatsSubscriber("test.subject")
+        @NatsSubscriber(subject = "test.subject")
         public void onMessage(String message) {
             // Ephemeral subscriber
         }

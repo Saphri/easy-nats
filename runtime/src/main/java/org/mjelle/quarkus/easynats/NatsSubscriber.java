@@ -18,7 +18,7 @@ import java.lang.annotation.Target;
  * The annotation supports two modes:
  * </p>
  * <ul>
- * <li><strong>Ephemeral Mode</strong>: Use the {@code value()} property to subscribe to a subject.
+ * <li><strong>Ephemeral Mode</strong>: Use the {@code subject()} property to subscribe to a subject.
  * The consumer is created dynamically and does not survive restarts.</li>
  * <li><strong>Durable Mode</strong>: Use {@code stream()} and {@code consumer()} properties to bind
  * to a pre-configured durable consumer. The consumer must exist on the NATS server and will preserve
@@ -41,7 +41,7 @@ import java.lang.annotation.Target;
  * {@code
  * @ApplicationScoped
  * public class MyNatsConsumer {
- *     @NatsSubscriber("my-subject")
+ *     @NatsSubscriber(subject = "my-subject")
  *     public void onMessage(String message) {
  *         System.out.println("Received: " + message);
  *     }
@@ -81,14 +81,14 @@ public @interface NatsSubscriber {
      *
      * @return the subject name (must be non-empty for ephemeral mode)
      */
-    String value() default "";
+    String subject() default "";
 
     /**
      * The NATS JetStream stream name (durable mode).
      *
      * <p>
      * Use this property with {@code consumer()} for durable consumers. The stream must exist on the
-     * NATS server. Cannot be combined with {@code value()}.
+     * NATS server. Cannot be combined with {@code subject()}.
      * </p>
      *
      * @return the stream name (must be non-empty and paired with consumer())
@@ -100,7 +100,7 @@ public @interface NatsSubscriber {
      *
      * <p>
      * Use this property with {@code stream()} for durable consumers. The consumer must be
-     * pre-configured on the NATS server. Cannot be combined with {@code value()}.
+     * pre-configured on the NATS server. Cannot be combined with {@code subject()}.
      * </p>
      *
      * @return the consumer name (must be non-empty and paired with stream())

@@ -38,7 +38,7 @@ class StartupValidationTest {
      */
     @ApplicationScoped
     public static class ValidStartupSubscriber {
-        @NatsSubscriber("test.startup.message")
+        @NatsSubscriber(subject = "test.startup.message")
         public void onStartupMessage(String message) {
             // Valid subscriber
         }
