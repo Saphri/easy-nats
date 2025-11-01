@@ -31,7 +31,12 @@
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-[Gates determined based on constitution file]
+- **Compilation Gate**: `./mvnw clean install -DskipTests` succeeds
+- **Unit Test Gate**: `./mvnw clean test` all pass (runtime + deployment)
+- **Integration Test Gate**: `./mvnw clean install -Pit` all pass (if feature touched NATS behavior)
+- **Code Coverage Gate**: New code ≥80% coverage (measured by Surefire/JaCoCo)
+- **Architecture Gate**: Verify no runtime module dependencies added without justification
+- **Native Image Gate** (future): GraalVM native image compilation succeeds
 
 ## Project Structure
 

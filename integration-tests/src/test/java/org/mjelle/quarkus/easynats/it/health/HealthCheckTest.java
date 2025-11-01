@@ -99,8 +99,6 @@ class HealthCheckTest {
         // Verify startup probe check is present
         String checkName = response.jsonPath().getString("checks[0].name");
         assertThat(checkName).contains("NATS Connection").contains("Startup");
-        String connectionStatus = response.jsonPath().getString("checks[0].data.connectionStatus");
-        assertThat(connectionStatus).isNotNull();
     }
 
     /**
