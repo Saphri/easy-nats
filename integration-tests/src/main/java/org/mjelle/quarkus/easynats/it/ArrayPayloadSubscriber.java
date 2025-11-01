@@ -9,7 +9,7 @@ public class ArrayPayloadSubscriber {
 
     private volatile MyArrayItemEvent[] lastMessage;
 
-    @NatsSubscriber("test.array")
+    @NatsSubscriber(subject = "test.array")
     public void onMessage(MyArrayItemEvent[] event) {
         this.lastMessage = event;
     }
