@@ -72,7 +72,7 @@ public class MyAdvancedConsumer {
 
     @NatsSubscriber(stream = "my-events", consumer = "my-consumer")
     public void onMessage(NatsMessage<MyEvent> message) {
-        String traceId = message.headers().get("traceparent");
+        String traceId = message.headers().getFirst("traceparent");
         System.out.println("Trace ID: " + traceId);
 
         // Manually acknowledge the message
