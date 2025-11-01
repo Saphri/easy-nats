@@ -10,8 +10,7 @@ import java.lang.annotation.Target;
  *
  * <p>
  * Methods annotated with {@code @NatsSubscriber} will automatically subscribe to the specified
- * NATS subject and receive messages. The annotated method must have a single parameter of type
- * {@link String}, which will receive the message payload.
+ * NATS subject and receive messages. The annotated method must have a single parameter representing the message payload. This parameter can be any Jackson-serializable POJO (Plain Old Java Object). The framework will automatically handle JSON deserialization. For advanced use cases requiring access to message metadata or explicit acknowledgment control, the parameter can be of type `NatsMessage<T>`, where `T` is your POJO type.
  * </p>
  *
  * <p>
