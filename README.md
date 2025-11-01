@@ -59,6 +59,28 @@ quarkus.easynats.password=secret
 
 ## Usage
 
+### Advanced Usage: Explicit Acknowledgment and Metadata
+
+For advanced use cases, such as manual acknowledgment or accessing message headers, you can use the `NatsMessage<T>` wrapper. This gives you full control over the message lifecycle.
+
+```java
+import org.mjelle.quarkus.easynats.NatsMessage;
+import org.mjelle.quarkus.easynats.annotation.NatsSubscriber;
+
+@ApplicationScoped
+public class MyAdvancedConsumer {
+
+    @NatsSubscriber(stream = "my-events", consumer = "my-consumer")
+    public void onMessage(NatsMessage<MyEvent> message) {
+        String traceId = message.headers().get("traceparent");
+        System.out.println("Trace ID: " + traceId);
+
+        // Manually acknowledge the message
+        message.ack();
+    }
+}
+```
+
 ### Basic Untyped Publisher
 
 For simple string messages, you can inject a `NatsPublisher` and specify the subject with the `@NatsSubject` annotation.
@@ -143,7 +165,7 @@ import java.time.Duration;
 @ApplicationScoped
 public class MyNatsConsumer {
 
-    @NatsSubscriber(subject = "my-events", consumer = "my-consumer")
+    @NatsSubscriber(stream = "my-events", consumer = "my-consumer")
     public void onMessage(NatsMessage<MyEvent> message) {
         MyEvent event = message.payload();
         try {

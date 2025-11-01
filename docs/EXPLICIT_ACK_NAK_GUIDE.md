@@ -158,39 +158,93 @@ public class EventProcessor {
         String traceId = msg.headers().get("traceparent");
         String eventType = msg.headers().get("ce-type");
 
-        // Access NATS metadata
-        int redeliveryCount = msg.metadata().redeliveryCount();
+        // Access NATS metadata for retry logic
+        long deliveryAttempt = msg.metadata().deliveredCount();
 
-        log.info("Event received: type={}, traceId={}, redeliveries={}",
-            eventType, traceId, redeliveryCount);
+        log.info(
+            "Event received: type={}, traceId={}, deliveryAttempt={}",
+            eventType,
+            traceId,
+            deliveryAttempt
+        );
 
         try {
             processEvent(event);
             msg.ack();
         } catch (Exception e) {
-            if (redeliveryCount < 3) {
-                // Implement exponential backoff for retries
-                long delaySeconds = (long) Math.pow(2, redeliveryCount);
+            // Implement exponential backoff for transient errors
+            if (deliveryAttempt < 5) {
+                long delaySeconds = (long) Math.pow(2, deliveryAttempt);
                 msg.nakWithDelay(Duration.ofSeconds(delaySeconds));
-                log.warn("Retrying event processing in {} seconds...", delaySeconds);
+                log.warn(
+                    "Transient error. Retrying in {} seconds...",
+                    delaySeconds
+                );
             } else {
-                // Max retries exceeded: acknowledge to move on and log the failure.
-                msg.ack();
-                log.error("Max retries exceeded for event. Moving to dead-letter queue logic if applicable.");
+                // Max retries exceeded. Terminate the message to prevent further retries.
+                msg.term();
+                log.error("Max retries exceeded. Terminating message.", e);
             }
         }
     }
 
-    private void processEvent(Event event) throws Exception { /* ... */ }
+    private void processEvent(Event event) throws Exception {
+        // Business logic...
+    }
 }
 ```
 
 **Key Points**:
 - `msg.headers().get("ce-...")` accesses CloudEvents attributes.
-- `msg.metadata().redeliveryCount()` tracks the number of retry attempts.
-- This metadata can be used to build sophisticated retry strategies.
+- `msg.metadata().deliveredCount()` tracks the number of delivery attempts (1 for the first time).
+- This metadata is crucial for building robust retry strategies like exponential backoff.
 
 ---
+
+## Example 4: Terminating a Message
+
+**Scenario**: A message is unrecoverable (e.g., malformed JSON, invalid data). Instead of retrying, you want to stop processing it immediately.
+
+The `msg.term()` method tells the NATS server to stop redelivering the message, even if it hasn't reached its maximum delivery count. This is useful for preventing poison pills from endlessly cycling through your system.
+
+```java
+@ApplicationScoped
+public class DataValidator {
+
+    private static final Logger log = LoggerFactory.getLogger(DataValidator.class);
+
+    @NatsSubscriber(subject = "data.new", stream = "DATA", consumer = "validator")
+    public void handleData(NatsMessage<RawData> msg) {
+        try {
+            // The payload() call might not throw; validation is key.
+            RawData data = msg.payload();
+            validate(data);
+
+            // If valid, acknowledge and proceed.
+            msg.ack();
+            log.info("Data validated successfully: {}", data.id());
+
+        } catch (ValidationException e) {
+            // Unrecoverable error: the data is invalid.
+            // Terminate the message to prevent retries.
+            msg.term();
+            log.error("Invalid data received. Terminating message: {}", e.getMessage());
+        }
+    }
+
+    private void validate(RawData data) throws ValidationException {
+        if (data == null || data.id() == null || data.content() == null) {
+            throw new ValidationException("Data is missing required fields.");
+        }
+        // ... more validation logic
+    }
+}
+```
+
+**When to Use `term()` vs. `ack()` for Errors**:
+
+- Use `msg.term()` for messages that should **never** be processed again because they are fundamentally invalid.
+- Use `msg.ack()` for business process failures where you accept the message but choose not to proceed (e.g., "Order declined"). Acknowledging it marks the event as successfully handled from a messaging perspective.
 
 ## API Reference: `NatsMessage<T>`
 
