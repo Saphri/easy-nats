@@ -16,6 +16,7 @@ This guide covers how to configure the Quarkus EasyNATS extension, including con
 - [TLS/SSL Configuration](#tlsssl-configuration)
 - [Multiple Servers (Failover)](#multiple-servers-failover)
 - [Complete Examples](#complete-examples)
+- [Native Image and Reflection](#native-image-and-reflection)
 - [Migration from Previous Versions](#migration-from-previous-versions)
 
 ---
@@ -422,6 +423,27 @@ quarkus.tls.nats-tls.trust-store.pem.certs=certificates/ca.crt
 2. **Keep `ssl-enabled` property**
 3. **Add TLS configuration** using Quarkus TLS Registry
 4. **Test connection** with new configuration
+
+---
+
+## Native Image and Reflection
+
+The Quarkus EasyNATS extension automatically detects and registers your `NatsPublisher` and `NatsSubscriber` payload types for reflection, so you do not need to manually configure them with `@RegisterForReflection` in most cases. This includes support for common generic collections like `List<MyType>` and `Map<String, MyType>`.
+
+However, the automatic detection may not cover extremely complex, user-defined generic type hierarchies (e.g., `MyWrapper<T extends SomeClass>`).
+
+If you encounter `ClassNotFoundException` or similar reflection-related errors in your native image, you can fall back to Quarkus's standard reflection registration mechanism. Simply add the `@RegisterForReflection` annotation to the problematic payload class:
+
+```java
+import io.quarkus.runtime.annotations.RegisterForReflection;
+
+@RegisterForReflection
+public class MyComplexGenericPayload {
+    // ... fields and methods
+}
+```
+
+This gives the native image build process the necessary hints to include the class and its members for reflection.
 
 ---
 
