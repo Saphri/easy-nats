@@ -3,7 +3,6 @@ package org.mjelle.quarkus.easynats.runtime;
 import io.nats.client.Connection;
 import io.nats.client.Nats;
 import io.nats.client.Options;
-import io.quarkus.arc.Arc;
 import io.quarkus.runtime.ShutdownEvent;
 import io.quarkus.runtime.StartupEvent;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -18,7 +17,6 @@ import org.mjelle.quarkus.easynats.NatsConnection;
 import org.mjelle.quarkus.easynats.runtime.health.ConnectionStatus;
 import org.mjelle.quarkus.easynats.runtime.health.ConnectionStatusHolder;
 import org.mjelle.quarkus.easynats.runtime.health.NatsConnectionListener;
-import org.mjelle.quarkus.easynats.runtime.startup.SubscriberInitializer;
 
 import java.io.IOException;
 import java.util.concurrent.ExecutorService;
@@ -142,7 +140,7 @@ public class NatsConnectionProvider {
         }
 
         // Verify servers are available (they should be provided by Dev Services or explicit config by now)
-        if (config.servers().isEmpty() || config.servers().get() == null || config.servers().get().isEmpty()) {
+        if (config.servers().isEmpty() || config.servers().get().isEmpty()) {
             throw new NatsConfigurationException(
                     "NATS servers configuration is empty. " +
                     "Ensure Dev Services is enabled or set 'quarkus.easynats.servers' property explicitly"

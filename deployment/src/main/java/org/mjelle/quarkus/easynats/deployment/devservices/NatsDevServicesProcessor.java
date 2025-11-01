@@ -32,7 +32,7 @@ public class NatsDevServicesProcessor {
     private static final String NATS_URL_PROPERTY = "quarkus.easynats.servers";
     public static final String CONTAINER_LABEL = "quarkus-easynats";
 
-    private static final ContainerLocator natsContainerLocator = new ContainerLocator(CONTAINER_LABEL, 4442);
+    private static final ContainerLocator natsContainerLocator = new ContainerLocator(CONTAINER_LABEL, NatsContainer.NATS_PORT);
 
     @BuildStep
     void startNatsDevService(LaunchModeBuildItem launchMode,
@@ -124,7 +124,7 @@ public class NatsDevServicesProcessor {
             LaunchMode launchMode,
             NatsDevServicesBuildTimeConfiguration config) {
         String scheme = config.sslEnabled() ? "tls" : "nats";
-        int port = config.port().orElse(4222);
+        int port = config.port().orElse(NatsContainer.NATS_PORT);
         return natsContainerLocator
                 .locateContainer("nats", true, launchMode)
                 .or(() -> ComposeLocator.locateContainer(composeProjectBuildItem,

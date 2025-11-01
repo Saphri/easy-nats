@@ -5,7 +5,6 @@ import io.quarkus.runtime.annotations.ConfigRoot;
 import io.smallrye.config.ConfigMapping;
 import io.smallrye.config.WithDefault;
 
-import java.util.Optional;
 import java.util.OptionalInt;
 
 /**

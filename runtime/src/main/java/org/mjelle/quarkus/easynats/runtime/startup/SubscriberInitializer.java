@@ -54,7 +54,6 @@ public class SubscriberInitializer {
     private final ObjectMapper objectMapper;
     private final NatsConfiguration config;
     private final List<MessageConsumer> consumers = new ArrayList<>();
-    private boolean subscribersInitialized = false;
 
     /**
      * Creates a new subscriber initializer.
@@ -93,27 +92,6 @@ public class SubscriberInitializer {
     }
 
     /**
-     * Ensures subscribers are initialized.
-     *
-     * This method is idempotent - calling it multiple times only initializes once.
-     *
-     * @throws IllegalStateException if any subscriber initialization fails
-     */
-    public synchronized void ensureInitialized() {
-        if (subscribersInitialized) {
-            return;
-        }
-
-        try {
-            config.validate();
-            initializeAllSubscribers();
-        } catch (Exception e) {
-            LOGGER.errorf(e, "Failed to ensure NATS subscribers are initialized");
-            throw new IllegalStateException("Failed to ensure NATS subscribers are initialized", e);
-        }
-    }
-
-    /**
      * Initializes all registered subscribers.
      *
      * @throws IllegalStateException if any subscriber initialization fails
@@ -132,7 +110,6 @@ public class SubscriberInitializer {
             }
         }
 
-        subscribersInitialized = true;
         LOGGER.infof(
                 "Successfully initialized %d NATS subscribers",
                 subscriberRegistry.getSubscribers().size());
@@ -164,7 +141,7 @@ public class SubscriberInitializer {
      * @throws Exception if consumer creation, verification, or handler registration fails
      */
     private void initializeSubscriber(SubscriberMetadata metadata)
-            throws Exception, ClassNotFoundException {
+            throws Exception {
 
         // Get the bean instance and method from the registry
         Object bean = getBeanInstance(metadata);

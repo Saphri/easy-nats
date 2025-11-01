@@ -19,8 +19,8 @@ public class NatsContainer extends GenericContainer<NatsContainer> implements St
 
     private static final Logger logger = Logger.getLogger(NatsContainer.class);
 
-    static final Integer NATS_PORT = 4222;
-    static final Integer NATS_HTTP_PORT = 8222;
+    public static final Integer NATS_PORT = 4222;
+    public static final Integer NATS_HTTP_PORT = 8222;
 
     private final OptionalInt fixedExposedPort;
     private final boolean useSharedNetwork;
@@ -52,7 +52,7 @@ public class NatsContainer extends GenericContainer<NatsContainer> implements St
         }
         addExposedPort(NATS_HTTP_PORT);
         super.withCommand("--jetstream", "--user", username, "--pass", password, "--http_port", NATS_HTTP_PORT.toString());
-        super.withLogConsumer(outputFrame -> logger.info(outputFrame.getUtf8String().replace("\n", "")));
+        super.withLogConsumer(outputFrame -> logger.info(outputFrame.getUtf8String().stripTrailing()));
 
         this.hostName = ConfigureUtil.configureNetwork(this, defaultNetworkId, useSharedNetwork, "nats");
     }
