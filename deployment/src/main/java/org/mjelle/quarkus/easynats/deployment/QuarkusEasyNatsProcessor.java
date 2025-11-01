@@ -28,6 +28,7 @@ import org.jboss.jandex.ParameterizedType;
 import org.jboss.jandex.Type;
 import org.mjelle.quarkus.easynats.NatsConnectionManager;
 import org.mjelle.quarkus.easynats.NatsPublisher;
+import org.mjelle.quarkus.easynats.NatsSubscriber;
 import org.mjelle.quarkus.easynats.NatsSubject;
 import org.mjelle.quarkus.easynats.runtime.NatsConnectionProvider;
 import org.mjelle.quarkus.easynats.runtime.health.ConnectionStatusHolder;
@@ -47,13 +48,14 @@ import org.mjelle.quarkus.easynats.runtime.startup.SubscriberInitializer;
 class QuarkusEasyNatsProcessor {
 
     private static final String FEATURE = "quarkus-easy-nats";
-    private static final DotName NATS_SUBSCRIBER = DotName.createSimple("org.mjelle.quarkus.easynats.NatsSubscriber");
+    private static final DotName NATS_SUBSCRIBER = DotName.createSimple(NatsSubscriber.class.getName());
     private static final DotName NATS_PUBLISHER = DotName.createSimple(NatsPublisher.class.getName());
     private static final DotName NATS_SUBJECT = DotName.createSimple(NatsSubject.class.getName());
     private static final DotName LIST = DotName.createSimple(List.class.getName());
     private static final DotName SET = DotName.createSimple(Set.class.getName());
     private static final DotName QUEUE = DotName.createSimple(Queue.class.getName());
     private static final DotName MAP = DotName.createSimple(Map.class.getName());
+    private static final List<DotName> SUPPORTED_COLLECTIONS = List.of(LIST, SET, QUEUE, MAP);
 
     @BuildStep
     FeatureBuildItem feature() {
@@ -131,8 +133,6 @@ class QuarkusEasyNatsProcessor {
     }
 
     private void processTypeForReflection(Type type, BuildProducer<ReflectiveClassBuildItem> reflectiveClass) {
-        final List<DotName> SUPPORTED_COLLECTIONS = List.of(LIST, SET, QUEUE, MAP);
-
         if (type.kind() == Type.Kind.CLASS) {
             reflectiveClass.produce(ReflectiveClassBuildItem.builder(type.asClassType().name().toString()).build());
         } else if (type.kind() == Type.Kind.PARAMETERIZED_TYPE) {
