@@ -7,6 +7,8 @@
 
 This guide covers how to configure the Quarkus EasyNATS extension, including connection settings, authentication, and TLS/SSL security.
 
+> **💡 Development Tip**: For local development and testing, you don't need to configure anything! [Quarkus Dev Services](./DEV_SERVICES_GUIDE.md) automatically provisions a NATS container with zero configuration. This guide is for production deployments and advanced scenarios where you want explicit server control.
+
 ---
 
 ## Table of Contents
