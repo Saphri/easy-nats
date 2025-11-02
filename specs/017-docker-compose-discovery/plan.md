@@ -262,12 +262,12 @@ mvn quarkus:dev
    - No longer needs `BuildProducer` pattern for managed containers
 
 2. **Enhance `discoverRunningService()` (lines 123-144)**:
-   - Already uses `ComposeLocator.locateContainer()`
+   - Already uses `ComposeLocator.locateContainer()` (discovers containers with exposed ports)
    - Add credential extraction from container environment variables
    - Add SSL detection logic
-   - Handle both single container and clustering scenarios
-   - For multiple containers: build comma-separated URL list
-   - Return complete `ContainerConfig` with all metadata
+   - For clustering: ComposeLocator naturally discovers only primary node (has exposed port)
+   - NATS client handles secondary discovery via cluster routes (no multi-URL needed)
+   - Return complete `ContainerConfig` with discovered primary node metadata
 
 3. **Remove `NatsContainer` class entirely**:
    - File: `deployment/src/main/java/org/mjelle/quarkus/easynats/deployment/devservices/NatsContainer.java`

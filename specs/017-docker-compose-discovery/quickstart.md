@@ -457,49 +457,80 @@ The extension automatically detects the certificate paths and uses `tls://` sche
 
 ### Scenario 3: NATS Clustering
 
-To test NATS clustering with multiple nodes:
+To test NATS clustering with multiple nodes on a private network:
 
 ```yaml
+version: "3.5"
+
 services:
+  nats:
+    image: nats:2.10
+    container_name: nats-server
+    ports:
+      - "4222:4222"  # NATS client port (primary node)
+      - "8222:8222"  # HTTP monitoring
+    environment:
+      NATS_USERNAME: ruser
+      NATS_PASSWORD: T0pS3cr3t
+    command:
+      - "--cluster_name=NATS"
+      - "--cluster=nats://0.0.0.0:6222"
+      - "--http_port=8222"
+      - "-js"  # Enable JetStream
+    networks: ["nats"]
+
   nats-1:
     image: nats:2.10
-    container_name: nats-1
-    ports:
-      - "4222:4222"
+    container_name: nats-node-1
     environment:
-      NATS_USERNAME: cluster-user
-      NATS_PASSWORD: cluster-pass
-    command: ["-js", "-server_name=nats-1", "-cluster=nats://0.0.0.0:6222", "-routes=nats://nats-2:6222,nats://nats-3:6222"]
+      NATS_USERNAME: ruser
+      NATS_PASSWORD: T0pS3cr3t
+    command:
+      - "--cluster_name=NATS"
+      - "--cluster=nats://0.0.0.0:6222"
+      - "--routes=nats://ruser:T0pS3cr3t@nats:6222"
+      - "-js"
+    networks: ["nats"]
+    depends_on: ["nats"]
 
   nats-2:
     image: nats:2.10
-    container_name: nats-2
-    ports:
-      - "4223:4222"
+    container_name: nats-node-2
     environment:
-      NATS_USERNAME: cluster-user
-      NATS_PASSWORD: cluster-pass
-    command: ["-js", "-server_name=nats-2", "-cluster=nats://0.0.0.0:6222", "-routes=nats://nats-1:6222,nats://nats-3:6222"]
+      NATS_USERNAME: ruser
+      NATS_PASSWORD: T0pS3cr3t
+    command:
+      - "--cluster_name=NATS"
+      - "--cluster=nats://0.0.0.0:6222"
+      - "--routes=nats://ruser:T0pS3cr3t@nats:6222"
+      - "-js"
+    networks: ["nats"]
+    depends_on: ["nats"]
 
-  nats-3:
-    image: nats:2.10
-    container_name: nats-3
-    ports:
-      - "4224:4222"
-    environment:
-      NATS_USERNAME: cluster-user
-      NATS_PASSWORD: cluster-pass
-    command: ["-js", "-server_name=nats-3", "-cluster=nats://0.0.0.0:6222", "-routes=nats://nats-1:6222,nats://nats-2:6222"]
+networks:
+  nats:
+    name: nats-cluster
 ```
 
 **What the extension discovers**:
-- Discovers all 3 NATS containers automatically
-- Connection URL: `nats://localhost:4222,nats://localhost:4223,nats://localhost:4224`
-- Username: `cluster-user` (from all containers)
-- Password: `cluster-pass` (from all containers)
-- Quarkus automatically handles failover across all nodes
+- Primary NATS server on `localhost:4222` (port mapped)
+- Secondary nodes on internal network (only discoverable from primary via routes)
+- **Important**: Only the primary server (with exposed port) can be discovered for external connection
+- The NATS client automatically discovers cluster members via server routes
+- Connection URL: `nats://localhost:4222` (single primary server entry point)
+- All nodes share username: `ruser`, password: `T0pS3cr3t`
 
-**Note**: All containers in a cluster MUST share the same authentication credentials and SSL configuration.
+**How clustering works**:
+1. Application connects to primary NATS server on localhost:4222
+2. Primary server info includes routes to secondary nodes
+3. NATS client automatically connects to all cluster members for failover
+4. If primary fails, client fails over to secondary nodes via cluster routes
+
+**Note on Multi-Network Setup**:
+- Nodes on the private `nats` network communicate via cluster routes
+- Secondary nodes don't need exposed ports (accessed via cluster routing)
+- Only primary node needs exposed port for external access
+- All containers MUST share same authentication credentials
 
 ### Scenario 4: No Authentication (Development Only!)
 

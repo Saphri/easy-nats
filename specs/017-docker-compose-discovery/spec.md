@@ -100,7 +100,7 @@ The Dev Services processor detects and connects to NATS containers that are part
 - **FR-008**: Processor MUST support containers that expose NATS on custom ports
 - **FR-009**: When no docker-compose NATS container is discovered, processor MUST NOT initialize Dev Services (application must provide explicit configuration)
 - **FR-010**: Processor MUST log discovery attempts and results at appropriate levels (debug for attempts, info for discovery success, warn for discovery failure)
-- **FR-011**: For multiple discovered NATS containers (clustering), processor MUST build comma-separated connection URL list (e.g., `nats://host1:port1,nats://host2:port2,nats://host3:port3`)
+- **FR-011**: For NATS clustering scenarios, processor SHOULD connect to primary node with exposed port; NATS client automatically discovers secondary nodes via cluster routes (no need for explicit multi-URL configuration)
 
 ### Key Entities *(include if feature involves data)*
 

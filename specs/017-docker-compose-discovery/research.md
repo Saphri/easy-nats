@@ -334,22 +334,36 @@ NATS supports clustering for high availability and scalability. In local dev env
 
 ### Decision
 
-**Support NATS clustering via multiple container discovery**:
-1. Detect all NATS containers from docker-compose (not just first one)
-2. Extract connection info from each discovered container
-3. Build comma-separated URL list: `nats://host1:port1,nats://host2:port2,...`
-4. Apply to `quarkus.easynats.servers` configuration
+**Support NATS clustering by connecting to primary node with exposed port**:
+
+1. Discover the primary NATS container (one with exposed/mapped port)
+2. Extract connection info from primary: host, port, credentials, SSL
+3. Apply to `quarkus.easynats.servers` configuration (single primary node URL)
+4. NATS client automatically discovers secondary nodes via cluster routes
+
+**Why this approach**:
+- NATS clustering uses internal routes for secondary node discovery
+- Client connects to one node, cluster routes provide failover
+- Only primary node needs exposed port for external access
+- Secondary nodes on private network, accessed via cluster routing
+- No need for multi-URL configuration (NATS handles internally)
+
+**Optional Enhancement** (not required):
+- If multiple containers with exposed ports detected: could build comma-separated URL list
+- But NATS client will use cluster routes anyway
+- Primary approach (single primary connection) is simpler and more common
 
 **Constraints**:
 - All containers must share same username and password
 - All containers must have same SSL/TLS configuration
-- Implementation should handle 1-N containers gracefully
+- Primary node must have exposed/mapped port for external access
 
 **Rationale**:
 - Enables testing of clustering behavior in dev/test environments
-- Requires minimal additional implementation (list building)
-- Leverages native NATS client clustering support
-- Matches user's potential docker-compose clustering setup
+- Minimal implementation (just handle primary node discovery)
+- Matches real NATS clustering setup (private network + cluster routes)
+- Leverages native NATS client cluster routing support
+- Works with standard docker-compose network patterns
 
 ---
 

@@ -145,26 +145,25 @@ public record ContainerConfig(
     }
 
     /**
-     * Generates NATS connection URL(s) from container config
+     * Generates NATS connection URL from container config
      * For single container: returns single URL (e.g., "nats://host:port")
-     * For clustering: returns comma-separated URLs (e.g., "nats://host1:port,nats://host2:port")
-     * @return properly formatted NATS connection URL(s)
+     * For clustering: returns primary node URL; NATS client discovers secondary nodes via cluster routes
+     * @return properly formatted NATS connection URL
      */
     public String toConnectionUrl() {
         String scheme = sslEnabled ? "tls" : "nats";
-        // NOTE: Implementation will build comma-separated list for clustering
-        // from all discovered container hosts and ports
         return scheme + "://" + host + ":" + port;
     }
 
     /**
      * Generates configuration map for Quarkus Dev Services
-     * Supports both single container and clustering scenarios
+     * Supports both single container and clustering scenarios.
+     * For clustering, only primary node URL needed; NATS handles secondary discovery via cluster routes.
      * @return property name -> value mapping
      */
     public Map<String, String> toConfigurationMap() {
         return Map.of(
-            "quarkus.easynats.servers", toConnectionUrl(),  // Single or comma-separated URLs
+            "quarkus.easynats.servers", toConnectionUrl(),
             "quarkus.easynats.username", username,
             "quarkus.easynats.password", password,
             "quarkus.easynats.ssl-enabled", String.valueOf(sslEnabled)
@@ -190,62 +189,7 @@ public record ContainerConfig(
 
 ---
 
-### 3. MultiContainerMetadata (For Clustering)
-
-**Purpose**: Internal data structure for managing multiple discovered NATS containers (clustering scenario).
-
-**Location**: Package `org.mjelle.quarkus.easynats.deployment.devservices` (internal/package-private)
-
-```java
-/**
- * Encapsulates metadata for multiple discovered NATS containers.
- * Used when clustering (multiple containers) is detected.
- */
-record MultiContainerMetadata(
-    /**
-     * List of all discovered NATS containers with their connection info
-     * Ordered for consistent URL generation
-     */
-    List<ContainerInfo> containers,
-
-    /**
-     * Shared credentials (all containers in cluster use same auth)
-     */
-    String username,
-    String password,
-
-    /**
-     * Shared SSL configuration (all containers in cluster use same TLS setting)
-     */
-    boolean sslEnabled
-) {
-    /**
-     * Generates comma-separated connection URL list for clustering
-     * @return "nats://host1:port1,nats://host2:port2,nats://host3:port3"
-     */
-    public String toConnectionUrlList() {
-        String scheme = sslEnabled ? "tls" : "nats";
-        return containers.stream()
-            .map(c -> scheme + "://" + c.host() + ":" + c.port())
-            .collect(java.util.stream.Collectors.joining(","));
-    }
-
-    /**
-     * Container info record for clustering
-     */
-    record ContainerInfo(String host, int port, String containerId) {}
-}
-```
-
-**Usage**: When multiple NATS containers are discovered:
-1. Extract container info from each discovered container
-2. Create `MultiContainerMetadata` with all containers
-3. Generate comma-separated URL list via `toConnectionUrlList()`
-4. Merge into single `ContainerConfig` with combined URLs
-
----
-
-### 4. CredentialExtractorConfig (Optional Helper)
+### 3. CredentialExtractorConfig (Optional Helper)
 
 **Purpose**: Helper for extracting and validating credentials from container environment.
 
