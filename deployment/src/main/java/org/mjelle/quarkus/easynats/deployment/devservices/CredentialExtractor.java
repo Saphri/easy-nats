@@ -93,11 +93,6 @@ class CredentialExtractor {
             || containerEnv.containsKey(TLS_KEY_ENV_VAR)
             || containerEnv.containsKey(TLS_CA_ENV_VAR);
 
-        // Fallback to label if certificate env vars not found
-        if (!ssl && containerEnv.containsKey("io.nats.tls")) {
-            ssl = Boolean.parseBoolean(containerEnv.get("io.nats.tls"));
-        }
-
         return new Credentials(username, password, ssl);
     }
 

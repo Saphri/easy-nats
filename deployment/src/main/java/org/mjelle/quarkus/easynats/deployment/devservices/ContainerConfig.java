@@ -137,18 +137,29 @@ public record ContainerConfig(
     /**
      * Generates NATS connection URL(s) from container config.
      * For single container: returns single URL (e.g., "nats://host:port")
-     * For clustering: returns comma-separated list of all discovered nodes
+     * For clustering: returns comma-separated list of all discovered nodes.
+     * For clustering, the number of hosts and ports MUST match.
      * @return properly formatted NATS connection URL or comma-separated URL list
+     * @throws IllegalArgumentException if hosts and ports counts don't match in clustering scenario
      */
     public String toConnectionUrl() {
         String scheme = sslEnabled ? "tls" : "nats";
         String[] hosts = host.split(",");
         String[] ports = port.split(",");
 
+        // For clustering (multiple hosts), validate that hosts and ports match
+        if (hosts.length > 1 && hosts.length != ports.length) {
+            throw new IllegalArgumentException(
+                String.format("Clustering configuration mismatch: %d hosts but %d ports. " +
+                    "For clustering, each host must have a corresponding port.",
+                    hosts.length, ports.length));
+        }
+
         List<String> urls = new ArrayList<>();
         for (int i = 0; i < hosts.length; i++) {
             String hostPart = hosts[i].trim();
-            String portPart = (i < ports.length) ? ports[i].trim() : ports[0].trim();
+            // For single container, use its port. For clustering, use corresponding port.
+            String portPart = (hosts.length == 1) ? ports[0].trim() : ports[i].trim();
             urls.add(scheme + "://" + hostPart + ":" + portPart);
         }
         return String.join(",", urls);

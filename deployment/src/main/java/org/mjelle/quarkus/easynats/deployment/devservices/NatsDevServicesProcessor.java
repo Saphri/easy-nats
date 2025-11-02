@@ -172,30 +172,28 @@ public class NatsDevServicesProcessor {
                     containerAddress.getId(), containerAddress.getUrl());
 
                 // Extract credentials from container environment
+                // Collect all environment variables that CredentialExtractor might need
                 Map<String, String> containerEnv = new HashMap<>();
                 var runningContainer = containerAddress.getRunningContainer();
                 if (runningContainer != null) {
-                    // Try to get environment variables from the running container
-                    String username = runningContainer.tryGetEnv("NATS_USERNAME")
-                        .orElseGet(() -> runningContainer.tryGetEnv("NATS_USER").orElse(null));
-                    if (username != null) {
-                        containerEnv.put("NATS_USERNAME", username);
-                    }
-
+                    // Collect NATS credentials - CredentialExtractor handles fallback logic
+                    runningContainer.tryGetEnv("NATS_USERNAME")
+                        .ifPresent(val -> containerEnv.put("NATS_USERNAME", val));
+                    runningContainer.tryGetEnv("NATS_USER")
+                        .ifPresent(val -> containerEnv.put("NATS_USER", val));
                     runningContainer.tryGetEnv("NATS_PASSWORD")
-                        .ifPresent(password -> containerEnv.put("NATS_PASSWORD", password));
+                        .ifPresent(val -> containerEnv.put("NATS_PASSWORD", val));
 
-                    // Check for TLS certificates
+                    // Collect TLS certificate paths for SSL detection
                     runningContainer.tryGetEnv("NATS_TLS_CERT")
-                        .ifPresent(tlsCert -> containerEnv.put("NATS_TLS_CERT", tlsCert));
-
+                        .ifPresent(val -> containerEnv.put("NATS_TLS_CERT", val));
                     runningContainer.tryGetEnv("NATS_TLS_KEY")
-                        .ifPresent(tlsKey -> containerEnv.put("NATS_TLS_KEY", tlsKey));
-
+                        .ifPresent(val -> containerEnv.put("NATS_TLS_KEY", val));
                     runningContainer.tryGetEnv("NATS_TLS_CA")
-                        .ifPresent(tlsCa -> containerEnv.put("NATS_TLS_CA", tlsCa));
+                        .ifPresent(val -> containerEnv.put("NATS_TLS_CA", val));
                 }
 
+                // Delegate all credential extraction logic to CredentialExtractor
                 CredentialExtractor.Credentials creds = CredentialExtractor.extract(containerEnv);
                 log.debugf("Extracted credentials: username=%s, ssl=%b", creds.username(), creds.sslEnabled());
 
