@@ -130,7 +130,10 @@ The Dev Services processor detects and connects to NATS containers that are part
 - NATS container environment variables follow standard naming conventions for storing credentials (e.g., NATS_USERNAME, NATS_PASSWORD, or similar)
 - Dev Services discovery leverages existing Quarkus container locator utilities and docker integration
 - The feature is only relevant for development and test launch modes (not production)
-- NATS clustering (multiple containers) supported: extension discovers all NATS containers and builds comma-separated connection URL list
+- **Common Use Case (99% of users)**: Single NATS container with username/password authentication - fully tested
+- **Advanced Features (optional, documented but not tested)**:
+  - NATS clustering: Extension code supports discovering multiple NATS containers with exposed ports and builds comma-separated connection URL list. Not tested by default CI.
+  - TLS/SSL: Extension code supports detecting NATS_TLS_CERT, NATS_TLS_KEY, NATS_TLS_CA env vars and uses tls:// scheme. Not tested by default CI.
 - All NATS containers in a cluster share the same authentication credentials and SSL configuration
 
 ## Constraints & Out of Scope
