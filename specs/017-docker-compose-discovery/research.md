@@ -111,18 +111,25 @@ environment:
 **Implementation Pattern**:
 ```java
 // Pseudo-code for extraction
-String username = container.getEnv("NATS_USERNAME", "nats");
+String username = container.getEnv("NATS_USERNAME",
+    container.getEnv("NATS_USER", "nats"));  // Support both naming conventions
 String password = container.getEnv("NATS_PASSWORD", "nats");
 int port = container.getMappedPort(4222); // or getExposedPort()
 boolean ssl = Boolean.parseBoolean(container.getEnv("NATS_TLS", "false"));
 ```
 
 **Rationale**:
-- Matches NATS community conventions
+- Standard names (`NATS_USERNAME`/`NATS_PASSWORD`) align with Quarkus conventions
+- Alternative names (`NATS_USER`) supported for backward compatibility with existing NATS setups
 - Supports both dev (explicit creds) and default (no auth) scenarios
 - Backward compatible: if creds not specified, defaults to working configuration
 - No file parsing complexity
 - Reliable across different NATS image versions
+
+**Variable Naming Notes**:
+- Project's integration tests use `NATS_USER` (non-standard NATS convention)
+- Extension standardizes on `NATS_USERNAME` for clarity and consistency
+- Both patterns will be recognized during implementation (flexibility first, consistency second)
 
 ---
 

@@ -108,6 +108,253 @@ mvn quarkus:dev
 
 ---
 
+## NATS Configuration Guide
+
+### Docker Compose Setup
+
+The NATS service definition in docker-compose requires proper configuration for the extension to discover and extract credentials correctly.
+
+#### Basic Configuration (No Auth)
+
+Minimal setup for local development:
+
+```yaml
+services:
+  nats:
+    image: nats:2.10-alpine
+    container_name: nats-dev
+    ports:
+      - "4222:4222"
+    command: ["-js"]  # Enable JetStream
+```
+
+**What the extension discovers**:
+- Host: `localhost`
+- Port: `4222`
+- Username: `nats` (default)
+- Password: `nats` (default)
+- SSL: `false` (default)
+
+#### With Authentication
+
+Use environment variables to configure credentials:
+
+```yaml
+services:
+  nats:
+    image: nats:2.10
+    container_name: nats-dev
+    ports:
+      - "4222:4222"
+      - "8222:8222"  # HTTP monitoring
+    environment:
+      NATS_USERNAME: admin
+      NATS_PASSWORD: secretpass123
+    command: ["-js", "--http_port", "8222"]
+```
+
+**What the extension discovers**:
+- Host: `localhost`
+- Port: `4222`
+- Username: `admin` (from `NATS_USERNAME`)
+- Password: `secretpass123` (from `NATS_PASSWORD`)
+- SSL: `false`
+
+#### Configuration File Approach
+
+For more complex setups, use a NATS configuration file with environment variable substitution:
+
+**docker-compose-devservices.yml**:
+```yaml
+services:
+  nats:
+    image: nats:2.10
+    container_name: nats-dev
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    environment:
+      NATS_USER: ruser
+      NATS_PASSWORD: T0pS3cr3t
+    volumes:
+      - ./nats.conf:/etc/nats/nats.conf:ro
+    command: ["-c", "/etc/nats/nats.conf", "-js"]
+    labels:
+      io.quarkus.devservices.compose.wait_for.logs: ".*Server is ready.*"
+```
+
+**nats.conf**:
+```properties
+# Listen on standard port
+listen: 0.0.0.0:4222
+
+# HTTP monitoring port
+http: 8222
+
+# Authentication using environment variables
+authorization {
+  users = [
+    { user: $NATS_USER, password: $NATS_PASSWORD }
+  ]
+}
+
+# JetStream configuration
+jetstream: {
+  store_dir: /tmp/nats/jetstream
+}
+```
+
+**What the extension discovers**:
+- Reads `NATS_USER` and `NATS_PASSWORD` from environment
+- Host: `localhost`
+- Port: `4222`
+- Username: `ruser` (from `NATS_USER`)
+- Password: `T0pS3cr3t` (from `NATS_PASSWORD`)
+- SSL: `false`
+
+**Note**: The extension looks for `NATS_USERNAME` and `NATS_PASSWORD` environment variables by default. If your config uses different names (like `NATS_USER`), you must ensure the variable names match the extension's expectations or update them.
+
+#### With TLS/SSL
+
+To enable TLS for secure connections:
+
+**docker-compose-devservices.yml** (with TLS):
+```yaml
+services:
+  nats:
+    image: nats:2.10
+    container_name: nats-dev
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    environment:
+      NATS_USERNAME: secure-user
+      NATS_PASSWORD: secure-pass
+      NATS_TLS: "true"
+    volumes:
+      - ./nats.conf:/etc/nats/nats.conf:ro
+      - ./certs:/etc/nats/certs:ro
+    command: ["-c", "/etc/nats/nats.conf", "-js"]
+```
+
+**nats.conf** (with TLS):
+```properties
+# Listen on standard port
+listen: 0.0.0.0:4222
+
+# HTTP monitoring port
+http: 8222
+
+# Authentication
+authorization {
+  users = [
+    { user: $NATS_USERNAME, password: $NATS_PASSWORD }
+  ]
+}
+
+# TLS Configuration
+tls: {
+  cert_file: /etc/nats/certs/server-cert.pem
+  key_file:  /etc/nats/certs/server-key.pem
+  ca_file:   /etc/nats/certs/ca.pem
+}
+
+# JetStream configuration
+jetstream: {
+  store_dir: /tmp/nats/jetstream
+}
+```
+
+**What the extension discovers**:
+- Host: `localhost`
+- Port: `4222`
+- Username: `secure-user` (from `NATS_USERNAME`)
+- Password: `secure-pass` (from `NATS_PASSWORD`)
+- SSL: `true` (from `NATS_TLS` environment variable)
+- Connection URL: `tls://localhost:4222` (automatically uses `tls://` scheme)
+
+**Certificate Setup** (for TLS):
+
+Generate self-signed certificates for local development:
+
+```bash
+# Create certificates directory
+mkdir -p certs
+
+# Generate CA certificate
+openssl genrsa -out certs/ca-key.pem 2048
+openssl req -new -x509 -days 365 -key certs/ca-key.pem -out certs/ca.pem \
+  -subj "/CN=nats-ca"
+
+# Generate server key
+openssl genrsa -out certs/server-key.pem 2048
+
+# Create server certificate signing request
+openssl req -new -key certs/server-key.pem -out certs/server.csr \
+  -subj "/CN=nats"
+
+# Sign server certificate with CA
+openssl x509 -req -days 365 -in certs/server.csr \
+  -CA certs/ca.pem -CAkey certs/ca-key.pem -CAcreateserial \
+  -out certs/server-cert.pem
+
+# Clean up CSR
+rm certs/server.csr
+```
+
+Then add `certs` directory to version control or gitignore as needed.
+
+### Environment Variables Recognized
+
+The NATS extension recognizes these standard environment variables:
+
+| Variable | Purpose | Example |
+|----------|---------|---------|
+| `NATS_USERNAME` | Client authentication username | `NATS_USERNAME=admin` |
+| `NATS_PASSWORD` | Client authentication password | `NATS_PASSWORD=secret` |
+| `NATS_TLS` | Enable TLS/SSL connection | `NATS_TLS=true` |
+| `NATS_USER` | Alternative username variable | `NATS_USER=ruser` (see note below) |
+
+**⚠️ Important**: The extension looks for `NATS_USERNAME` and `NATS_PASSWORD` by default. If your setup uses different environment variable names (e.g., `NATS_USER` instead of `NATS_USERNAME`), you must either:
+1. Rename them to `NATS_USERNAME`/`NATS_PASSWORD` in docker-compose, OR
+2. Update the nats.conf to use the correct variable names that match what the extension expects
+
+### JetStream Configuration
+
+The extension requires JetStream to be enabled in NATS:
+
+```properties
+# In docker-compose command:
+command: ["-js"]  # Simple flag to enable JetStream
+
+# Or in nats.conf:
+jetstream: {
+  store_dir: /tmp/nats/jetstream
+}
+```
+
+### Health Checks
+
+Add health checks to ensure NATS is ready before the application starts:
+
+```yaml
+services:
+  nats:
+    image: nats:2.10
+    # ... other config ...
+    healthcheck:
+      test: ["CMD", "nats", "server", "info"]
+      interval: 5s
+      timeout: 2s
+      retries: 3
+      start_period: 10s
+    labels:
+      # Alternative: Wait for specific log output
+      io.quarkus.devservices.compose.wait_for.logs: ".*Server is ready.*"
+```
+
+---
+
 ## Testing Auto-Discovery
 
 ### Verify Container Is Discovered
@@ -168,21 +415,32 @@ The extension automatically detects the port mapping and configures accordingly.
 
 ### Scenario 2: TLS/SSL Enabled
 
-To test with TLS enabled:
+To test with TLS enabled, see the **With TLS/SSL** section in the [NATS Configuration Guide](#with-tlsssl) above. It includes:
+
+- Full docker-compose configuration
+- nats.conf with TLS settings
+- Certificate generation commands
+- What the extension discovers
+
+Quick example:
 
 ```yaml
 services:
   nats:
-    image: nats:2.10-alpine
+    image: nats:2.10
     ports:
       - "4222:4222"
     environment:
       NATS_USERNAME: secure-user
       NATS_PASSWORD: secure-pass
       NATS_TLS: "true"  # Enable TLS
+    volumes:
+      - ./nats.conf:/etc/nats/nats.conf:ro
+      - ./certs:/etc/nats/certs:ro
+    command: ["-c", "/etc/nats/nats.conf", "-js"]
 ```
 
-The extension detects `NATS_TLS=true` and automatically uses `tls://` scheme.
+The extension automatically detects `NATS_TLS=true` and uses `tls://` scheme for the connection URL.
 
 ### Scenario 3: No Authentication (Development Only!)
 
@@ -327,6 +585,90 @@ These are automatically configured from the discovered container:
 - **Mix property-based and discovery-based configuration** (discovery takes precedence)
 - **Manually set `quarkus.easynats.*` properties** in dev mode (dev services will override)
 - **Rely on container auto-cleanup** - explicitly stop/remove when done
+
+---
+
+## Reference Configuration Files
+
+This project includes example NATS configuration files in the integration-tests directory:
+
+### Example: Project's Integration Test Setup
+
+**File**: `integration-tests/docker-compose-devservices.yml`
+
+Shows a production-like setup with:
+- Configuration file mounting
+- Environment variable substitution
+- Multiple services (NATS + observability stack)
+- Health check and readiness configuration
+
+```yaml
+name: easy-nats-integration-tests
+services:
+  nats:
+    image: nats:2.11
+    container_name: nats
+    environment:
+      NATS_USER: ruser
+      NATS_PASSWORD: T0pS3cr3t
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    volumes:
+      - ./nats.conf:/etc/nats/nats.conf:ro
+    command: ["-c", "/etc/nats/nats.conf", "-js"]
+    labels:
+      io.quarkus.devservices.compose.wait_for.logs: ".*Server is ready.*"
+```
+
+**File**: `integration-tests/nats.conf`
+
+Configuration file supporting:
+- Environment variable substitution
+- JetStream setup
+- TLS configuration (commented out, ready to enable)
+
+```properties
+listen: 0.0.0.0:4222
+http: 8222
+
+authorization {
+  users = [
+    { user: $NATS_USER, password: $NATS_PASSWORD }
+  ]
+}
+
+jetstream: {
+  store_dir: /tmp/nats/jetstream
+}
+
+# TLS can be enabled by uncommenting:
+# tls: {
+#   cert_file: /etc/nats/certs/server-cert.pem
+#   key_file:  /etc/nats/certs/server-key.pem
+#   ca_file:   /etc/nats/certs/ca.pem
+# }
+```
+
+**Note on Environment Variables**: This setup uses `NATS_USER` and `NATS_PASSWORD` instead of the standard `NATS_USERNAME` and `NATS_PASSWORD`. The extension looks for the standard names by default. For this configuration to work with the extension:
+
+**Option 1** (Recommended): Update docker-compose to use standard variable names:
+```yaml
+environment:
+  NATS_USERNAME: ruser      # Changed from NATS_USER
+  NATS_PASSWORD: T0pS3cr3t  # Keep as-is
+```
+
+And update nats.conf:
+```properties
+authorization {
+  users = [
+    { user: $NATS_USERNAME, password: $NATS_PASSWORD }  # Updated names
+  ]
+}
+```
+
+**Option 2**: Update the extension to recognize `NATS_USER` (requires code change in discovery logic)
 
 ---
 
