@@ -16,6 +16,15 @@ updates:
       - "dependencies"
       - "java"
     ignore:
+      # Quarkus LTS Strategy:
+      # - Current LTS: 3.27.x (released Oct 2024, supported until Oct 2025)
+      # - LTS cadence: Every 6 months (next LTS ~Apr 2025, likely 3.33.x)
+      # - This config allows patch updates (3.27.0 → 3.27.1) for security/bug fixes
+      # - Blocks minor updates (3.28, 3.29, etc.) which are NOT LTS versions
+      # - Blocks major updates (4.x) which have breaking changes
+      #
+      # IMPORTANT: When a new LTS is released, manually update quarkus.version in pom.xml
+      # Next LTS review: Check https://quarkus.io/blog/ around April 2025
       - dependency-name: "io.quarkus:*"
         update-types:
           - "version-update:semver-major"

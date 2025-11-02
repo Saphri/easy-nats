@@ -384,6 +384,36 @@ Ensure:
 
 ## Maintenance
 
+### Quarkus LTS Version Management
+
+**Current LTS:** Quarkus 3.27.x (released Oct 2024, supported until Oct 2025)
+
+**Dependabot Configuration:**
+- ✅ Auto-updates: Patch versions only (3.27.0 → 3.27.1, etc.)
+- ❌ Blocked: Minor/major versions (to stay on LTS)
+
+**Manual LTS Upgrades:**
+Dependabot will NOT notify you of new LTS versions. Check manually:
+
+1. **When:** Every 6 months (next check: ~April 2025)
+2. **Where:** https://quarkus.io/blog/
+3. **How to upgrade:**
+   ```bash
+   # Update version in pom.xml
+   <quarkus.version>3.33.0</quarkus.version>  # (example next LTS)
+
+   # Update dependabot.yml comments with new LTS info
+
+   # Test thoroughly
+   ./mvnw clean install -Pit
+   ./mvnw clean install -Dnative -Pit
+   ```
+
+**Why stay on LTS:**
+- Extensions should use LTS for stability
+- Users expect extensions to work with LTS versions
+- Avoid breaking changes from non-LTS releases
+
 ### Adding New Workflows
 
 1. Create workflow file in `.github/workflows/`
@@ -398,6 +428,7 @@ To change Java version:
 1. Update `matrix.java` in `build.yml`
 2. Update JDK setup version in all workflows
 3. Update `maven.compiler.release` in `pom.xml`
+4. Update Mandrel version to match (if using native builds)
 
 ---
 
