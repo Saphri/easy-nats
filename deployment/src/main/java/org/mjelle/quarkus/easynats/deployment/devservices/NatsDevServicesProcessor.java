@@ -135,7 +135,7 @@ public class NatsDevServicesProcessor {
                     return DevServicesResultBuildItem.discovered()
                             .name(FEATURE)
                             .containerId(containerAddress.getId())
-                            .config(Map.of("quarkus.easynats.servers", serverUrl,
+                            .config(Map.of(NATS_URL_PROPERTY, serverUrl,
                                     "quarkus.easynats.username", config.username(),
                                     "quarkus.easynats.password", config.password(),
                                     "quarkus.easynats.ssl-enabled", String.valueOf(config.sslEnabled())))
