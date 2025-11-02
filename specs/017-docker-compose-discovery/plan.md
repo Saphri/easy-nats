@@ -72,6 +72,7 @@ This feature modifies the existing Quarkus extension without creating new source
 ```text
 deployment/src/main/java/org/mjelle/quarkus/easynats/deployment/devservices/
 ├── NatsDevServicesProcessor.java   # MODIFIED: Refactor for compose discovery
+├── NatsContainer.java              # REMOVED: No longer needed (discovery-only, no container creation)
 ├── NatsDevServicesBuildTimeConfiguration.java  # UNCHANGED
 └── [supporting classes as needed]
 
@@ -86,7 +87,9 @@ integration-tests/docker-compose-devservices.yml
 └── [UPDATED: Ensure proper NATS service definition for testing]
 ```
 
-**Structure Decision**: Multi-module Quarkus extension (runtime/deployment/integration-tests). This feature modifies only the deployment module's dev services processor and related integration tests. No runtime module changes required per Constitution II (minimal dependencies).
+**Structure Decision**: Multi-module Quarkus extension (runtime/deployment/integration-tests). This feature modifies only the deployment module's dev services processor and related integration tests.
+
+**Key Simplification**: `NatsContainer` class will be removed since container creation/startup is no longer required. The processor now only discovers and configures existing containers, eliminating ~90 lines of container lifecycle management code.
 
 ## Complexity Tracking
 
@@ -251,20 +254,34 @@ mvn quarkus:dev
 
 ### Implementation Notes
 
-1. **Modify `NatsDevServicesProcessor.startNatsDevService()` (lines 37-105)**:
-   - Remove build-time container creation logic
-   - Keep only discovery attempt
-   - Do NOT initialize dev services if discovery fails (no fallback)
+1. **Refactor `NatsDevServicesProcessor.startNatsDevService()` (lines 37-105)**:
+   - **REMOVE**: Container creation logic (lines 64-93 creating NatsContainer and calling start())
+   - **KEEP**: Guard conditions and discovery attempt
+   - **REMOVE**: Fallback container creation when discovery fails
+   - **RESULT**: Method becomes discovery-only, ~90 lines of lifecycle code removed
+   - No longer needs `BuildProducer` pattern for managed containers
 
 2. **Enhance `discoverRunningService()` (lines 123-144)**:
    - Already uses `ComposeLocator.locateContainer()`
-   - Add credential extraction from container environment
+   - Add credential extraction from container environment variables
    - Add SSL detection logic
-   - Return complete configuration
+   - Return complete `ContainerConfig` with all metadata
 
-3. **Testing Strategy**:
-   - Unit test: Mock ContainerLocator, verify credential extraction
+3. **Remove `NatsContainer` class entirely**:
+   - File: `deployment/src/main/java/org/mjelle/quarkus/easynats/deployment/devservices/NatsContainer.java`
+   - No longer needed since we're not creating/starting containers
+   - Removes 87 lines of container lifecycle management code
+   - Was only used in the container creation path (lines 64-93 of processor)
+
+4. **Update imports in NatsDevServicesProcessor**:
+   - Remove: `import io.quarkus.deployment.builditem.DevServicesResultBuildItem.owned()`
+   - Remove: `import org.testcontainers.utility.DockerImageName`
+   - Keep: `ComposeLocator`, `ContainerLocator`, and other discovery imports
+
+5. **Testing Strategy**:
+   - Unit test: Mock ComposeLocator, verify credential extraction
    - Integration test: Start docker-compose with NATS, verify auto-discovery and connection
    - Native image test: Same scenarios as integration test in native context
+   - No longer need container lifecycle tests (no containers being managed)
 
 ---

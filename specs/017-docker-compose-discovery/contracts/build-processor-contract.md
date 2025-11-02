@@ -42,6 +42,7 @@ void startNatsDevService(
    - Call `discoverNatsContainer(composeProject, launchMode, config)`
    - If container found: Proceed to step 3
    - If not found: Proceed to step 4
+   - **REMOVED**: All container creation/startup logic from current implementation (lines 64-93 will be deleted)
 
 3. **Success: Discovered Container**
    - Extract `ContainerConfig` from discovery result
@@ -57,6 +58,7 @@ void startNatsDevService(
    - Do NOT create/start a managed container (per FR-009)
    - Do NOT fall back to application.properties (per FR-006)
    - Dev Services NOT initialized—application must provide explicit configuration
+   - **REMOVED**: All fallback container creation logic
 
 **Error Handling**:
 - Container discovery throws exception: Catch, log error, fail-fast with descriptive message
