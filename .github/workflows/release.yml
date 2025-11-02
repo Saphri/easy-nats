@@ -11,6 +11,11 @@ on:
         description: 'Next development version (e.g., 1.1.0-SNAPSHOT)'
         required: true
         type: string
+      build-native:
+        description: 'Build native executables (slower but includes native artifacts)'
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   release:
@@ -26,7 +31,8 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set up JDK 21
+      - name: Set up JDK 21 (Temurin)
+        if: ${{ !inputs.build-native }}
         uses: actions/setup-java@v4
         with:
           java-version: '21'
@@ -35,6 +41,24 @@ jobs:
           server-id: github
           server-username: GITHUB_ACTOR
           server-password: GITHUB_TOKEN
+
+      - name: Set up Mandrel (for native builds)
+        if: ${{ inputs.build-native }}
+        uses: graalvm/setup-graalvm@v1
+        with:
+          distribution: 'mandrel'
+          java-version: '21'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          mandrel-version: '23.1.5.0-Final'
+          cache: 'maven'
+
+      - name: Verify GraalVM installation
+        if: ${{ inputs.build-native }}
+        run: |
+          echo "GRAALVM_HOME: $GRAALVM_HOME"
+          echo "JAVA_HOME: $JAVA_HOME"
+          java -version
+          native-image --version
 
       - name: Configure Git
         run: |
@@ -47,15 +71,24 @@ jobs:
           git add pom.xml */pom.xml
           git commit -m "chore: release version ${{ inputs.version }}"
 
-      - name: Build and test release
+      - name: Build and test release (JVM mode)
+        if: ${{ !inputs.build-native }}
         run: ./mvnw -B clean install -Pit
+
+      - name: Build and test release (Native mode)
+        if: ${{ inputs.build-native }}
+        run: |
+          ./mvnw -B clean install -Pit -Dnative
+        env:
+          GRAALVM_HOME: ${{ env.GRAALVM_HOME }}
 
       - name: Create Git tag
         run: |
           git tag -a v${{ inputs.version }} -m "Release version ${{ inputs.version }}"
           git push origin v${{ inputs.version }}
 
-      - name: Create GitHub Release
+      - name: Create GitHub Release (JVM artifacts)
+        if: ${{ !inputs.build-native }}
         uses: softprops/action-gh-release@v1
         with:
           tag_name: v${{ inputs.version }}
@@ -66,6 +99,30 @@ jobs:
             runtime/target/*.jar
             deployment/target/*.jar
           generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create GitHub Release (JVM + Native artifacts)
+        if: ${{ inputs.build-native }}
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ inputs.version }}
+          name: Release ${{ inputs.version }} (with Native Executables)
+          draft: false
+          prerelease: false
+          files: |
+            runtime/target/*.jar
+            deployment/target/*.jar
+            integration-tests/target/*-runner
+          generate_release_notes: true
+          body: |
+            ## Native Build
+            This release includes native executables built with Mandrel GraalVM.
+
+            ### Native Executable
+            - Built with Mandrel 23.1.5.0
+            - Optimized for fast startup and low memory footprint
+            - See documentation for usage instructions
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

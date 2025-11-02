@@ -1,0 +1,81 @@
+name: Native Build
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  native-build:
+    name: Native Build with Mandrel ${{ matrix.mandrel-version }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-latest ]
+        mandrel-version: [ '23.1.5.0-Final' ]
+        java-version: [ '21' ]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Mandrel
+        uses: graalvm/setup-graalvm@v1
+        with:
+          distribution: 'mandrel'
+          java-version: ${{ matrix.java-version }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          mandrel-version: ${{ matrix.mandrel-version }}
+          cache: 'maven'
+
+      - name: Verify GraalVM installation
+        run: |
+          echo "GRAALVM_HOME: $GRAALVM_HOME"
+          echo "JAVA_HOME: $JAVA_HOME"
+          java -version
+          native-image --version
+
+      - name: Build JVM mode
+        run: ./mvnw -B clean install -DskipTests
+
+      - name: Build native executables
+        run: ./mvnw -B install -Dnative -DskipTests -Pit
+        env:
+          GRAALVM_HOME: ${{ env.GRAALVM_HOME }}
+
+      - name: Run native integration tests
+        run: ./mvnw -B verify -Dnative -Pit
+        env:
+          GRAALVM_HOME: ${{ env.GRAALVM_HOME }}
+
+      - name: Upload native build logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-build-logs-${{ matrix.os }}-mandrel-${{ matrix.mandrel-version }}
+          path: |
+            **/target/*.log
+            **/target/surefire-reports/
+            **/target/failsafe-reports/
+          retention-days: 7
+
+      - name: Upload native executables
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-executables-${{ matrix.os }}-mandrel-${{ matrix.mandrel-version }}
+          path: |
+            integration-tests/target/*-runner
+            integration-tests/target/*.so
+          retention-days: 7
+
+      - name: Check native executable
+        if: success()
+        run: |
+          if [ -f integration-tests/target/*-runner ]; then
+            ls -lh integration-tests/target/*-runner
+            file integration-tests/target/*-runner
+          fi
