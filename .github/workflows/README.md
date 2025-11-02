@@ -91,6 +91,49 @@ This directory contains automated workflows for building, testing, and releasing
 
 ---
 
+### 📝 Release Drafter (`release-drafter.yml`)
+
+**Trigger:** Runs on every push to `main`/`master` and on PR events
+
+**Purpose:** Automatically maintain a draft release with categorized changelog
+
+**What it does:**
+- Creates and updates a draft release automatically
+- Categorizes changes by type (Features, Bug Fixes, Documentation, etc.)
+- Auto-labels PRs based on conventional commit prefixes
+- Groups changes with emoji icons for easy scanning
+- Suggests next version number based on change types
+
+**How it works:**
+1. As PRs are merged to main, the draft release is updated
+2. Changes are categorized based on:
+   - PR labels (feature, bug, docs, etc.)
+   - Conventional commit prefixes in PR titles (feat:, fix:, docs:, etc.)
+3. Draft release shows what will be in the next release
+
+**Example categorized changelog:**
+```
+🚀 Features
+- Add native build support with Mandrel GraalVM @user (#123)
+
+🐛 Bug Fixes
+- Adapt workflows for Quarkus extension @user (#124)
+
+📝 Documentation
+- Document Quarkus LTS version management @user (#125)
+
+🔧 Maintenance
+- Update dependabot configuration @user (#126)
+```
+
+**Auto-labeling:** PRs are automatically labeled based on title:
+- `feat: ...` → `feature` label
+- `fix: ...` → `fix` label
+- `docs: ...` → `documentation` label
+- `chore: ...` → `chore` label
+
+---
+
 ### 🚀 Release (`release.yml`)
 
 **Trigger:** Manual workflow dispatch via GitHub UI
@@ -131,7 +174,27 @@ This directory contains automated workflows for building, testing, and releasing
 
 ## How to Use
 
-### Running a Release
+### Two Release Approaches
+
+You have **two ways** to create releases:
+
+#### **Option A: Automated Release (Recommended for automation)**
+Use the Release workflow for fully automated releases:
+1. Triggers version updates
+2. Builds and tests
+3. Creates release automatically
+4. Publishes to GitHub Packages
+
+#### **Option B: Manual Release (Recommended for more control)**
+Use the Release Drafter draft:
+1. Review the auto-generated draft release
+2. Edit changelog if needed
+3. Publish the draft release manually
+4. Then run the Release workflow to publish artifacts
+
+---
+
+### Running a Release (Automated)
 
 #### Standard Release (JVM mode only, ~5 minutes)
 
@@ -164,6 +227,27 @@ The workflow will:
 - Update POM versions to `1.1.0-SNAPSHOT` for next development
 - (If validate-native enabled) Confirm the extension works in native mode
 
+### Using Release Drafter (Manual Approach)
+
+**View the Draft Release:**
+
+1. Go to **Releases** page: `https://github.com/Saphri/easy-nats/releases`
+2. Look for the draft release (marked with "Draft" badge)
+3. Review the auto-generated, categorized changelog
+4. Edit if needed (add highlights, remove noise, etc.)
+5. Click **Publish release** when ready
+
+**Benefits:**
+- ✅ Review changelog before releasing
+- ✅ Edit and customize release notes
+- ✅ See what's included in next release at any time
+- ✅ Better categorization with emojis
+- ✅ Automatic PR labeling
+
+**The draft updates automatically** as you merge PRs to main, so you always know what's in the next release.
+
+---
+
 ### Running Native Validation Manually
 
 To validate native compatibility without creating a release:
@@ -179,6 +263,43 @@ This is useful for:
 - Validating that extension changes don't break native compilation
 - Ensuring reflection/CDI configuration is correct for native mode
 - Getting validated extension JARs as artifacts
+
+---
+
+### Best Practices for Release Notes
+
+**Use Conventional Commits in PR Titles:**
+
+Release Drafter automatically categorizes based on PR titles:
+```
+feat: Add CloudEvents binary mode support
+fix: Correct NATS connection handling
+docs: Update installation instructions
+chore: Bump dependencies
+perf: Optimize message serialization
+test: Add integration tests for native mode
+```
+
+**PR Labels (Auto-Applied):**
+
+Release Drafter automatically labels PRs based on titles, but you can also add labels manually:
+- `feature` / `enhancement` → 🚀 Features
+- `bug` / `fix` → 🐛 Bug Fixes
+- `documentation` → 📝 Documentation
+- `chore` / `dependencies` → 🔧 Maintenance
+- `performance` → ⚡ Performance
+- `test` → 🧪 Tests
+- `security` → 🔒 Security
+- `breaking` → 💥 Breaking Changes
+
+**Version Bumping Strategy:**
+
+Release Drafter suggests versions based on labels:
+- `breaking` label → Major version (1.0.0 → 2.0.0)
+- `feature` label → Minor version (1.0.0 → 1.1.0)
+- `fix` / `chore` label → Patch version (1.0.0 → 1.0.1)
+
+---
 
 ### Consuming Published Artifacts
 
