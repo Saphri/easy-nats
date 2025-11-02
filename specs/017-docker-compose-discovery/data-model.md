@@ -109,7 +109,8 @@ public record ContainerConfig(
     String password,
 
     /**
-     * Flag indicating SSL/TLS enablement (from NATS_TLS env var)
+     * Flag indicating SSL/TLS enablement (from NATS_TLS_CERT, NATS_TLS_KEY, NATS_TLS_CA env vars)
+     * TLS is enabled if ANY certificate path environment variable is present
      * Determines scheme: "tls://" if true, "nats://" if false
      */
     boolean sslEnabled

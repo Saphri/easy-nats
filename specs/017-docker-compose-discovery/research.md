@@ -248,46 +248,63 @@ How can SSL/TLS enablement be reliably detected from docker-compose NATS contain
 - Requires volume mount and file parsing
 - Not practical for auto-discovery
 
-**Method 2: Environment Variable** (simpler, dev-friendly)
-- `NATS_TLS=true` or `NATS_TLSCERT=...` (if full config needed)
-- Directly queryable via Docker environment
-- Commonly used in dev environments
+**Method 2: Environment Variables for Certificate Paths** (required for TLS)
+- `NATS_TLS_CERT`: Server certificate file path
+- `NATS_TLS_KEY`: Server private key file path
+- `NATS_TLS_CA`: CA certificate file path
+- NATS requires these specific environment variables to enable TLS
+- Presence of ANY of these indicates TLS is configured and enabled
 
 **Method 3: Image Labels** (convention-based)
-- Custom label: `io.nats.tls=true`
+- Custom label: `io.nats.tls=true` (fallback if cert env vars not set)
 - Not part of NATS standard, but extensible
 - Useful for marking intent in docker-compose
 
-**Method 4: Protocol Detection** (indirect)
+**Method 4: Protocol Detection** (indirect, unreliable)
 - Connection port mapping (4222 standard, 4223 TLS alternative)
 - Not reliable—TLS can run on any port
 
 #### Practical Recommendation
-For dev services discovery:
-- Check `NATS_TLS` environment variable first
-- Check custom label `io.nats.tls` as secondary indicator
-- Default to `false` (unencrypted) if not specified
-- This matches common NATS Docker patterns
+For dev services discovery (matches actual NATS behavior):
+- Check for presence of `NATS_TLS_CERT`, `NATS_TLS_KEY`, or `NATS_TLS_CA` environment variables
+- If ANY are set, TLS is enabled
+- Fallback: check custom label `io.nats.tls` if cert env vars not found
+- Default to `false` (unencrypted) if none specified
+- This approach correctly identifies TLS based on actual certificate configuration
+
+**Rationale**: NATS requires actual certificate file paths to enable TLS. The presence of these environment variables is the definitive indicator that TLS is configured.
 
 ### Decision
 
-**Implement Environment-Variable-First SSL Detection**:
+**Implement Certificate-Path-Based SSL Detection**:
 ```java
-// Determine SSL enabled
-boolean sslEnabled = Boolean.parseBoolean(
-    container.getEnv("NATS_TLS", "false")
-);
+// Determine SSL enabled by checking for certificate environment variables
+String tlsCert = container.getEnv("NATS_TLS_CERT");
+String tlsKey = container.getEnv("NATS_TLS_KEY");
+String tlsCa = container.getEnv("NATS_TLS_CA");
+
+// TLS is enabled if ANY certificate path is configured
+boolean sslEnabled = tlsCert != null || tlsKey != null || tlsCa != null;
+
+// Fallback to label if certificate env vars not found
+if (!sslEnabled) {
+    String tlsLabel = container.getLabel("io.nats.tls", "false");
+    sslEnabled = Boolean.parseBoolean(tlsLabel);
+}
+
 // Use "tls://" scheme if enabled, "nats://" if not
 String scheme = sslEnabled ? "tls" : "nats";
 String connectionUrl = scheme + "://" + host + ":" + port;
 ```
 
 **Rationale**:
-- NATS standard and widely documented
-- Developers explicitly set it in docker-compose
+- Matches actual NATS TLS requirements (certificate paths, not just a flag)
+- Detects TLS enablement based on real configuration, not an assumption
+- Handles certificate paths: `NATS_TLS_CERT`, `NATS_TLS_KEY`, `NATS_TLS_CA`
+- Fallback to label for convenience flag cases
 - Safe default (unencrypted for dev is acceptable)
-- No complex file parsing required
-- Meets FR-007 requirement
+- No complex file parsing required (just checks env var presence)
+- Meets FR-007 requirement with proper TLS detection
 
 ---
 

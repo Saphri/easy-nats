@@ -216,7 +216,7 @@ jetstream: {
 
 #### With TLS/SSL
 
-To enable TLS for secure connections:
+To enable TLS for secure connections, NATS requires certificate file paths via environment variables:
 
 **docker-compose-devservices.yml** (with TLS):
 ```yaml
@@ -230,7 +230,9 @@ services:
     environment:
       NATS_USERNAME: secure-user
       NATS_PASSWORD: secure-pass
-      NATS_TLS: "true"
+      NATS_TLS_CERT: /etc/nats/certs/server-cert.pem
+      NATS_TLS_KEY: /etc/nats/certs/server-key.pem
+      NATS_TLS_CA: /etc/nats/certs/ca.pem
     volumes:
       - ./nats.conf:/etc/nats/nats.conf:ro
       - ./certs:/etc/nats/certs:ro
@@ -252,11 +254,11 @@ authorization {
   ]
 }
 
-# TLS Configuration
+# TLS Configuration (using environment variable paths)
 tls: {
-  cert_file: /etc/nats/certs/server-cert.pem
-  key_file:  /etc/nats/certs/server-key.pem
-  ca_file:   /etc/nats/certs/ca.pem
+  cert_file: $NATS_TLS_CERT
+  key_file:  $NATS_TLS_KEY
+  ca_file:   $NATS_TLS_CA
 }
 
 # JetStream configuration
@@ -270,8 +272,8 @@ jetstream: {
 - Port: `4222`
 - Username: `secure-user` (from `NATS_USERNAME`)
 - Password: `secure-pass` (from `NATS_PASSWORD`)
-- SSL: `true` (from `NATS_TLS` environment variable)
-- Connection URL: `tls://localhost:4222` (automatically uses `tls://` scheme)
+- SSL: `true` (detected from presence of `NATS_TLS_CERT`, `NATS_TLS_KEY`, or `NATS_TLS_CA`)
+- Connection URL: `tls://localhost:4222` (automatically uses `tls://` scheme when certificates are configured)
 
 **Certificate Setup** (for TLS):
 
@@ -312,8 +314,17 @@ The NATS extension recognizes these standard environment variables:
 |----------|---------|---------|
 | `NATS_USERNAME` | Client authentication username | `NATS_USERNAME=admin` |
 | `NATS_PASSWORD` | Client authentication password | `NATS_PASSWORD=secret` |
-| `NATS_TLS` | Enable TLS/SSL connection | `NATS_TLS=true` |
+| `NATS_TLS_CERT` | TLS server certificate file path | `NATS_TLS_CERT=/etc/nats/certs/server-cert.pem` |
+| `NATS_TLS_KEY` | TLS server private key file path | `NATS_TLS_KEY=/etc/nats/certs/server-key.pem` |
+| `NATS_TLS_CA` | TLS CA certificate file path | `NATS_TLS_CA=/etc/nats/certs/ca.pem` |
 | `NATS_USER` | Alternative username variable | `NATS_USER=ruser` (see note below) |
+
+**TLS Detection**: The extension detects TLS by checking for the presence of ANY of these certificate environment variables:
+- `NATS_TLS_CERT`
+- `NATS_TLS_KEY`
+- `NATS_TLS_CA`
+
+If any are set, the connection uses `tls://` scheme. If none are set, it uses `nats://` (unencrypted).
 
 **⚠️ Important**: The extension looks for `NATS_USERNAME` and `NATS_PASSWORD` by default. If your setup uses different environment variable names (e.g., `NATS_USER` instead of `NATS_USERNAME`), you must either:
 1. Rename them to `NATS_USERNAME`/`NATS_PASSWORD` in docker-compose, OR
@@ -433,14 +444,16 @@ services:
     environment:
       NATS_USERNAME: secure-user
       NATS_PASSWORD: secure-pass
-      NATS_TLS: "true"  # Enable TLS
+      NATS_TLS_CERT: /etc/nats/certs/server-cert.pem
+      NATS_TLS_KEY: /etc/nats/certs/server-key.pem
+      NATS_TLS_CA: /etc/nats/certs/ca.pem
     volumes:
       - ./nats.conf:/etc/nats/nats.conf:ro
       - ./certs:/etc/nats/certs:ro
     command: ["-c", "/etc/nats/nats.conf", "-js"]
 ```
 
-The extension automatically detects `NATS_TLS=true` and uses `tls://` scheme for the connection URL.
+The extension automatically detects the certificate paths and uses `tls://` scheme for the connection URL.
 
 ### Scenario 3: No Authentication (Development Only!)
 
