@@ -460,6 +460,11 @@ if (appName != null && !appName.isEmpty()) {
 - Java 21 (enforced by Constitution Principle IV) (016-custom-nats-options)
 
 ## Recent Changes
+- 016-custom-nats-options: Implemented @DefaultBean CDI producer for NATS Options (Feature complete - User Story 1 MVP + User Story 2 integration)
+  * NatsConnectionProducer enables default Options from properties
+  * Developers can override with custom @Produces @Unremovable bean
+  * 14 comprehensive unit tests, all 125 runtime tests pass
+  * Full Constitution compliance verified (all 7 principles)
 - 005-transparent-cloudevents: Implemented transparent CloudEvent wrapping in NatsPublisher with custom PublishingException
 - 002-typed-publisher: Implemented generic typed publisher with CloudEvents and REST improvements
 - 001-basic-publisher-api: Added Java 21 (enforced per Principle IV)
