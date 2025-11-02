@@ -1,0 +1,29 @@
+# Generated certificates (developers generate locally for TLS testing)
+certs/
+*.pem
+*.key
+*.csr
+*.crt
+
+# Build artifacts
+target/
+*.class
+
+# IDE
+.idea/
+.classpath
+.project
+.settings/
+*.iml
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Test outputs
+test-output/

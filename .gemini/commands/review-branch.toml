@@ -1,0 +1,22 @@
+# ~/.gemini/commands/review-branch.toml
+
+description = "Udfører en dybdegående kodeanmeldelse på ændringer i den aktuelle gren, med fokus på Quarkus, JNats og Java 21."
+
+# '!{...}' syntaxen kører en shell-kommando og indsætter dens output i prompten.
+# Kommandoen sammenligner den aktuelle gren med 'master'.
+prompt = """
+Udfør en dybdegående kodeanmeldelse af de ændringer, der er defineret i den vedhæftede git diff.
+Fokusér specifikt på **Quarkus Extension**, **JNats (Java NATS Client)** og **Java 21** funktioner.
+
+**Specifikke fokusområder:**
+
+1. **Quarkus Extension Best Practices:** Sikker på, at CDI, konfiguration (fx @ConfigMapping), og lifecycle hooks (fx @Startup) anvendes korrekt i Quarkus-miljøet. Tjek for korrekt anvendelse af Quarkus' build-time optimeringer (fx korrekte registreringer til native compilation).
+2. **JNats Implementering:** Vurder brugen af JNats for korrekt oprettelse af forbindelse/ressourcer, håndtering af asynkrone beskeder, fejlhåndtering og korrekt lukning af forbindelser (især i et reaktivt miljø, hvis det er relevant for Quarkus).
+3. **Java 21 (LTS) Funktionalitet:** Tjek for korrekt og meningsfuld brug af nye Java 21-funktioner såsom **Virtual Threads** (hvis relevant, f.eks. til NATS-afsendere/modtagere), **Sequenced Collections**, eller **Pattern Matching for Switch**.
+4. **Generel Kodekvalitet:** Tjek for læsbarhed, vedligeholdelse, sikkerhed (undgå hardcodede følsomme data) og konsistens.
+
+Giv feedbacken i et struktureret format med overskrifter for hver kategori (Quarkus, JNats, Java 21) og med specifikke henvisninger til de diff-linjer, der kræver opmærksomhed.
+
+```diff
+!{git --no-pager diff --diff-filter=AMR --relative master...HEAD}
+"""

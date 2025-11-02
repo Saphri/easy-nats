@@ -1,0 +1,26 @@
+name: easy-nats-integration-tests
+services:
+  nats:
+    image: nats:2.11
+    container_name: nats
+    environment:
+      NATS_USERNAME: guest
+      NATS_PASSWORD: guest
+#      NATS_TLS_CERT: /etc/nats/certs/server-cert.pem
+#      NATS_TLS_KEY: /etc/nats/certs/server-key.pem
+#      NATS_TLS_CA: /etc/nats/certs/ca.pem
+    ports:
+      - "4222:4222"
+    volumes:
+      - ./nats.conf:/etc/nats/nats.conf:ro
+#      - ./certs:/etc/nats/certs:ro
+    command: ["-c", "/etc/nats/nats.conf", "-js"]
+    labels:
+      io.quarkus.devservices.compose.wait_for.logs: .*Server is ready.*
+  lgtm:
+    image: grafana/otel-lgtm
+    container_name: lgtm
+    ports:
+      - "3000:3000"
+      - "4317:4317"
+      - "4318:4318"
