@@ -1,0 +1,25 @@
+# ~/.gemini/commands/review-docs.toml
+
+description = "Reviews all documentation (/docs and README.md) for a Quarkus extension, updating obsolete info and suggesting restructuring for Java developers. Excludes /spec."
+
+# This command gathers the content of README.md and all files in docs/ (recursively).
+prompt = """
+Perform an in-depth review and editing of the attached project documentation. The documentation is for a **Quarkus Extension**, and the target audience is **Java Developers** needing to integrate and use this extension.
+
+### 🎯 Core Objectives
+
+1.  **Identify Outdated Information:** Locate and update sections describing obsolete features or methods. Features may have changed names, configurations (e.g., Quarkus `@ConfigMapping`), or parameters.
+2.  **Focus on the Java Developer Experience:** Ensure installation, configuration, and usage guides are crystal clear and follow standard Java/Quarkus development practices.
+3.  **Suggest Restructuring:** If the flow of information is poor, propose a new structure and better ordering of content across the scanned files.
+4.  **Strict Exclusion:** **MUST NOT** generate any links to or reference content from any file or folder that contains **/spec** in its path, as those files are considered unstable.
+
+### Output Requirements
+
+Provide a response in two distinct parts:
+
+1.  **Summary and Restructuring Plan:** A brief list of the main issues with outdated content and a proposed logical structure for the documentation (e.g., a new Table of Contents).
+2.  **Specific Edits:** For every error or outdated piece of information found, state the exact **File** and **Section** to be corrected, and provide the **Updated Text**.
+
+```markdown
+!{(echo -e "### START FILE: README.md" && cat README.md && find docs -type f -print0 | xargs -0 -I {} sh -c 'echo -e "\n### START FILE: {}" && cat "{}"' )}
+"""

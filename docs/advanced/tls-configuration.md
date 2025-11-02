@@ -1,88 +1,133 @@
-# Configuration Guide
+# TLS/SSL Configuration
 
-**Feature**: Configuration & Security
-**Date**: 2025-10-30
+### Overview
 
-## Overview
+EasyNATS integrates with the **Quarkus TLS Registry** for centralized TLS configuration management. This provides:
 
-This guide covers how to configure the Quarkus EasyNATS extension, including connection settings, authentication, and payload logging.
+- ✅ Centralized TLS configuration across all Quarkus extensions
+- ✅ Support for custom certificates, keystores, and trust stores
+- ✅ Environment-specific TLS settings
+- ✅ Automatic certificate reloading
 
-> **💡 Development Tip**: For local development and testing, you don't need to configure anything! [Quarkus Dev Services](./DEV_SERVICES_GUIDE.md) automatically provisions a NATS container with zero configuration. This guide is for production deployments and advanced scenarios where you want explicit server control.
+### How TLS Works
 
----
+The TLS behavior follows this logic:
 
-## Table of Contents
+1. **Server URL determines TLS usage**: Use `tls://` or `wss://` scheme to enable TLS
+2. **Quarkus TLS Registry provides certificates**: Configure TLS in Quarkus, reference it in EasyNATS
+3. **NATS client handles the connection**: The underlying NATS client uses the provided SSLContext when the URL scheme requires it
 
-- [Basic Configuration](#basic-configuration)
-- [Authentication](#authentication)
-- [Payload Logging Configuration](#payload-logging-configuration)
-- [Multiple Servers (Failover)](#multiple-servers-failover)
-- [Complete Examples](#complete-examples)
-- [Advanced: Native Image and Reflection](./advanced/native-image-and-reflection.md)
-- [Advanced: TLS/SSL Configuration](./advanced/tls-configuration.md)
+**Key Principle**: The extension always provides an SSLContext if TLS is configured in Quarkus, but the NATS client only uses it when connecting to a TLS-enabled server (based on the URL scheme).
 
----
+### Basic TLS Setup
 
-## Basic Configuration
+#### Step 1: Enable TLS in NATS Server URL
 
-### Minimal Configuration
-
-The only required configuration is the NATS server URL(s):
+Change your server URL to use the `tls://` scheme:
 
 ```properties
 # application.properties
-quarkus.easynats.servers=nats://localhost:4222
+quarkus.easynats.servers=tls://nats.example.com:4222
 ```
 
-This is sufficient for development and testing with an unauthenticated NATS server.
+#### Step 2: Configure Quarkus TLS Registry
 
-### Configuration Properties Reference
+**Option A: Use Default TLS Configuration**
 
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `quarkus.easynats.servers` | List<String> | (required) | NATS server URL(s). Multiple servers can be specified for failover. |
-| `quarkus.easynats.username` | String | (optional) | Username for NATS authentication |
-| `quarkus.easynats.password` | String | (optional) | Password for NATS authentication |
-| `quarkus.easynats.tls-configuration-name` | String | (optional) | Name of the TLS configuration from Quarkus TLS registry |
-| `quarkus.easynats.log-payloads-on-error` | boolean | `true` | Whether to include message payloads in error logs. Set to `false` in production to prevent sensitive data exposure. |
-
----
-
-## Authentication
-
-### Username/Password Authentication
-
-For NATS servers requiring authentication, provide both username and password:
+If you have a default TLS configuration for your entire Quarkus application:
 
 ```properties
 # application.properties
-quarkus.easynats.servers=nats://localhost:4222
-quarkus.easynats.username=my-nats-user
-quarkus.easynats.password=my-secure-password
+quarkus.tls.trust-all=true  # For development only - DO NOT USE IN PRODUCTION
+
+# OR for production with proper certificates:
+quarkus.tls.trust-store.pem.certs=certificates/ca.crt
 ```
 
-**Important Security Notes:**
+EasyNATS will automatically use the default TLS configuration.
 
-- ⚠️ **Never commit credentials to version control**
-- ✅ Use environment variables for production credentials
-- ✅ Use different credentials per environment (dev, staging, prod)
+**Option B: Use Named TLS Configuration**
 
-### Using Environment Variables
+For dedicated NATS TLS settings:
 
 ```properties
 # application.properties
-quarkus.easynats.servers=${NATS_SERVERS}
-quarkus.easynats.username=${NATS_USERNAME}
-quarkus.easynats.password=${NATS_PASSWORD}
+
+# NATS connection with named TLS config
+quarkus.easynats.servers=tls://nats.example.com:4222
+quarkus.easynats.tls-configuration-name=nats-tls
+
+# Named TLS configuration for NATS
+quarkus.tls.nats-tls.trust-store.pem.certs=certificates/nats-ca.crt
+quarkus.tls.nats-tls.key-store.pem.keys=certificates/nats-client-key.pem
+quarkus.tls.nats-tls.key-store.pem.certs=certificates/nats-client-cert.pem
 ```
 
-Then set environment variables:
+### TLS Configuration Examples
 
-```bash
-export NATS_SERVERS=nats://nats.production.example.com:4222
-export NATS_USERNAME=prod-user
-export NATS_PASSWORD=prod-secure-password
+#### Development: Trust All Certificates (Insecure)
+
+```properties
+# ⚠️ DEVELOPMENT ONLY - DO NOT USE IN PRODUCTION
+quarkus.easynats.servers=tls://localhost:4222
+quarkus.tls.trust-all=true
 ```
+
+#### Production: Custom CA Certificate
+
+```properties
+# Production configuration with proper certificate validation
+quarkus.easynats.servers=tls://nats.production.example.com:4222
+quarkus.easynats.tls-configuration-name=nats-tls
+
+# Trust specific CA certificate
+quarkus.tls.nats-tls.trust-store.pem.certs=certificates/production-ca.crt
+```
+
+#### Production: Mutual TLS (mTLS)
+
+For NATS servers requiring client certificates:
+
+```properties
+quarkus.easynats.servers=tls://nats.production.example.com:4222
+quarkus.easynats.tls-configuration-name=nats-mtls
+
+# Server certificate validation
+quarkus.tls.nats-mtls.trust-store.pem.certs=certificates/nats-server-ca.crt
+
+# Client certificate for authentication
+quarkus.tls.nats-mtls.key-store.pem.keys=certificates/client-key.pem
+quarkus.tls.nats-mtls.key-store.pem.certs=certificates/client-cert.pem
+```
+
+#### Using Java KeyStore/TrustStore
+
+```properties
+quarkus.easynats.servers=tls://nats.example.com:4222
+quarkus.easynats.tls-configuration-name=nats-tls
+
+# Using Java KeyStore format
+quarkus.tls.nats-tls.trust-store.jks.path=certificates/truststore.jks
+quarkus.tls.nats-tls.trust-store.jks.password=${TRUSTSTORE_PASSWORD}
+
+quarkus.tls.nats-tls.key-store.jks.path=certificates/keystore.jks
+quarkus.tls.nats-tls.key-store.jks.password=${KEYSTORE_PASSWORD}
+```
+
+### TLS Configuration Reference
+
+For complete TLS configuration options, see the [Quarkus TLS Registry documentation](https://quarkus.io/guides/tls-registry-reference).
+
+Common TLS properties:
+
+| Property | Description | Example |
+|----------|-------------|---------|
+| `quarkus.tls.trust-all` | Trust all certificates (dev only) | `true` |
+| `quarkus.tls.<name>.trust-store.pem.certs` | CA certificate in PEM format | `ca.crt` |
+| `quarkus.tls.<name>.key-store.pem.keys` | Client private key in PEM format | `client-key.pem` |
+| `quarkus.tls.<name>.key-store.pem.certs` | Client certificate in PEM format | `client-cert.pem` |
+| `quarkus.tls.<name>.trust-store.jks.path` | TrustStore in JKS format | `truststore.jks` |
+| `quarkus.tls.<name>.key-store.jks.path` | KeyStore in JKS format | `keystore.jks` |
 
 ---
 
@@ -267,15 +312,5 @@ spec:
 
 ---
 
-## Further Reading
 
-- [Quarkus Configuration Guide](https://quarkus.io/guides/config)
-- [Quarkus TLS Registry Reference](https://quarkus.io/guides/tls-registry-reference)
-- [NATS Server Documentation](https://docs.nats.io/)
-- [EasyNATS Quick Start](./QUICKSTART.md)
-
----
-
-**Last Updated**: 2025-10-30
-**Configuration Version**: 1.0.0
-**Status**: ✅ Complete
+```

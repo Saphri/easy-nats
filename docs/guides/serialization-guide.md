@@ -357,45 +357,18 @@ public void handleNumber(IntValue container) {
 
 ### Array Types
 
-Array types (`int[]`, `String[]`, etc.) are not supported.
+While direct usage of arrays like `String[]` as a top-level payload in a `NatsPublisher<String[]>` is discouraged in favor of collection types like `List<String>`, they are supported for reflection. If you define a subscriber like `void handleValues(String[] values)`, the extension's build processor will correctly register `String` for reflection.
 
-**❌ WRONG:**
+For consistency and to align with common Java practices, wrapping arrays within a POJO or using a `List` is still the recommended approach, especially for complex payloads.
+
+**✅ RECOMMENDED - Use a List:**
 ```java
-NatsPublisher<int[]> publisher;        // Runtime error
-NatsPublisher<String[]> publisher;     // Runtime error
+// Publishing a List is idiomatic and fully supported.
+NatsPublisher<List<String>> publisher;
 
 @NatsSubscriber("values")
-public void handleValues(String[] values) {  // Build-time error
-}
-```
-
-**✅ CORRECT - Wrap in POJO:**
-```java
-public class StringList {
-    private String[] items;
-
-    public StringList() {
-    }
-
-    public StringList(String[] items) {
-        this.items = items;
-    }
-
-    public String[] getItems() {
-        return items;
-    }
-
-    public void setItems(String[] items) {
-        this.items = items;
-    }
-}
-
-// Now you can use it:
-NatsPublisher<StringList> publisher;
-
-@NatsSubscriber("values")
-public void handleValues(StringList container) {
-    String[] values = container.getItems();
+public void handleValues(List<String> values) {
+    // ...
 }
 ```
 
@@ -523,4 +496,3 @@ publisher.publish("numbers", 42);  // ❌ Runtime error on first publish
 
 - See [WRAPPER_PATTERN.md](./WRAPPER_PATTERN.md) for detailed wrapping examples
 - See [ERROR_TROUBLESHOOTING.md](./ERROR_TROUBLESHOOTING.md) for error resolution
-- See [JACKSON_ANNOTATIONS_GUIDE.md](./JACKSON_ANNOTATIONS_GUIDE.md) for annotation deep-dive
