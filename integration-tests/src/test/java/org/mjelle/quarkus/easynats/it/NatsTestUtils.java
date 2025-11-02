@@ -5,10 +5,6 @@ import io.nats.client.JetStream;
 import io.nats.client.JetStreamManagement;
 import io.nats.client.Nats;
 import io.nats.client.Options;
-import io.nats.client.api.ConsumerConfiguration;
-import io.nats.client.api.StorageType;
-import io.nats.client.api.StreamConfiguration;
-import io.nats.client.api.StreamInfo;
 import org.eclipse.microprofile.config.ConfigProvider;
 import org.mjelle.quarkus.easynats.NatsConnection;
 
@@ -42,8 +38,7 @@ public class NatsTestUtils {
                     .build();
             Connection nc = Nats.connect(options);
             connectionRef.set(nc);
-            createStreamIfNotExists(nc);
-            createDurableConsumerIfNotExists(nc);
+            // Stream and consumer are now created via nats.conf
         }
         return connectionRef.get();
     }
@@ -63,32 +58,6 @@ public class NatsTestUtils {
         return new NatsConnection(getConnection());
     }
 
-    private static void createStreamIfNotExists(Connection nc) throws Exception {
-        JetStreamManagement jsm = nc.jetStreamManagement();
-        for (StreamInfo streamInfo : jsm.getStreams()) {
-            if (streamInfo.getConfiguration().getName().equals(STREAM_NAME)) {
-                return; // Stream already exists
-            }
-        }
-
-        StreamConfiguration streamConfig = StreamConfiguration.builder()
-                .name(STREAM_NAME)
-                .subjects("test.>")
-                .storageType(StorageType.Memory)
-                .build();
-        jsm.addStream(streamConfig);
-    }
-
-    private static void createDurableConsumerIfNotExists(Connection nc) throws Exception {
-        JetStreamManagement jsm = nc.jetStreamManagement();
-
-        // Create durable consumer
-        ConsumerConfiguration consumerConfig = ConsumerConfiguration.builder()
-                .durable(DURABLE_CONSUMER_NAME)
-                .filterSubject("test.>")
-                .build();
-        jsm.addOrUpdateConsumer(STREAM_NAME, consumerConfig);
-    }
 
     public static void purgeStream() throws Exception {
         Connection nc = connectionRef.get();
