@@ -265,9 +265,9 @@ mvn quarkus:dev
    - Already uses `ComposeLocator.locateContainer()` (discovers containers with exposed ports)
    - Add credential extraction from container environment variables
    - Add SSL detection logic
-   - For clustering: ComposeLocator naturally discovers only primary node (has exposed port)
-   - NATS client handles secondary discovery via cluster routes (no multi-URL needed)
-   - Return complete `ContainerConfig` with discovered primary node metadata
+   - For clustering: Discover ALL containers with exposed port 4222 and build comma-separated URL list
+   - Return complete `ContainerConfig` with list of discovered containers and merged connection metadata
+   - Example result: `nats://localhost:4222,nats://localhost:4223,nats://localhost:4224`
 
 3. **Remove `NatsContainer` class entirely**:
    - File: `deployment/src/main/java/org/mjelle/quarkus/easynats/deployment/devservices/NatsContainer.java`

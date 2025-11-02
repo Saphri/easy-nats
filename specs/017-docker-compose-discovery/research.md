@@ -334,24 +334,22 @@ NATS supports clustering for high availability and scalability. In local dev env
 
 ### Decision
 
-**Support NATS clustering by connecting to primary node with exposed port**:
+**Support NATS clustering by discovering all containers with exposed port 4222 and building a connection list**:
 
-1. Discover the primary NATS container (one with exposed/mapped port)
-2. Extract connection info from primary: host, port, credentials, SSL
-3. Apply to `quarkus.easynats.servers` configuration (single primary node URL)
-4. NATS client automatically discovers secondary nodes via cluster routes
+1. Query running containers for NATS images
+2. Filter to only those with exposed/mapped port 4222
+3. Extract connection info from each: host, port, credentials, SSL
+4. Build comma-separated URL list: `nats://host1:4222,nats://host2:4222,nats://host3:4222`
+5. Apply to `quarkus.easynats.servers` configuration
+6. NATS client uses list for failover and load balancing across all cluster nodes
 
 **Why this approach**:
-- NATS clustering uses internal routes for secondary node discovery
-- Client connects to one node, cluster routes provide failover
-- Only primary node needs exposed port for external access
-- Secondary nodes on private network, accessed via cluster routing
-- No need for multi-URL configuration (NATS handles internally)
-
-**Optional Enhancement** (not required):
-- If multiple containers with exposed ports detected: could build comma-separated URL list
-- But NATS client will use cluster routes anyway
-- Primary approach (single primary connection) is simpler and more common
+- Enables multi-node connection for automatic failover and load balancing
+- All containers with exposed ports are reachable for client connections
+- No complex cluster route discovery needed—client connects to all nodes directly
+- Simpler mental model: list all accessible NATS nodes in docker-compose
+- Matches developer expectation: if they expose port 4222 on multiple containers, they're reachable
+- NATS client automatically manages failover across the list
 
 **Constraints**:
 - All containers must share same username and password

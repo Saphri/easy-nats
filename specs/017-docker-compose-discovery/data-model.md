@@ -84,14 +84,14 @@ public record ContainerConfig(
     /**
      * Container ID(s) from Docker API
      * For single container: hex string uniquely identifying the container
-     * For clustering: comma-separated list of container IDs
+     * For clustering: comma-separated list of container IDs (e.g., "abc123,def456,ghi789")
      */
     String containerId,
 
     /**
      * Hostname or IP address for NATS client connection
      * For single container: single host address
-     * For clustering: primary host (all hosts handled in connection URL generation)
+     * For clustering: comma-separated list of all discovered hosts (e.g., "localhost,localhost,localhost" or "host1,host2,host3")
      * May be "localhost" for local dev, or actual hostname for remote
      */
     String host,
@@ -99,8 +99,8 @@ public record ContainerConfig(
     /**
      * Exposed NATS client port (4222 standard, or custom if remapped)
      * For single container: single port
-     * For clustering: all containers use same port (assumption)
-     * Range: 1-65535
+     * For clustering: comma-separated list of all discovered ports (e.g., "4222,4223,4224")
+     * Range: 1-65535 for each port in list
      */
     int port,
 
@@ -145,20 +145,29 @@ public record ContainerConfig(
     }
 
     /**
-     * Generates NATS connection URL from container config
+     * Generates NATS connection URL(s) from container config
      * For single container: returns single URL (e.g., "nats://host:port")
-     * For clustering: returns primary node URL; NATS client discovers secondary nodes via cluster routes
-     * @return properly formatted NATS connection URL
+     * For clustering: returns comma-separated list of all discovered nodes (e.g., "nats://host1:4222,nats://host2:4223")
+     * @return properly formatted NATS connection URL or comma-separated URL list
      */
     public String toConnectionUrl() {
         String scheme = sslEnabled ? "tls" : "nats";
-        return scheme + "://" + host + ":" + port;
+        String[] hosts = host.split(",");
+        String[] ports = String.valueOf(port).split(",");
+
+        List<String> urls = new ArrayList<>();
+        for (int i = 0; i < hosts.length; i++) {
+            String hostPart = hosts[i].trim();
+            String portPart = (i < ports.length) ? ports[i].trim() : String.valueOf(port);
+            urls.add(scheme + "://" + hostPart + ":" + portPart);
+        }
+        return String.join(",", urls);
     }
 
     /**
      * Generates configuration map for Quarkus Dev Services
      * Supports both single container and clustering scenarios.
-     * For clustering, only primary node URL needed; NATS handles secondary discovery via cluster routes.
+     * For clustering, comma-separated URL list is generated from all discovered containers.
      * @return property name -> value mapping
      */
     public Map<String, String> toConfigurationMap() {
