@@ -4,14 +4,13 @@ services:
     image: nats:2.11
     container_name: nats
     environment:
-      NATS_USER: ruser
-      NATS_PASSWORD: T0pS3cr3t
+      NATS_USER: guest
+      NATS_PASSWORD: guest
 #      NATS_TLS_CERT: /etc/nats/certs/server-cert.pem
 #      NATS_TLS_KEY: /etc/nats/certs/server-key.pem
 #      NATS_TLS_CA: /etc/nats/certs/ca.pem
     ports:
       - "4222:4222"
-      - "8222:8222"
     volumes:
       - ./nats.conf:/etc/nats/nats.conf:ro
 #      - ./certs:/etc/nats/certs:ro

@@ -13,16 +13,88 @@ import io.quarkus.devservices.common.ComposeLocator;
 import io.quarkus.devservices.common.ContainerLocator;
 import io.quarkus.runtime.LaunchMode;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.jboss.logging.Logger;
-import org.testcontainers.utility.DockerImageName;
 
 /**
- * Quarkus Dev Services processor for NATS.
+ * Quarkus Dev Services processor for NATS with docker-compose discovery.
  *
- * This processor automatically starts a shared NATS container in dev/test mode
- * when no NATS server URL is explicitly configured and Dev Services are enabled.
+ * <h3>Overview</h3>
+ * This build-time processor discovers running NATS containers from docker-compose and
+ * automatically configures the application to connect to them. It operates in discovery-only
+ * mode: it does NOT create or manage NATS containers—it only discovers pre-existing ones.
+ *
+ * <h3>How It Works</h3>
+ * <ol>
+ *   <li>During Quarkus build-time (dev/test mode), checks if Dev Services are enabled
+ *   <li>Attempts to discover NATS containers from running docker-compose services
+ *   <li>For each discovered container, extracts credentials from environment variables
+ *   <li>Builds and produces Quarkus configuration mapping discovered container details
+ *   <li>If no container found, logs warning and continues (application must configure manually)
+ * </ol>
+ *
+ * <h3>Discovery Flow</h3>
+ * <pre>
+ * [Docker-Compose Service] (nats container with env vars)
+ *         |
+ *         | (detect & extract)
+ *         |
+ * [ContainerAddress] (from ComposeLocator)
+ *         |
+ *         | (extract env vars via RunningContainer.tryGetEnv())
+ *         |
+ * [ContainerDiscoveryResult] (success with extracted config)
+ *         |
+ *         | (apply to Quarkus properties)
+ *         |
+ * [DevServicesResultBuildItem.discovered()] -> Quarkus configuration
+ * </pre>
+ *
+ * <h3>Credential Extraction</h3>
+ * The processor uses {@link CredentialExtractor} to read NATS credentials from
+ * container environment variables:
+ * - {@code NATS_USERNAME} or {@code NATS_USER} (defaults to "nats")
+ * - {@code NATS_PASSWORD} (defaults to "nats")
+ * - Detects TLS from {@code NATS_TLS_CERT}, {@code NATS_TLS_KEY}, {@code NATS_TLS_CA}
+ *
+ * <h3>No Fallback Behavior</h3>
+ * This is a critical design feature: The processor does NOT:
+ * <ul>
+ *   <li>Create or start managed containers (unlike older Quarkus extensions)
+ *   <li>Fall back to application.properties configuration values
+ *   <li>Use default/hardcoded credentials as fallback
+ * </ul>
+ * If docker-compose discovery fails, the application must have explicit NATS server
+ * configuration (via {@code quarkus.easynats.servers} property) to function.
+ *
+ * <h3>Clustering Support</h3>
+ * For NATS clustering scenarios, the processor can discover all containers with
+ * exposed port 4222. The {@link ContainerConfig} record supports comma-separated
+ * values for multi-node clusters, generating connection URL lists automatically.
+ *
+ * <h3>Dependency Injection</h3>
+ * Uses Quarkus dev services framework:
+ * - {@code LaunchModeBuildItem}: Checks build mode (only DEV/TEST)
+ * - {@code DevServicesComposeProjectBuildItem}: Docker-compose project context
+ * - {@code DevServicesConfig}: Framework-level enable/disable
+ * - {@code BuildProducer<DevServicesResultBuildItem>}: Produces configuration
+ *
+ * <h3>Configuration Properties</h3>
+ * When discovery succeeds, the processor produces configuration for:
+ * - {@code quarkus.easynats.servers}: Connection URL(s) from discovered container(s)
+ * - {@code quarkus.easynats.username}: Extracted username from environment
+ * - {@code quarkus.easynats.password}: Extracted password from environment
+ * - {@code quarkus.easynats.ssl-enabled}: TLS flag from certificate env vars
+ *
+ * @author Quarkus EasyNATS Extension
+ * @since 1.0.0
+ * @see ContainerDiscoveryResult
+ * @see ContainerConfig
+ * @see CredentialExtractor
+ * @see NatsDevServicesBuildTimeConfiguration
  */
 @BuildSteps(onlyIf = { IsDevServicesSupportedByLaunchMode.class, DevServicesConfig.Enabled.class })
 public class NatsDevServicesProcessor {
@@ -30,9 +102,9 @@ public class NatsDevServicesProcessor {
     private static final Logger log = Logger.getLogger(NatsDevServicesProcessor.class);
     private static final String FEATURE = "quarkus-easynats-devservices";
     private static final String NATS_URL_PROPERTY = "quarkus.easynats.servers";
-    public static final String CONTAINER_LABEL = "quarkus-easynats";
+    private static final int NATS_PORT = 4222;
 
-    private static final ContainerLocator natsContainerLocator = new ContainerLocator(CONTAINER_LABEL, NatsContainer.NATS_PORT);
+    private static final ContainerLocator natsContainerLocator = new ContainerLocator("nats", NATS_PORT);
 
     @BuildStep
     void startNatsDevService(LaunchModeBuildItem launchMode,
@@ -43,103 +115,105 @@ public class NatsDevServicesProcessor {
             BuildProducer<DevServicesResultBuildItem> devServicesResult) {
         // Check if Dev Services are explicitly disabled
         if (!config.enabled()) {
-            log.info("NATS Dev Services are disabled via configuration");
+            log.debug("NATS Dev Services are disabled via configuration");
             return;
         }
 
-        log.infof("Preparing NATS Dev Services container with image: %s", config.imageName());
-
         try {
-            DevServicesResultBuildItem discovered = discoverRunningService(composeProjectBuildItem, launchMode.getLaunchMode(), config);
-            if (discovered != null) {
-                devServicesResult.produce(discovered);
+            ContainerDiscoveryResult discoveryResult = discoverNatsContainer(
+                composeProjectBuildItem, launchMode.getLaunchMode(), config);
+
+            if (discoveryResult.found()) {
+                ContainerConfig containerConfig = discoveryResult.containerConfig().orElseThrow();
+                log.info(discoveryResult.message());
+                log.infof("Dev Services: NATS discovered at %s with connection URL: %s",
+                    containerConfig.host(), containerConfig.toConnectionUrl());
+
+                // Produce discovered container as dev services result
+                devServicesResult.produce(DevServicesResultBuildItem.discovered()
+                    .name(FEATURE)
+                    .containerId(containerConfig.containerId())
+                    .config(containerConfig.toConfigurationMap())
+                    .build());
             } else {
-                // Determine if shared network is required
-                boolean useSharedNetwork = DevServicesSharedNetworkBuildItem.isSharedNetworkRequired(devServicesConfig,
-                devServicesSharedNetworkBuildItem);
-                String defaultNetworkId = composeProjectBuildItem.getDefaultNetworkId();
-
-                devServicesResult.produce(DevServicesResultBuildItem.owned().name(FEATURE)
-                        .serviceName(config.serviceName())
-                        .startable(() -> {
-                            try {
-                                log.infof("Dev Services: Creating and starting NATS container (image: %s)", config.imageName());
-                                NatsContainer container = new NatsContainer(
-                                        DockerImageName.parse(config.imageName()),
-                                        config.username(),
-                                        config.password(),
-                                        config.port(),
-                                        useSharedNetwork,
-                                        defaultNetworkId
-                                );
-                                if (useSharedNetwork) {
-                                    log.debug("Dev Services: Adding shared service label for container reuse");
-                                    container.withSharedServiceLabel(LaunchMode.DEVELOPMENT, FEATURE);
-                                }
-
-                                log.info("Dev Services: Starting NATS container...");
-                                container.start();
-
-                                String scheme = config.sslEnabled() ? "tls" : "nats";
-                                String connectionUrl = scheme + "://" + container.getConnectionInfo();
-                                log.infof("Dev Services: NATS container started successfully. Connection URL: %s", connectionUrl);
-                                return container;
-                            } catch (Exception e) {
-                                log.errorf(e, "Dev Services: Failed to start NATS container");
-                                throw new RuntimeException("Failed to start NATS Dev Services container", e);
-                            }
-                        })
-                        .configProvider(buildConfigProvider(config))
-                        .build());
+                log.warn(discoveryResult.message() +
+                    ". NATS Dev Services not initialized. " +
+                    "Ensure docker-compose NATS service is running or configure quarkus.easynats.servers explicitly.");
             }
         } catch (Exception e) {
-            log.errorf(e, "Failed to prepare NATS Dev Services (error during build step): %s", e.getMessage());
-            String errorMessage = String.format(
-                    "Unable to start NATS Dev Services container for NATS image '%s'. " +
-                    "Ensure Docker is installed and running, and the image is available. " +
-                    "You can disable Dev Services by setting 'quarkus.easynats.devservices.enabled=false' in your application.properties or environment. " +
-                    "Original error: %s",
-                    config.imageName(), e.getMessage());
-            throw new RuntimeException(errorMessage, e);
+            log.warnf(e, "Error during NATS container discovery: %s", e.getMessage());
         }
     }
 
     /**
-     * Builds a configuration provider map from the Dev Services configuration.
+     * Discovers running NATS containers from docker-compose project.
      *
-     * @param config the Dev Services configuration
-     * @return a map of property names to configuration provider functions
+     * @param composeProjectBuildItem the docker-compose project build item
+     * @param launchMode the Quarkus launch mode
+     * @param config the dev services configuration
+     * @return discovery result with container info if found
      */
-    private Map<String, java.util.function.Function<NatsContainer, String>> buildConfigProvider(NatsDevServicesBuildTimeConfiguration config) {
-        String scheme = config.sslEnabled() ? "tls" : "nats";
-        return Map.of(
-                NATS_URL_PROPERTY, s -> scheme + "://" + s.getConnectionInfo(),
-                "quarkus.easynats.username", s -> config.username(),
-                "quarkus.easynats.password", s -> config.password(),
-                "quarkus.easynats.ssl-enabled", s -> String.valueOf(config.sslEnabled())
-        );
-    }
-
-    private DevServicesResultBuildItem discoverRunningService(DevServicesComposeProjectBuildItem composeProjectBuildItem,
+    private ContainerDiscoveryResult discoverNatsContainer(
+            DevServicesComposeProjectBuildItem composeProjectBuildItem,
             LaunchMode launchMode,
             NatsDevServicesBuildTimeConfiguration config) {
-        String scheme = config.sslEnabled() ? "tls" : "nats";
-        int port = config.port().orElse(NatsContainer.NATS_PORT);
-        return natsContainerLocator
-                .locateContainer("nats", true, launchMode)
-                .or(() -> ComposeLocator.locateContainer(composeProjectBuildItem,
-                        List.of(config.imageName()),
-                        port, launchMode, false))
-                .map(containerAddress -> {
-                    String serverUrl = scheme + "://" + containerAddress.getUrl();
-                    return DevServicesResultBuildItem.discovered()
-                            .name(FEATURE)
-                            .containerId(containerAddress.getId())
-                            .config(Map.of(NATS_URL_PROPERTY, serverUrl,
-                                    "quarkus.easynats.username", config.username(),
-                                    "quarkus.easynats.password", config.password(),
-                                    "quarkus.easynats.ssl-enabled", String.valueOf(config.sslEnabled())))
-                            .build();
-                }).orElse(null);
+
+        int port = config.port().orElse(NATS_PORT);
+        log.debugf("Attempting NATS container discovery with image: %s on port %d", config.imageName(), port);
+
+        // Try to discover running container by label first, then by compose project
+        Optional<ContainerDiscoveryResult> discoveryResult = natsContainerLocator
+            .locateContainer("nats", true, launchMode)
+            .or(() -> ComposeLocator.locateContainer(composeProjectBuildItem,
+                List.of(config.imageName()),
+                port, launchMode, false))
+            .map(containerAddress -> {
+                log.debugf("Container found: %s at %s",
+                    containerAddress.getId(), containerAddress.getUrl());
+
+                // Extract credentials from container environment
+                Map<String, String> containerEnv = new HashMap<>();
+                var runningContainer = containerAddress.getRunningContainer();
+                if (runningContainer != null) {
+                    // Try to get environment variables from the running container
+                    String username = runningContainer.tryGetEnv("NATS_USERNAME")
+                        .orElseGet(() -> runningContainer.tryGetEnv("NATS_USER").orElse(null));
+                    if (username != null) {
+                        containerEnv.put("NATS_USERNAME", username);
+                    }
+
+                    runningContainer.tryGetEnv("NATS_PASSWORD")
+                        .ifPresent(password -> containerEnv.put("NATS_PASSWORD", password));
+
+                    // Check for TLS certificates
+                    runningContainer.tryGetEnv("NATS_TLS_CERT")
+                        .ifPresent(tlsCert -> containerEnv.put("NATS_TLS_CERT", tlsCert));
+
+                    runningContainer.tryGetEnv("NATS_TLS_KEY")
+                        .ifPresent(tlsKey -> containerEnv.put("NATS_TLS_KEY", tlsKey));
+
+                    runningContainer.tryGetEnv("NATS_TLS_CA")
+                        .ifPresent(tlsCa -> containerEnv.put("NATS_TLS_CA", tlsCa));
+                }
+
+                CredentialExtractor.Credentials creds = CredentialExtractor.extract(containerEnv);
+                log.debugf("Extracted credentials: username=%s, ssl=%b", creds.username(), creds.sslEnabled());
+
+                // Build container config with extracted values
+                ContainerConfig containerConfig = new ContainerConfig(
+                    containerAddress.getId(),
+                    containerAddress.getHost(),
+                    String.valueOf(containerAddress.getPort()),
+                    creds.username(),
+                    creds.password(),
+                    creds.sslEnabled()
+                );
+
+                log.debug("NATS container discovery complete");
+                return ContainerDiscoveryResult.success(containerConfig);
+            });
+
+        return discoveryResult.orElseGet(() ->
+            ContainerDiscoveryResult.notFound("No running NATS container found in docker-compose"));
     }
 }
