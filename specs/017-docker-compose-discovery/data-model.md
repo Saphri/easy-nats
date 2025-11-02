@@ -23,15 +23,18 @@ This document defines the data structures and entities involved in discovering a
 /**
  * Encapsulates the result of NATS container discovery from docker-compose.
  * Immutable record containing discovery outcome and container metadata.
+ * Supports both single container and clustering scenarios.
  */
 public record ContainerDiscoveryResult(
     /**
-     * True if a NATS container was successfully discovered
+     * True if at least one NATS container was successfully discovered
      */
     boolean found,
 
     /**
      * Container connection details (present only if found=true)
+     * Contains merged configuration from all discovered containers.
+     * For clustering, connection URL list is comma-separated.
      */
     Optional<ContainerConfig> containerConfig,
 
@@ -44,13 +47,13 @@ public record ContainerDiscoveryResult(
     // Convenience constructor: success case
     public static ContainerDiscoveryResult success(ContainerConfig config) {
         return new ContainerDiscoveryResult(true, Optional.of(config),
-            "NATS container discovered: " + config.containerId());
+            "NATS container(s) discovered: " + config.containerId());
     }
 
     // Convenience constructor: failure case
     public static ContainerDiscoveryResult notFound(String reason) {
         return new ContainerDiscoveryResult(false, Optional.empty(),
-            "NATS container not discovered: " + reason);
+            "NATS container(s) not discovered: " + reason);
     }
 }
 ```
@@ -58,6 +61,7 @@ public record ContainerDiscoveryResult(
 **Validation**:
 - Invariant: `found` must be `true` iff `containerConfig.isPresent()`
 - `message` must be non-empty (never null)
+- For clustering: `containerId` may contain comma-separated IDs of all discovered containers
 
 **Relationships**:
 - Contains one `ContainerConfig` (if found)
@@ -72,24 +76,30 @@ public record ContainerDiscoveryResult(
 
 ```java
 /**
- * Connection configuration extracted from discovered docker-compose NATS container.
+ * Connection configuration extracted from discovered docker-compose NATS container(s).
  * Immutable and directly translates to Quarkus configuration properties.
+ * Supports both single container and clustering (multiple containers) scenarios.
  */
 public record ContainerConfig(
     /**
-     * Container ID (hex string) from Docker API
-     * Uniquely identifies the container
+     * Container ID(s) from Docker API
+     * For single container: hex string uniquely identifying the container
+     * For clustering: comma-separated list of container IDs
      */
     String containerId,
 
     /**
      * Hostname or IP address for NATS client connection
+     * For single container: single host address
+     * For clustering: primary host (all hosts handled in connection URL generation)
      * May be "localhost" for local dev, or actual hostname for remote
      */
     String host,
 
     /**
      * Exposed NATS client port (4222 standard, or custom if remapped)
+     * For single container: single port
+     * For clustering: all containers use same port (assumption)
      * Range: 1-65535
      */
     int port,
@@ -135,21 +145,26 @@ public record ContainerConfig(
     }
 
     /**
-     * Generates NATS connection URL from container config
-     * @return properly formatted NATS connection URL
+     * Generates NATS connection URL(s) from container config
+     * For single container: returns single URL (e.g., "nats://host:port")
+     * For clustering: returns comma-separated URLs (e.g., "nats://host1:port,nats://host2:port")
+     * @return properly formatted NATS connection URL(s)
      */
     public String toConnectionUrl() {
         String scheme = sslEnabled ? "tls" : "nats";
+        // NOTE: Implementation will build comma-separated list for clustering
+        // from all discovered container hosts and ports
         return scheme + "://" + host + ":" + port;
     }
 
     /**
      * Generates configuration map for Quarkus Dev Services
+     * Supports both single container and clustering scenarios
      * @return property name -> value mapping
      */
     public Map<String, String> toConfigurationMap() {
         return Map.of(
-            "quarkus.easynats.servers", toConnectionUrl(),
+            "quarkus.easynats.servers", toConnectionUrl(),  // Single or comma-separated URLs
             "quarkus.easynats.username", username,
             "quarkus.easynats.password", password,
             "quarkus.easynats.ssl-enabled", String.valueOf(sslEnabled)
@@ -175,7 +190,62 @@ public record ContainerConfig(
 
 ---
 
-### 3. CredentialExtractorConfig (Optional Helper)
+### 3. MultiContainerMetadata (For Clustering)
+
+**Purpose**: Internal data structure for managing multiple discovered NATS containers (clustering scenario).
+
+**Location**: Package `org.mjelle.quarkus.easynats.deployment.devservices` (internal/package-private)
+
+```java
+/**
+ * Encapsulates metadata for multiple discovered NATS containers.
+ * Used when clustering (multiple containers) is detected.
+ */
+record MultiContainerMetadata(
+    /**
+     * List of all discovered NATS containers with their connection info
+     * Ordered for consistent URL generation
+     */
+    List<ContainerInfo> containers,
+
+    /**
+     * Shared credentials (all containers in cluster use same auth)
+     */
+    String username,
+    String password,
+
+    /**
+     * Shared SSL configuration (all containers in cluster use same TLS setting)
+     */
+    boolean sslEnabled
+) {
+    /**
+     * Generates comma-separated connection URL list for clustering
+     * @return "nats://host1:port1,nats://host2:port2,nats://host3:port3"
+     */
+    public String toConnectionUrlList() {
+        String scheme = sslEnabled ? "tls" : "nats";
+        return containers.stream()
+            .map(c -> scheme + "://" + c.host() + ":" + c.port())
+            .collect(java.util.stream.Collectors.joining(","));
+    }
+
+    /**
+     * Container info record for clustering
+     */
+    record ContainerInfo(String host, int port, String containerId) {}
+}
+```
+
+**Usage**: When multiple NATS containers are discovered:
+1. Extract container info from each discovered container
+2. Create `MultiContainerMetadata` with all containers
+3. Generate comma-separated URL list via `toConnectionUrlList()`
+4. Merge into single `ContainerConfig` with combined URLs
+
+---
+
+### 4. CredentialExtractorConfig (Optional Helper)
 
 **Purpose**: Helper for extracting and validating credentials from container environment.
 

@@ -455,7 +455,53 @@ services:
 
 The extension automatically detects the certificate paths and uses `tls://` scheme for the connection URL.
 
-### Scenario 3: No Authentication (Development Only!)
+### Scenario 3: NATS Clustering
+
+To test NATS clustering with multiple nodes:
+
+```yaml
+services:
+  nats-1:
+    image: nats:2.10
+    container_name: nats-1
+    ports:
+      - "4222:4222"
+    environment:
+      NATS_USERNAME: cluster-user
+      NATS_PASSWORD: cluster-pass
+    command: ["-js", "-server_name=nats-1", "-cluster=nats://0.0.0.0:6222", "-routes=nats://nats-2:6222,nats://nats-3:6222"]
+
+  nats-2:
+    image: nats:2.10
+    container_name: nats-2
+    ports:
+      - "4223:4222"
+    environment:
+      NATS_USERNAME: cluster-user
+      NATS_PASSWORD: cluster-pass
+    command: ["-js", "-server_name=nats-2", "-cluster=nats://0.0.0.0:6222", "-routes=nats://nats-1:6222,nats://nats-3:6222"]
+
+  nats-3:
+    image: nats:2.10
+    container_name: nats-3
+    ports:
+      - "4224:4222"
+    environment:
+      NATS_USERNAME: cluster-user
+      NATS_PASSWORD: cluster-pass
+    command: ["-js", "-server_name=nats-3", "-cluster=nats://0.0.0.0:6222", "-routes=nats://nats-1:6222,nats://nats-2:6222"]
+```
+
+**What the extension discovers**:
+- Discovers all 3 NATS containers automatically
+- Connection URL: `nats://localhost:4222,nats://localhost:4223,nats://localhost:4224`
+- Username: `cluster-user` (from all containers)
+- Password: `cluster-pass` (from all containers)
+- Quarkus automatically handles failover across all nodes
+
+**Note**: All containers in a cluster MUST share the same authentication credentials and SSL configuration.
+
+### Scenario 4: No Authentication (Development Only!)
 
 For quick local testing without credentials:
 

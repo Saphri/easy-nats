@@ -308,6 +308,51 @@ String connectionUrl = scheme + "://" + host + ":" + port;
 
 ---
 
+## Topic 6: NATS Clustering Support
+
+### Question
+Should the extension support discovering and connecting to multiple NATS containers (clustering scenario)?
+
+### Research Findings
+
+NATS supports clustering for high availability and scalability. In local dev environments:
+- Developers may want to test clustering behavior
+- Multiple NATS containers can be configured in docker-compose
+- NATS client accepts comma-separated server list: `nats://server1:4222,nats://server2:4222,nats://server3:4222`
+- Client automatically handles failover and load balancing
+
+#### Quarkus Integration
+- Quarkus configuration `quarkus.easynats.servers` supports comma-separated URL list
+- No special handling needed—standard NATS client behavior
+- Multiple server support is standard NATS feature, not extension-specific
+
+#### Clustering Scenarios
+- Multiple containers with same names (nats-1, nats-2, nats-3)
+- Same credentials across all cluster nodes (required by NATS)
+- Same SSL/TLS configuration across cluster
+- Different ports for each container (mapped from docker-compose)
+
+### Decision
+
+**Support NATS clustering via multiple container discovery**:
+1. Detect all NATS containers from docker-compose (not just first one)
+2. Extract connection info from each discovered container
+3. Build comma-separated URL list: `nats://host1:port1,nats://host2:port2,...`
+4. Apply to `quarkus.easynats.servers` configuration
+
+**Constraints**:
+- All containers must share same username and password
+- All containers must have same SSL/TLS configuration
+- Implementation should handle 1-N containers gracefully
+
+**Rationale**:
+- Enables testing of clustering behavior in dev/test environments
+- Requires minimal additional implementation (list building)
+- Leverages native NATS client clustering support
+- Matches user's potential docker-compose clustering setup
+
+---
+
 ## All Clarifications Resolved
 
 ### Clarification Tracking
@@ -315,10 +360,11 @@ String connectionUrl = scheme + "://" + host + ":" + port;
 | Topic | Original Clarification | Resolution | Source |
 |-------|------------------------|-----------|--------|
 | Discovery mechanism | How to implement container discovery? | Use `ComposeLocator.locateContainer()` | Quarkus Compose Dev Services guide |
-| Credential extraction | Where are NATS credentials stored? | Environment variables (NATS_USERNAME, NATS_PASSWORD) | NATS Docker image documentation |
+| Credential extraction | Where are NATS credentials stored? | Environment variables (NATS_USERNAME, NATS_PASSWORD) with fallback to NATS_USER | NATS Docker image documentation |
 | Configuration source | Read from properties or docker-compose? | Docker-compose only (discovery-first) | Feature specification FR-006 |
-| SSL detection | How to detect TLS enablement? | Check NATS_TLS environment variable | NATS standard environment variables |
+| SSL detection | How to detect TLS enablement? | Check NATS_TLS_CERT, NATS_TLS_KEY, NATS_TLS_CA env vars | NATS TLS requirements |
 | Performance target | Can discovery complete in 5 seconds? | Yes, discovery-only ~300ms | Quarkus dev services benchmarks |
+| Clustering support | Should extension support multiple NATS containers? | Yes, discover all and build comma-separated URL list | User insight: clustering is valid dev scenario |
 
 ---
 

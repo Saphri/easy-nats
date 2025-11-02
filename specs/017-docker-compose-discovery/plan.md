@@ -265,6 +265,8 @@ mvn quarkus:dev
    - Already uses `ComposeLocator.locateContainer()`
    - Add credential extraction from container environment variables
    - Add SSL detection logic
+   - Handle both single container and clustering scenarios
+   - For multiple containers: build comma-separated URL list
    - Return complete `ContainerConfig` with all metadata
 
 3. **Remove `NatsContainer` class entirely**:

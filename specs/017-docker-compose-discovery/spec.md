@@ -72,10 +72,14 @@ The Dev Services processor detects and connects to NATS containers that are part
 ### Edge Cases
 
 - What happens when a docker-compose file defines NATS but the container is not running?
-- How does the system behave if multiple NATS containers are discovered (e.g., one in docker-compose, one from a previous run)?
+- How does the system behave if multiple NATS containers are discovered from the same compose project (clustering)?
+  - Should all containers be included in the connection URL list?
+  - How are containers identified as part of the same cluster?
+- What if some NATS containers in a cluster have different credentials than others?
 - What if the NATS container credentials cannot be extracted from environment variables or container metadata?
 - How does the processor handle NATS containers without explicit credentials set?
-- What if the docker-compose project is stopped and restarted - does discovery adapt to the new container instance?
+- What if the docker-compose project is stopped and restarted - does discovery adapt to the new container instances?
+- For NATS clustering, what order should discovered containers appear in the connection URL list?
 
 ## Requirements *(mandatory)*
 
@@ -86,9 +90,9 @@ The Dev Services processor detects and connects to NATS containers that are part
 
 ### Functional Requirements
 
-- **FR-001**: Dev Services processor MUST query running docker containers to discover NATS service
-- **FR-002**: Processor MUST extract connection host from discovered NATS container
-- **FR-003**: Processor MUST extract connection port from discovered NATS container (default to standard NATS port if not customized)
+- **FR-001**: Dev Services processor MUST query running docker containers to discover NATS service(s)
+- **FR-002**: Processor MUST extract connection host from discovered NATS container(s)
+- **FR-003**: Processor MUST extract connection port from discovered NATS container(s) (default to standard NATS port if not customized)
 - **FR-004**: Processor MUST extract username credential from container environment variables or metadata
 - **FR-005**: Processor MUST extract password credential from container environment variables or metadata
 - **FR-006**: Processor MUST NOT read NATS configuration from application.properties, application.yaml, or environment variables (e.g., quarkus.easynats.servers, quarkus.easynats.username, quarkus.easynats.password, quarkus.easynats.ssl-enabled)
@@ -96,12 +100,13 @@ The Dev Services processor detects and connects to NATS containers that are part
 - **FR-008**: Processor MUST support containers that expose NATS on custom ports
 - **FR-009**: When no docker-compose NATS container is discovered, processor MUST NOT initialize Dev Services (application must provide explicit configuration)
 - **FR-010**: Processor MUST log discovery attempts and results at appropriate levels (debug for attempts, info for discovery success, warn for discovery failure)
+- **FR-011**: For multiple discovered NATS containers (clustering), processor MUST build comma-separated connection URL list (e.g., `nats://host1:port1,nats://host2:port2,nats://host3:port3`)
 
 ### Key Entities *(include if feature involves data)*
 
-- **NATS Container**: A running Docker container hosting NATS JetStream service with connection metadata (host, port, credentials, protocol)
-- **Dev Services Configuration**: Runtime configuration derived from discovered container (connection URL, username, password, SSL enabled flag)
-- **Docker Compose Project**: User-defined docker-compose file that provisions NATS and other services for local development
+- **NATS Container(s)**: One or more running Docker containers hosting NATS JetStream service (for single node or clustering scenarios) with connection metadata (host, port, credentials, protocol)
+- **Dev Services Configuration**: Runtime configuration derived from discovered container(s) (connection URL list, username, password, SSL enabled flag)
+- **Docker Compose Project**: User-defined docker-compose file that provisions NATS service(s) and other services for local development
 
 ## Success Criteria *(mandatory)*
 
@@ -125,7 +130,8 @@ The Dev Services processor detects and connects to NATS containers that are part
 - NATS container environment variables follow standard naming conventions for storing credentials (e.g., NATS_USERNAME, NATS_PASSWORD, or similar)
 - Dev Services discovery leverages existing Quarkus container locator utilities and docker integration
 - The feature is only relevant for development and test launch modes (not production)
-- Single NATS container per dev environment (no multi-container discovery complexity)
+- NATS clustering (multiple containers) supported: extension discovers all NATS containers and builds comma-separated connection URL list
+- All NATS containers in a cluster share the same authentication credentials and SSL configuration
 
 ## Constraints & Out of Scope
 
