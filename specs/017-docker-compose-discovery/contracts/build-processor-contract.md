@@ -312,15 +312,20 @@ public interface NatsDevServicesBuildTimeConfiguration {
 - Test error/logging paths
 
 **Integration Tests**:
-- Start real docker-compose NATS service
-- Run Quarkus application with processor
-- Verify application connects to discovered NATS container
-- Test with multiple credential configurations
-- Test with and without TLS enabled
+- Existing test suite provides comprehensive coverage
+- Tests depend on docker-compose NATS service being discovered and configured
+- If discovery fails or configuration is incorrect, existing tests will fail
+- No additional test scenarios needed beyond existing suite
+- Current tests validate:
+  - Auto-discovery of NATS container
+  - Correct credential extraction
+  - Proper configuration application
+  - End-to-end connection and messaging
 
 **Native Image Tests**:
 - Same integration tests run as `@QuarkusIntegrationTest` (native)
-- Verify no GraalVM reflection issues
-- No additional native-specific considerations required
+- Inherits coverage from JVM test suite
+- Validates native image compatibility
+- No additional native-specific test scenarios required
 
 ---

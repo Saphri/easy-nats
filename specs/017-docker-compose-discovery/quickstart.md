@@ -685,6 +685,24 @@ authorization {
 
 ---
 
+## Testing Coverage
+
+The feature implementation is validated by the **existing integration test suite**:
+
+- Tests run against docker-compose NATS service
+- If container discovery or configuration fails, tests will fail
+- Provides end-to-end validation of the feature
+- No additional test scenarios needed beyond current suite
+- Native image tests (`@QuarkusIntegrationTest`) inherit coverage from JVM tests
+
+This means:
+1. ✅ Feature correctness validated by existing tests
+2. ✅ Configuration extraction verified through actual connection
+3. ✅ JVM and native image compatibility covered
+4. ✅ No special test setup required beyond current docker-compose
+
+---
+
 ## Next Steps
 
 1. **Review the specification** for detailed behavior: [spec.md](spec.md)

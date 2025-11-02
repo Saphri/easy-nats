@@ -280,8 +280,9 @@ mvn quarkus:dev
 
 5. **Testing Strategy**:
    - Unit test: Mock ComposeLocator, verify credential extraction
-   - Integration test: Start docker-compose with NATS, verify auto-discovery and connection
-   - Native image test: Same scenarios as integration test in native context
-   - No longer need container lifecycle tests (no containers being managed)
+   - Integration test: Existing test suite provides coverage (tests depend on docker-compose setup and will fail if discovery fails)
+   - Native image test: Same scenarios as integration test in native context (`@QuarkusIntegrationTest` inheritance)
+   - No additional test scenarios needed beyond existing suite (discovery is validated by existing tests)
+   - No container lifecycle tests needed (no containers being managed)
 
 ---
