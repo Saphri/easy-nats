@@ -16,13 +16,8 @@ import org.mjelle.quarkus.easynats.NatsConfigurationException;
 import org.mjelle.quarkus.easynats.NatsConnection;
 import org.mjelle.quarkus.easynats.runtime.health.ConnectionStatus;
 import org.mjelle.quarkus.easynats.runtime.health.ConnectionStatusHolder;
-import org.mjelle.quarkus.easynats.runtime.health.NatsConnectionListener;
 
 import java.io.IOException;
-import java.util.concurrent.ExecutorService;
-
-import io.quarkus.tls.TlsConfigurationRegistry;
-import io.quarkus.virtual.threads.VirtualThreads;
 
 /**
  * Provider that creates and manages the lifecycle of NatsConnection instances.
@@ -36,29 +31,35 @@ public class NatsConnectionProvider {
 
     private final Logger log = Logger.getLogger(NatsConnectionProvider.class);
 
-    private final NatsConfiguration config;
-    private final ExecutorService executorService;
-    private final TlsConfigurationRegistry tlsRegistry;
+    private final Options options;
     private final ConnectionStatusHolder statusHolder;
     private Connection natsConnection;
     private NatsConnection wrappedConnection;
 
     /**
-     * Constructor injection of configuration, executor service, and TLS registry.
+     * Constructor injection of Options and status holder.
+     * <p>
+     * The Options are injected from the CDI container, which provides either:
+     * - Default Options from NatsConnectionProducer (if no custom bean exists)
+     * - Custom Options from a developer-provided bean (if @Produces @Unremovable bean exists)
+     * <p>
+     * The Options object is fully configured and includes:
+     * - Server URLs and authentication (from NatsConnectionProducer)
+     * - Executor service for async operations (added by producer)
+     * - Connection listener for health checks (added by producer)
+     * - SSL/TLS configuration (added by producer)
+     * <p>
+     * This follows the CDI @DefaultBean pattern: developers can completely override
+     * the default Options by providing their own unqualified Options bean.
      *
-     * @param config          the NATS configuration
-     * @param executorService the virtual thread executor service
-     * @param tlsRegistry     the Quarkus TLS configuration registry
+     * @param options      the fully-configured NATS Options (injected from CDI container)
+     * @param statusHolder the connection status holder
      */
     public NatsConnectionProvider(
-            NatsConfiguration config,
-            @VirtualThreads ExecutorService executorService,
-            TlsConfigurationRegistry tlsRegistry,
+            Options options,
             ConnectionStatusHolder statusHolder
     ) {
-        this.config = config;
-        this.executorService = executorService;
-        this.tlsRegistry = tlsRegistry;
+        this.options = options;
         this.statusHolder = statusHolder;
     }
 
@@ -118,77 +119,23 @@ public class NatsConnectionProvider {
     /**
      * Internal method to create a NatsConnection wrapper around a new NATS connection.
      * <p>
-     * This method validates the configuration and establishes a connection to the NATS server.
+     * This method uses fully-configured Options (injected via CDI) to establish the connection.
+     * The Options are created by either:
+     * - Default NatsConnectionProducer (from configuration properties and runtime settings)
+     * - Custom developer-provided bean (if present, overrides default)
+     * <p>
      * The connection is wrapped in a NatsConnection facade that prevents accidental closure.
      *
      * @return a wrapped NATS connection
-     * @throws NatsConfigurationException if configuration is invalid or connection fails
+     * @throws RuntimeException if connection fails
      */
     NatsConnection createConnection() {
-        // Log what configuration is actually available
-        log.infof("NatsConnectionProvider: Creating connection. Servers present: %s, Servers value: %s",
-                config.servers().isPresent(),
-                config.servers().map(list -> list.isEmpty() ? "[empty list]" : String.join(", ", list))
-                        .orElse("[not present]"));
-
-        // Validate configuration first
-        try {
-            config.validate();
-        } catch (NatsConfigurationException e) {
-            log.errorf(e, "Invalid NATS configuration");
-            throw e;
-        }
-
-        // Verify servers are available (they should be provided by Dev Services or explicit config by now)
-        if (config.servers().isEmpty() || config.servers().get().isEmpty()) {
-            throw new NatsConfigurationException(
-                    "NATS servers configuration is empty. " +
-                    "Ensure Dev Services is enabled or set 'quarkus.easynats.servers' property explicitly"
-            );
-        }
+        log.info("NatsConnectionProvider: Creating NATS connection with injected Options");
 
         try {
-            // Build connection options
-            Options.Builder optionsBuilder = new Options.Builder();
-
-            // Add servers (guaranteed to exist after checks above)
-            String[] serverUrls = config.servers().get().toArray(new String[0]);
-            optionsBuilder.servers(serverUrls);
-
-            // Add authentication if configured
-            if (config.username().isPresent() && config.password().isPresent()) {
-                optionsBuilder.userInfo(config.username().get(), config.password().get());
-            }
-
-            // Add executor service for async operations
-            optionsBuilder.executor(executorService);
-
-            // Add connection listener for health checks
-            optionsBuilder.connectionListener(new NatsConnectionListener(statusHolder));
-
-            // Always set the SSLContext if a TLS configuration is available in Quarkus.
-            // The jnats client will only use it if the server URL has a TLS scheme (tls://, wss://).
-            if (config.sslEnabled()) {
-                var tlsConfiguration = config.tlsConfigurationName()
-                        .flatMap(tlsRegistry::get)
-                        .or(tlsRegistry::getDefault);
-
-                tlsConfiguration.ifPresent(cfg -> {
-                    try {
-                        optionsBuilder.sslContext(cfg.createSSLContext());
-                        log.infof("Configured TLS for NATS connection using: %s",
-                                config.tlsConfigurationName().orElse("default"));
-                    } catch (Exception e) {
-                        throw new NatsConfigurationException(
-                                "Failed to create SSLContext from TLS configuration: " +
-                                        config.tlsConfigurationName().orElse("default"), e);
-                    }
-                });
-            }
-
-            Options options = optionsBuilder.build();
-
-            // Connect to NATS
+            // Connect to NATS using the fully-configured Options
+            // The Options includes servers, authentication, executor service,
+            // connection listener, and TLS configuration (all set by the producer)
             this.natsConnection = Nats.connect(options);
             statusHolder.setStatus(ConnectionStatus.CONNECTED);
 
@@ -206,9 +153,7 @@ public class NatsConnectionProvider {
             // Wrap connection in facade
             this.wrappedConnection = new NatsConnection(natsConnection);
 
-            String servers = String.join(", ", sanitizeUrls(config.servers().get()));
-            log.infof("Successfully connected to NATS server(s): %s", servers);
-            log.infof("Connected to: %s", natsConnection.getConnectedUrl());
+            log.infof("Successfully established NATS connection to: %s", natsConnection.getConnectedUrl());
 
             return wrappedConnection;
 
@@ -219,25 +164,11 @@ public class NatsConnectionProvider {
             statusHolder.setStatus(ConnectionStatus.DISCONNECTED);
 
             // Fail fast - application cannot function without NATS
-            String servers = String.join(", ", sanitizeUrls(config.servers().get()));
             throw new RuntimeException(
-                    "Failed to connect to NATS broker(s) at startup: " + servers + ". " +
+                    "Failed to connect to NATS broker at startup. " +
                             "Application requires NATS connection to function. " +
-                            "Ensure NATS server is running and configuration is correct.", e);
+                            "Ensure NATS server is running and Options configuration is correct.", e);
         }
-    }
-
-    /**
-     * Sanitizes URLs by removing embedded credentials for logging.
-     * Prevents credentials from appearing in logs.
-     *
-     * @param urls list of URLs to sanitize
-     * @return list of sanitized URLs
-     */
-    private java.util.List<String> sanitizeUrls(java.util.List<String> urls) {
-        return urls.stream()
-                .map(url -> url.replaceAll("://[^:]+:[^@]+@", "://***:***@"))
-                .toList();
     }
 
     /**

@@ -453,21 +453,11 @@ if (appName != null && !appName.isEmpty()) {
 ---
 
 ## Active Technologies
-- Java 21 (enforced per Principle IV) (001-basic-publisher-api)
 - Quarkus 3.27.0 LTS (extension framework)
 - CloudEvents 1.0 (transparent event format) (005-transparent-cloudevents)
 - NATS JetStream (messaging broker)
 - Jackson Databind (serialization)
-- Java 21 (enforced per Constitution Principle IV) (006-typed-subscriber)
-- N/A (messaging system, no data storage) (006-typed-subscriber)
-- Java 21 (enforced per Constitution Principle IV) + Jackson Databind (JSON serialization), NATS JetStream client, Quarkus Arc (CDI) (007-typed-serialization)
-- N/A (messaging system) (007-typed-serialization)
-- Java 21 (enforced per Constitution IV) + Quarkus 3.27.0, NATS JetStream client (io.nats:jnats), Jackson Databind (inherited from 007-typed-serialization) (001-durable-nats-consumers)
-- N/A (messages managed by NATS JetStream) (001-durable-nats-consumers)
-- Java 21 (enforced per Constitution Principle IV) + Quarkus 3.27.0 LTS, NATS JetStream client (io.nats:jnats) (009-explicit-ack-nak)
-- N/A (messaging system; messages managed by NATS JetStream) (009-explicit-ack-nak)
-- Java 21 + Quarkus 3.27.0, NATS JetStream client (io.nats:jnats), Quarkus Arc (CDI) (010-nats-connection-access)
-- N/A (connection management only, no persistence) (010-nats-connection-access)
+- Java 21 (enforced by Constitution Principle IV) (016-custom-nats-options)
 
 ## Recent Changes
 - 005-transparent-cloudevents: Implemented transparent CloudEvent wrapping in NatsPublisher with custom PublishingException

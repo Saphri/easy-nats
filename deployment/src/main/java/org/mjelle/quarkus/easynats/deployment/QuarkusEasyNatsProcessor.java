@@ -30,6 +30,7 @@ import org.mjelle.quarkus.easynats.NatsConnectionManager;
 import org.mjelle.quarkus.easynats.NatsPublisher;
 import org.mjelle.quarkus.easynats.NatsSubscriber;
 import org.mjelle.quarkus.easynats.NatsSubject;
+import org.mjelle.quarkus.easynats.core.NatsConnectionProducer;
 import org.mjelle.quarkus.easynats.runtime.NatsConnectionProvider;
 import org.mjelle.quarkus.easynats.runtime.health.ConnectionStatusHolder;
 import org.mjelle.quarkus.easynats.runtime.health.NatsHealthCheck;
@@ -210,6 +211,7 @@ class QuarkusEasyNatsProcessor {
     AdditionalBeanBuildItem beans() {
         return AdditionalBeanBuildItem.builder()
                 .addBeanClass(NatsConnectionManager.class)
+                .addBeanClass(NatsConnectionProducer.class)
                 .addBeanClass(NatsConnectionProvider.class)
                 .addBeanClass(NatsPublisherRecorder.class)
                 .addBeanClass(SubscriberRegistry.class)
