@@ -24,6 +24,20 @@ import java.util.concurrent.ExecutorService;
  * When a developer provides a custom {@link Options} bean, this default producer is bypassed
  * entirely, and the custom bean takes complete responsibility for configuration.
  * <p>
+ * <strong>Important Caveats for Custom Options Beans:</strong>
+ * <ul>
+ * <li><strong>@Unremovable is MANDATORY:</strong> Custom beans MUST use {@code @Produces @Unremovable}
+ *     or Quarkus will optimize them away, causing startup failure</li>
+ * <li><strong>Complete Configuration Responsibility:</strong> When custom bean exists,
+ *     NatsConfiguration properties ({@code quarkus.easynats.*}) are COMPLETELY IGNORED</li>
+ * <li><strong>Single Bean Rule:</strong> Only ONE unqualified Options bean is allowed.
+ *     Multiple beans cause {@code AmbiguousResolutionException}</li>
+ * <li><strong>No Partial Override:</strong> Cannot mix custom bean with configuration properties.
+ *     Custom bean must provide ALL required options (servers, auth, TLS, etc.)</li>
+ * <li><strong>Fail-Fast Approach:</strong> If custom bean throws exception during creation,
+ *     application fails at startup (no fallback to defaults)</li>
+ * </ul>
+ * <p>
  * Usage:
  * <pre>
  * // Default behavior: application.properties provides configuration
@@ -33,7 +47,7 @@ import java.util.concurrent.ExecutorService;
  * // Custom behavior: developer provides a custom Options bean
  * @ApplicationScoped
  * public class CustomNatsOptions {
- *   @Produces @Unremovable
+ *   @Produces @Unremovable  // CRITICAL: @Unremovable is required!
  *   public Options customOptions() {
  *     return new Options.Builder()
  *       .servers(new String[]{"nats://custom-server:4222"})
@@ -43,6 +57,8 @@ import java.util.concurrent.ExecutorService;
  * }
  * // Now the custom bean overrides this default producer
  * </pre>
+ *
+ * @see org.mjelle.quarkus.easynats.it.config.CustomOptionsProvider Example implementation
  */
 @ApplicationScoped
 public class NatsConnectionProducer {
