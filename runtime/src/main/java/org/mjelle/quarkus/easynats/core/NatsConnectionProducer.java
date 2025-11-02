@@ -121,9 +121,7 @@ public class NatsConnectionProducer {
             Options.Builder optionsBuilder = new Options.Builder();
 
             // Set servers (validated above, guaranteed to exist)
-            String[] serverUrls = config.servers()
-                    .orElseThrow(() -> new NatsConfigurationException("Servers configuration is missing"))
-                    .toArray(new String[0]);
+            String[] serverUrls = config.servers().get().toArray(new String[0]);
             optionsBuilder.servers(serverUrls);
             log.debugf("Configured servers: %s", String.join(", ", serverUrls));
 
@@ -204,7 +202,7 @@ public class NatsConnectionProducer {
         }
 
         java.util.List<String> servers = config.servers().get();
-        if (servers == null || servers.isEmpty()) {
+        if (servers.isEmpty()) {
             throw new NatsConfigurationException(
                     "quarkus.easynats.servers must not be empty. " +
                             "Provide at least one NATS server URL (e.g., nats://localhost:4222)."
@@ -222,8 +220,8 @@ public class NatsConnectionProducer {
         }
 
         // Validate username/password pairing
-        boolean hasUsername = config.username().isPresent() && !config.username().get().isEmpty();
-        boolean hasPassword = config.password().isPresent() && !config.password().get().isEmpty();
+        boolean hasUsername = config.username().filter(s -> !s.isEmpty()).isPresent();
+        boolean hasPassword = config.password().filter(s -> !s.isEmpty()).isPresent();
 
         if (hasUsername && !hasPassword) {
             throw new NatsConfigurationException(
