@@ -158,8 +158,7 @@ public record ContainerConfig(
         List<String> urls = new ArrayList<>();
         for (int i = 0; i < hosts.length; i++) {
             String hostPart = hosts[i].trim();
-            // For single container, use its port. For clustering, use corresponding port.
-            String portPart = (hosts.length == 1) ? ports[0].trim() : ports[i].trim();
+            String portPart = ports[i].trim();
             urls.add(scheme + "://" + hostPart + ":" + portPart);
         }
         return String.join(",", urls);

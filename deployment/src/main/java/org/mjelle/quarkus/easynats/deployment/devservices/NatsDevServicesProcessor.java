@@ -176,21 +176,11 @@ public class NatsDevServicesProcessor {
                 Map<String, String> containerEnv = new HashMap<>();
                 var runningContainer = containerAddress.getRunningContainer();
                 if (runningContainer != null) {
-                    // Collect NATS credentials - CredentialExtractor handles fallback logic
-                    runningContainer.tryGetEnv("NATS_USERNAME")
-                        .ifPresent(val -> containerEnv.put("NATS_USERNAME", val));
-                    runningContainer.tryGetEnv("NATS_USER")
-                        .ifPresent(val -> containerEnv.put("NATS_USER", val));
-                    runningContainer.tryGetEnv("NATS_PASSWORD")
-                        .ifPresent(val -> containerEnv.put("NATS_PASSWORD", val));
-
-                    // Collect TLS certificate paths for SSL detection
-                    runningContainer.tryGetEnv("NATS_TLS_CERT")
-                        .ifPresent(val -> containerEnv.put("NATS_TLS_CERT", val));
-                    runningContainer.tryGetEnv("NATS_TLS_KEY")
-                        .ifPresent(val -> containerEnv.put("NATS_TLS_KEY", val));
-                    runningContainer.tryGetEnv("NATS_TLS_CA")
-                        .ifPresent(val -> containerEnv.put("NATS_TLS_CA", val));
+                    // Collect NATS credentials and TLS vars - CredentialExtractor handles fallback logic
+                    java.util.stream.Stream.of("NATS_USERNAME", "NATS_USER", "NATS_PASSWORD",
+                            "NATS_TLS_CERT", "NATS_TLS_KEY", "NATS_TLS_CA")
+                        .forEach(envVar -> runningContainer.tryGetEnv(envVar)
+                            .ifPresent(val -> containerEnv.put(envVar, val)));
                 }
 
                 // Delegate all credential extraction logic to CredentialExtractor

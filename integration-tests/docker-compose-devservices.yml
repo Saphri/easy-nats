@@ -4,7 +4,7 @@ services:
     image: nats:2.11
     container_name: nats
     environment:
-      NATS_USER: guest
+      NATS_USERNAME: guest
       NATS_PASSWORD: guest
 #      NATS_TLS_CERT: /etc/nats/certs/server-cert.pem
 #      NATS_TLS_KEY: /etc/nats/certs/server-key.pem
