@@ -19,6 +19,7 @@ nats consumer add test-stream test-consumer \
   --filter "test.>" \
   --deliver all \
   --ack explicit \
+  --replay instant \
   --wait 30s \
   --max-deliver 5 \
   --pull \
