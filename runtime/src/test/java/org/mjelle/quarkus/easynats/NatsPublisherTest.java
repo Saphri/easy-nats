@@ -11,10 +11,11 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.mjelle.quarkus.easynats.codec.Codec;
 import org.mjelle.quarkus.easynats.runtime.observability.NatsTraceService;
 
 /**
- * Unit tests for NatsPublisher - Jackson-only encoding.
+ * Unit tests for NatsPublisher - Codec-based encoding.
  *
  * Tests cover:
  * - POJO serialization and CloudEvents wrapping
@@ -22,24 +23,32 @@ import org.mjelle.quarkus.easynats.runtime.observability.NatsTraceService;
  * - Default subject handling
  * - CloudEvents header verification
  */
-@DisplayName("NatsPublisher Tests (Jackson-Only)")
+@DisplayName("NatsPublisher Tests (Codec-Based)")
 class NatsPublisherTest {
 
     private ObjectMapper objectMapper;
+    private Codec codec;
     private NatsConnectionManager connectionManager;
     private JetStream jetStream;
     private NatsTraceService traceService;
     private NatsPublisher<TestPojo> pojoPublisher;
 
     @BeforeEach
-    void setUp() {
+    void setUp() throws Exception {
         objectMapper = new ObjectMapper();
+        codec = mock(Codec.class, withSettings().lenient());
+        when(codec.getContentType()).thenReturn("application/json");
+        when(codec.encode(any())).thenAnswer(invocation -> {
+            Object obj = invocation.getArgument(0);
+            return objectMapper.writeValueAsBytes(obj);
+        });
+
         connectionManager = mock(NatsConnectionManager.class, withSettings().lenient());
         jetStream = mock(JetStream.class, withSettings().lenient());
         traceService = mock(NatsTraceService.class, withSettings().lenient());
         when(connectionManager.getJetStream()).thenReturn(jetStream);
 
-        pojoPublisher = new NatsPublisher<>(connectionManager, objectMapper, traceService);
+        pojoPublisher = new NatsPublisher<>(connectionManager, codec, traceService);
     }
 
     @Test
@@ -93,7 +102,7 @@ class NatsPublisherTest {
         // Given
         TestPojo pojo = new TestPojo("default_value", 50);
         NatsPublisher<TestPojo> publisherWithDefault =
-            new NatsPublisher<>(connectionManager, objectMapper, traceService, "default.subject");
+            new NatsPublisher<>(connectionManager, codec, traceService, "default.subject");
 
         // When
         publisherWithDefault.publish(pojo);
@@ -138,7 +147,7 @@ class NatsPublisherTest {
                 42.5);
 
         NatsPublisher<ComplexTestPojo> complexPublisher =
-            new NatsPublisher<>(connectionManager, objectMapper, traceService);
+            new NatsPublisher<>(connectionManager, codec, traceService);
 
         // When
         complexPublisher.publish("complex.subject", complex);
