@@ -50,4 +50,4 @@ These custom exceptions provide clear error handling for codec operations.
 ### `DefaultCodec`
 
 -   **Type**: Internal CDI Bean (`@ApplicationScoped`, `@DefaultBean`)
--   **Purpose**: Implements the `Codec` interface and contains the default Jackson/CloudEvents serialization logic. It serves as the fallback if the user does not provide a custom `Codec` bean.
+-   **Purpose**: Implements the `Codec` interface and contains the default Jackson serialization logic. It serves as the fallback if the user does not provide a custom `Codec` bean.

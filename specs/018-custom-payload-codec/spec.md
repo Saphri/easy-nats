@@ -7,9 +7,9 @@
 
 ## User Scenarios & Testing *(mandatory)*
 
-### User Story 1 - Register Global Custom Codec (Priority: P1)
+### User Story 1 - Register Global Custom Payload Codec (Priority: P1)
 
-As a developer, I want to register a single, global encoder/decoder (codec) for the entire application, so that I can control the serialization and deserialization logic for all messages, bypassing the default JSON/CloudEvent format.
+As a developer, I want to register a single, global encoder/decoder (codec) for the entire application, so that I can control the serialization of the event payload *within* the standard CloudEvent format, bypassing the default JSON serialization for the `data` attribute.
 
 **Why this priority**: This is the core functionality of the feature. It enables developers to integrate their own serialization formats like Protobuf, Avro, or other binary formats, which is crucial for performance-sensitive applications or for integrating with existing systems.
 
@@ -60,23 +60,26 @@ As a developer, I want my custom codec to be able to perform validation during d
 - Q: On a deserialization failure, should the message be negatively acknowledged (NACK), causing a redelivery, or should it be terminated (Term) to prevent redelivery? → A: NACK
 - Q: What kind of "type validation" should the global codec perform, and how should it be handled? → A: Codec-internal Validation
 
+- Q: How should the `datacontenttype` be determined when a custom codec is active? → A: Let the Codec decide
+
 ## Requirements *(mandatory)*
 
 ### Functional Requirements
 
--   **FR-001**: The system MUST provide a public interface for developers to implement their own payload codecs.
--   **FR-002**: The system MUST provide a mechanism to provide a single, global custom codec implementation (via a CDI bean) that will be used for all serialization and deserialization within the application.
--   **FR-003**: When a `NatsPublisher` sends a message, it MUST use the global custom codec (if provided) to encode the payload.
--   **FR-004**: When a `@NatsSubscriber` is configured to receive a message, the system MUST use the global custom codec (if provided) to decode the incoming message payload.
--   **FR-005**: If no global custom codec is provided, the system MUST default to the existing Jackson/CloudEvents serialization mechanism.
+-   **FR-001**: The system MUST provide a public interface for developers to implement a global payload codec.
+-   **FR-002**: The system MUST provide a mechanism to provide a single, global custom codec implementation (via a CDI bean).
+-   **FR-003**: When a `NatsPublisher` sends a message, it MUST create a CloudEvent envelope. The user's payload object MUST be encoded into a byte array using the global custom codec (if provided), and this byte array MUST be set as the `data` attribute of the CloudEvent. The CloudEvent `datacontenttype` attribute MUST be set to the value returned by the global custom codec's `getContentType()` method.
+-   **FR-004**: When a `@NatsSubscriber` receives a message, the system MUST parse the CloudEvent envelope. The `data` attribute of the CloudEvent MUST be decoded using the global custom codec (if provided) to reconstruct the user's payload object.
+-   **FR-005**: If no global custom codec is provided, the system MUST default to using Jackson to serialize the payload object into the CloudEvent `data` attribute.
 -   **FR-006**: The codec interface MUST support throwing exceptions to signal encoding, decoding, or validation failures.
--   **FR-007**: The system MUST gracefully handle exceptions thrown by the global custom codec during deserialization, preventing the subscriber method from being called and ensuring the message is negatively acknowledged (NACKed). Failures MUST be logged at WARN level with exception type, message, and subject. Payload logging (truncated to ~256 bytes) is controlled by the `quarkus.easynats.log-payloads-on-error` configuration property (default: false).
+-   **FR-007**: The system MUST gracefully handle exceptions thrown by the global custom codec during deserialization, preventing the subscriber method from being called and ensuring the message is negatively acknowledged (NACKed). Failures MUST be logged at WARN level.
 
 ### Key Entities *(include if feature involves data)*
 
 -   **Codec**: A non-generic interface that developers implement to provide global serialization and deserialization.
     - `byte[] encode(Object object) throws SerializationException`: Encodes an object to bytes. Throws `SerializationException` if encoding fails.
     - `Object decode(byte[] data, Class<?> type) throws DeserializationException`: Decodes bytes to the target type. The `Class<?> type` parameter allows the codec to know the expected target type. Throws `DeserializationException` for validation or decoding failures.
+    - `String getContentType()`: Returns the CloudEvents `datacontenttype` for the data produced by this codec.
 -   **SerializationException**: A checked exception thrown by `Codec.encode()` when encoding fails.
 -   **DeserializationException**: A checked exception thrown by `Codec.decode()` when decoding or validation fails.
 -   **DefaultCodec**: An internal CDI bean (`@ApplicationScoped`, `@DefaultBean`) that implements the `Codec` interface and contains the default Jackson/CloudEvents serialization logic. It serves as the fallback if the user does not provide a custom `Codec` bean.
