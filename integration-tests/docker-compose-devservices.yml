@@ -17,6 +17,13 @@ services:
     command: ["-c", "/etc/nats/nats.conf", "-js"]
     labels:
       io.quarkus.devservices.compose.wait_for.logs: .*Server is ready.*
+  nats-setup:
+    image: natsio/nats-box
+    depends_on:
+      - nats
+    volumes:
+      - ./setup-jetstream.sh:/setup-jetstream.sh
+    command: ["/bin/sh", "/setup-jetstream.sh"]
   lgtm:
     image: grafana/otel-lgtm
     container_name: lgtm
