@@ -20,10 +20,10 @@ This document outlines the actionable tasks to implement the custom payload code
 **Goal**: A developer can register a single, global codec to control serialization within the CloudEvent `data` attribute.
 **Independent Test**: A test where a custom codec is provided as a CDI bean. A message is published and received, asserting that the custom codec's `encode`, `decode`, and `getContentType` methods were called and the `datacontenttype` header is correct.
 
-- [ ] T008 [US1] Modify `NatsPublisher` in `runtime/src/main/java/org/mjelle/quarkus/easynats/NatsPublisher.java` to inject the `Codec` bean
-- [ ] T009 [US1] Update `NatsPublisher.publish()` to use the `Codec` to encode the payload and set the `datacontenttype`
-- [ ] T010 [US1] Modify `EasyNatsProcessor` in `deployment/src/main/java/org/mjelle/quarkus/easynats/deployment/EasyNatsProcessor.java` to look up the `Codec` bean
-- [ ] T011 [US1] Update subscriber invocation logic in `EasyNatsProcessor` to use the `Codec` for decoding
+- [x] T008 [US1] Modify `NatsPublisher` in `runtime/src/main/java/org/mjelle/quarkus/easynats/NatsPublisher.java` to inject the `Codec` bean
+- [x] T009 [US1] Update `NatsPublisher.publish()` to use the `Codec` to encode the payload and set the `datacontenttype`
+- [x] T010 [US1] Modify `EasyNatsProcessor` in `deployment/src/main/java/org/mjelle/quarkus/easynats/deployment/EasyNatsProcessor.java` to look up the `Codec` bean
+- [x] T011 [US1] Update subscriber invocation logic in `EasyNatsProcessor` to use the `Codec` for decoding
 - [ ] T012 [US1] Make the integration test from T007 pass
 
 ## Phase 4: User Story 2 - Perform Payload Validation & Error Handling
