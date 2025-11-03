@@ -774,5 +774,5 @@ public Object decode(byte[] data, Class<?> type, String ceType)
 
 - **[Explicit Ack/Nak Guide](./explicit-acknowledgment.md)** - Manual message handling
 - **[Configuration Guide](../CONFIGURATION.md)** - Setting up NATS connection
-- **[Jackson Annotations Guide](./jackson-annotations.md)** - Customizing Jackson serialization
+- **[Jackson Annotations Guide](../JACKSON_ANNOTATIONS_GUIDE.md)** - Customizing Jackson serialization
 
