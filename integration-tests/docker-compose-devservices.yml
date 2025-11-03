@@ -26,12 +26,12 @@ services:
       NATS_USERNAME: guest
       NATS_PASSWORD: guest
     ports:
-      - "8080"
+      - "8080" # fake port for quarkus compose
     depends_on:
       - nats
     volumes:
       - ./nats-config/setup-jetstream.sh:/setup-jetstream.sh
-    command: ["/bin/sh", "-c", "/setup-jetstream.sh && sleep infinity"]
+    command: ["/bin/sh", "-c", "/setup-jetstream.sh"]
   lgtm:
     image: grafana/otel-lgtm
     labels:
