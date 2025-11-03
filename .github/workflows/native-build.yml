@@ -61,12 +61,7 @@ jobs:
             exit 1
           fi
 
-      - name: Build native image (validates extension native compatibility)
-        run: ./mvnw -B install -Dnative -DskipTests -Pit
-        env:
-          GRAALVM_HOME: ${{ env.GRAALVM_HOME }}
-
-      - name: Run native integration tests (validates extension works in native mode)
+      - name: Build native image and run integration tests
         run: ./mvnw -B verify -Dnative -Pit
         env:
           GRAALVM_HOME: ${{ env.GRAALVM_HOME }}
