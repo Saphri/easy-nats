@@ -7,9 +7,9 @@
 
 ## User Scenarios & Testing *(mandatory)*
 
-### User Story 1 - Register Custom Codec (Priority: P1)
+### User Story 1 - Register Global Custom Codec (Priority: P1)
 
-As a developer, I want to register a custom encoder/decoder (codec) for a specific payload type, so that I can control the serialization and deserialization logic, bypassing the default JSON/CloudEvent format.
+As a developer, I want to register a single, global encoder/decoder (codec) for the entire application, so that I can control the serialization and deserialization logic for all messages, bypassing the default JSON/CloudEvent format.
 
 **Why this priority**: This is the core functionality of the feature. It enables developers to integrate their own serialization formats like Protobuf, Avro, or other binary formats, which is crucial for performance-sensitive applications or for integrating with existing systems.
 
@@ -17,8 +17,8 @@ As a developer, I want to register a custom encoder/decoder (codec) for a specif
 
 **Acceptance Scenarios**:
 
-1.  **Given** a developer has defined a custom `Codec` implementation for a `Product` class, **When** they register it with the EasyNATS system, **Then** any `NatsPublisher<Product>` instance MUST use this codec for serialization.
-2.  **Given** a custom codec for the `Product` class is registered, **When** a `@NatsSubscriber` method expecting a `Product` object receives a message, **Then** the custom codec MUST be used for deserialization.
+1.  **Given** a developer has defined a custom `Codec` implementation, **When** they register it as a global CDI bean, **Then** any `NatsPublisher` instance MUST use this codec for serialization of all message types.
+2.  **Given** a global custom codec is registered, **When** a `@NatsSubscriber` method receives a message, **Then** the global custom codec MUST be used for deserialization of all message types.
 
 ---
 
@@ -33,31 +33,53 @@ As a developer, I want my custom codec to be able to perform validation during d
 **Acceptance Scenarios**:
 
 1.  **Given** a custom codec with validation logic is registered, **When** an incoming message payload fails validation, **Then** the corresponding `@NatsSubscriber` method MUST NOT be invoked.
-2.  **Given** a message fails validation and the codec throws a specific validation exception, **When** this occurs, **Then** the system MUST log the error and the message MUST be negatively acknowledged (NACKed) to prevent reprocessing if it's a persistent stream.
+2.  **Given** a message fails validation and the codec throws a specific deserialization exception, **When** this occurs, **Then** the system MUST log the error and the message MUST be negatively acknowledged (NACKed) to prevent reprocessing if it's a persistent stream.
 
 ### Edge Cases
 
--   What happens if a codec is registered for a type that is a superclass of the published type?
--   How does the system behave if the `encode` method of a custom codec returns `null` or an empty byte array?
--   How does the system handle a `decode` method that throws an unexpected (non-validation) exception?
--   What happens if two different codecs are registered for the same type?
+-   **Null/empty encode result**: Developers are responsible for valid encoding; if `encode()` returns null or empty bytes, behavior is undefined. Developers should validate in their codec implementation.
+-   **Unexpected exceptions from decode**: Any `DeserializationException` thrown by the codec is caught, logged (WARN), the subscriber method is not invoked, and the message is NACKed.
+
+---
+
+## Clarifications
+
+### Session 2025-11-03
+
+-   Q: Is codec registration per-instance or global? → A: Global registration at application startup (via CDI bean or configuration), not per-instance.
+-   Q: How should the codec handle type matching and inheritance? → A: Exact-type matching with runtime casting. The `decode(byte[] data, Class<T> type)` method receives the target subscriber type so the developer can avoid casting errors. The framework performs a final runtime cast as a safety check.
+-   Q: What exception types should the codec throw? → A: Two checked exceptions: `SerializationException` for encode failures, `DeserializationException` for decode/validation failures.
+-   Q: How should validation failures be logged? → A: WARN level with exception type, message, and subject. Payload logging (truncated to ~256 bytes) is controlled by `quarkus.easynats.log-payloads-on-error` configuration property (default: false).
+-   Q: How should duplicate codec registrations (same type) be handled? → A: CDI handles conflict detection. If two codecs are registered for the same type, CDI throws an ambiguity error at startup.
+
+## Clarifications
+
+### Session 2025-11-03
+
+- Q: Should the feature support multiple, type-specific codecs or a single, global codec? → A: Global Codec
+- Q: On a deserialization failure, should the message be negatively acknowledged (NACK), causing a redelivery, or should it be terminated (Term) to prevent redelivery? → A: NACK
+- Q: What kind of "type validation" should the global codec perform, and how should it be handled? → A: Codec-internal Validation
 
 ## Requirements *(mandatory)*
 
 ### Functional Requirements
 
 -   **FR-001**: The system MUST provide a public interface for developers to implement their own payload codecs.
--   **FR-002**: The system MUST provide a mechanism to register a custom codec implementation for a specific Java type.
--   **FR-003**: When a `NatsPublisher` sends a message of a type that has a registered custom codec, it MUST use that codec to encode the payload.
--   **FR-004**: When a `@NatsSubscriber` is configured to receive a type that has a registered custom codec, the system MUST use that codec to decode the incoming message payload.
--   **FR-005**: If no custom codec is registered for a given type, the system MUST default to the existing Jackson/CloudEvents serialization mechanism.
--   **FR-006**: The codec interface MUST support throwing exceptions to signal decoding or validation failures.
--   **FR-007**: The system MUST gracefully handle exceptions thrown by a custom codec during deserialization, preventing the subscriber method from being called and ensuring the message is not automatically acknowledged.
+-   **FR-002**: The system MUST provide a mechanism to provide a single, global custom codec implementation (via a CDI bean) that will be used for all serialization and deserialization within the application.
+-   **FR-003**: When a `NatsPublisher` sends a message, it MUST use the global custom codec (if provided) to encode the payload.
+-   **FR-004**: When a `@NatsSubscriber` is configured to receive a message, the system MUST use the global custom codec (if provided) to decode the incoming message payload.
+-   **FR-005**: If no global custom codec is provided, the system MUST default to the existing Jackson/CloudEvents serialization mechanism.
+-   **FR-006**: The codec interface MUST support throwing exceptions to signal encoding, decoding, or validation failures.
+-   **FR-007**: The system MUST gracefully handle exceptions thrown by the global custom codec during deserialization, preventing the subscriber method from being called and ensuring the message is negatively acknowledged (NACKed). Failures MUST be logged at WARN level with exception type, message, and subject. Payload logging (truncated to ~256 bytes) is controlled by the `quarkus.easynats.log-payloads-on-error` configuration property (default: false).
 
 ### Key Entities *(include if feature involves data)*
 
--   **Codec**: An interface that developers can implement. It will define methods for encoding and decoding, such as `byte[] encode(T object)` and `T decode(byte[] data, Class<T> type)`.
--   **CodecRegistry**: An internal component responsible for managing the registration of custom codecs and providing the correct codec for a given Java type at runtime.
+-   **Codec**: A non-generic interface that developers implement to provide global serialization and deserialization.
+    - `byte[] encode(Object object) throws SerializationException`: Encodes an object to bytes. Throws `SerializationException` if encoding fails.
+    - `Object decode(byte[] data, Class<?> type) throws DeserializationException`: Decodes bytes to the target type. The `Class<?> type` parameter allows the codec to know the expected target type. Throws `DeserializationException` for validation or decoding failures.
+-   **SerializationException**: A checked exception thrown by `Codec.encode()` when encoding fails.
+-   **DeserializationException**: A checked exception thrown by `Codec.decode()` when decoding or validation fails.
+-   **DefaultCodec**: An internal CDI bean (`@ApplicationScoped`, `@DefaultBean`) that implements the `Codec` interface and contains the default Jackson/CloudEvents serialization logic. It serves as the fallback if the user does not provide a custom `Codec` bean.
 
 ## Success Criteria *(mandatory)*
 
