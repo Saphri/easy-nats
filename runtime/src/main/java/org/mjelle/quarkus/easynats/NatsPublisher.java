@@ -32,7 +32,7 @@ import org.mjelle.quarkus.easynats.runtime.subscriber.TypeValidationResult;
  *
  * @param <T> the type of payload to publish
  */
-@ApplicationScoped
+@Dependent
 public class NatsPublisher<T> {
 
     private final NatsConnectionManager connectionManager;
