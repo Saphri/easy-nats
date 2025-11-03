@@ -58,7 +58,6 @@ public class NatsTestUtils {
         return new NatsConnection(getConnection());
     }
 
-
     public static void purgeStream() throws Exception {
         Connection nc = connectionRef.get();
         if (nc != null) {
