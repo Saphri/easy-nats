@@ -101,7 +101,6 @@ public class NatsDevServicesProcessor {
 
     private static final Logger log = Logger.getLogger(NatsDevServicesProcessor.class);
     private static final String FEATURE = "quarkus-easynats-devservices";
-    private static final String NATS_URL_PROPERTY = "quarkus.easynats.servers";
     private static final int NATS_PORT = 4222;
 
     private static final ContainerLocator natsContainerLocator = new ContainerLocator("nats", NATS_PORT);

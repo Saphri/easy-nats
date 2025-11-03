@@ -1,6 +1,5 @@
 package org.mjelle.quarkus.easynats.runtime;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.quarkus.runtime.annotations.Recorder;
 import jakarta.enterprise.context.Dependent;
 import jakarta.enterprise.inject.Produces;
@@ -27,7 +26,6 @@ public class NatsPublisherRecorder {
      *
      * @param injectionPoint      the injection point
      * @param connectionManager   the NATS connection manager
-     * @param objectMapper        the Jackson object mapper
      * @param codec               the global payload codec (injected by CDI)
      * @param traceService        the NATS tracing service (may be a no-op implementation if tracing is disabled)
      * @param <T>                 the type of the publisher
@@ -38,14 +36,13 @@ public class NatsPublisherRecorder {
     public <T> NatsPublisher<T> publisher(
             InjectionPoint injectionPoint,
             NatsConnectionManager connectionManager,
-            ObjectMapper objectMapper,
             Codec codec,
             NatsTraceService traceService) {
         NatsSubject subject = injectionPoint.getAnnotated().getAnnotation(NatsSubject.class);
 
         if (subject != null) {
-            return new NatsPublisher<>(connectionManager, objectMapper, codec, traceService, subject.value());
+            return new NatsPublisher<>(connectionManager, codec, traceService, subject.value());
         }
-        return new NatsPublisher<>(connectionManager, objectMapper, codec, traceService);
+        return new NatsPublisher<>(connectionManager, codec, traceService);
     }
 }

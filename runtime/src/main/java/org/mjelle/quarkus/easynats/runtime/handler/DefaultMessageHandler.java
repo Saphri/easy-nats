@@ -13,13 +13,13 @@ import io.opentelemetry.context.Scope;
 import org.jboss.logging.Logger;
 import org.mjelle.quarkus.easynats.NatsMessage;
 import org.mjelle.quarkus.easynats.codec.Codec;
+import org.mjelle.quarkus.easynats.codec.DeserializationException;
 import org.mjelle.quarkus.easynats.runtime.NatsConfiguration;
 import org.mjelle.quarkus.easynats.runtime.metadata.SubscriberMetadata;
 import org.mjelle.quarkus.easynats.runtime.observability.NatsTraceService;
 import org.mjelle.quarkus.easynats.runtime.subscriber.CloudEventException;
 import org.mjelle.quarkus.easynats.runtime.subscriber.CloudEventUnwrapper;
 import org.mjelle.quarkus.easynats.runtime.subscriber.DefaultNatsMessage;
-import org.mjelle.quarkus.easynats.runtime.subscriber.DeserializationException;
 
 /**
  * Default implementation of {@link MessageHandler}.
@@ -176,10 +176,10 @@ public class DefaultMessageHandler implements MessageHandler {
                             message.getHeaders().getFirst("ce-type") : null;
                     // Use global codec for deserialization
                     payload = codec.decode(eventData, targetType, ceType);
-                } catch (org.mjelle.quarkus.easynats.codec.DeserializationException e) {
+                } catch (DeserializationException e) {
                     // Codec-level deserialization exception (includes validation errors)
-                    throw new DeserializationException(
-                            "Failed to deserialize to type " + payloadType.getTypeName() + ": " + e.getMessage(), e);
+                    // Re-throw as-is; the codec's checked exception is used directly
+                    throw e;
                 } catch (Exception e) {
                     throw new DeserializationException(
                             "Failed to deserialize to type " + payloadType.getTypeName(), e);

@@ -5,7 +5,6 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.nats.client.JetStream;
 import io.nats.client.JetStreamApiException;
 import io.opentelemetry.api.trace.Span;
@@ -37,7 +36,6 @@ import org.mjelle.quarkus.easynats.runtime.subscriber.TypeValidationResult;
 public class NatsPublisher<T> {
 
     private final NatsConnectionManager connectionManager;
-    private final ObjectMapper objectMapper;
     private final Codec codec;
     private final String subject;
     private final AtomicBoolean typeValidated = new AtomicBoolean(false);
@@ -47,50 +45,45 @@ public class NatsPublisher<T> {
      * Constructor for dependency injection without tracing (for test compatibility).
      *
      * @param connectionManager the NATS connection manager (injected by Quarkus)
-     * @param objectMapper the Jackson ObjectMapper (injected by Quarkus)
      * @param codec the global payload codec (injected by Quarkus)
      */
-    public NatsPublisher(NatsConnectionManager connectionManager, ObjectMapper objectMapper, Codec codec) {
-        this(connectionManager, objectMapper, codec, null, null);
+    public NatsPublisher(NatsConnectionManager connectionManager, Codec codec) {
+        this(connectionManager, codec, null, null);
     }
 
     /**
      * Constructor for dependency injection with a default subject.
      *
      * @param connectionManager the NATS connection manager (injected by Quarkus)
-     * @param objectMapper the Jackson ObjectMapper (injected by Quarkus)
      * @param codec the global payload codec (injected by Quarkus)
      * @param subject the default NATS subject for this publisher
      */
-    public NatsPublisher(NatsConnectionManager connectionManager, ObjectMapper objectMapper, Codec codec, String subject) {
-        this(connectionManager, objectMapper, codec, null, subject);
+    public NatsPublisher(NatsConnectionManager connectionManager, Codec codec, String subject) {
+        this(connectionManager, codec, null, subject);
     }
 
     /**
      * Constructor for dependency injection with tracing.
      *
      * @param connectionManager the NATS connection manager (injected by Quarkus)
-     * @param objectMapper the Jackson ObjectMapper (injected by Quarkus)
      * @param codec the global payload codec (injected by Quarkus)
      * @param traceService the tracing service (injected by Quarkus)
      */
     @Inject
-    public NatsPublisher(NatsConnectionManager connectionManager, ObjectMapper objectMapper, Codec codec, NatsTraceService traceService) {
-        this(connectionManager, objectMapper, codec, traceService, null);
+    public NatsPublisher(NatsConnectionManager connectionManager, Codec codec, NatsTraceService traceService) {
+        this(connectionManager, codec, traceService, null);
     }
 
     /**
      * Constructor for dependency injection with tracing and a default subject.
      *
      * @param connectionManager the NATS connection manager (injected by Quarkus)
-     * @param objectMapper the Jackson ObjectMapper (injected by Quarkus)
      * @param codec the global payload codec (injected by Quarkus)
      * @param traceService the tracing service (injected by Quarkus)
      * @param subject the default NATS subject for this publisher
      */
-    public NatsPublisher(NatsConnectionManager connectionManager, ObjectMapper objectMapper, Codec codec, NatsTraceService traceService, String subject) {
+    public NatsPublisher(NatsConnectionManager connectionManager, Codec codec, NatsTraceService traceService, String subject) {
         this.connectionManager = connectionManager;
-        this.objectMapper = objectMapper;
         this.codec = codec;
         this.traceService = traceService;
         this.subject = subject;
