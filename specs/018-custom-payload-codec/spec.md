@@ -62,6 +62,8 @@ As a developer, I want my custom codec to be able to perform validation during d
 
 - Q: How should the `datacontenttype` be determined when a custom codec is active? → A: Let the Codec decide
 
+- Q: Should the `decode` method receive the CloudEvent `ce-type`? → A: Yes, the `decode` method will receive the `ce-type` string from the CloudEvent headers as a parameter.
+
 ## Requirements *(mandatory)*
 
 ### Functional Requirements
@@ -69,7 +71,7 @@ As a developer, I want my custom codec to be able to perform validation during d
 -   **FR-001**: The system MUST provide a public interface for developers to implement a global payload codec.
 -   **FR-002**: The system MUST provide a mechanism to provide a single, global custom codec implementation (via a CDI bean).
 -   **FR-003**: When a `NatsPublisher` sends a message, it MUST create a CloudEvent envelope. The user's payload object MUST be encoded into a byte array using the global custom codec (if provided), and this byte array MUST be set as the `data` attribute of the CloudEvent. The CloudEvent `datacontenttype` attribute MUST be set to the value returned by the global custom codec's `getContentType()` method.
--   **FR-004**: When a `@NatsSubscriber` receives a message, the system MUST parse the CloudEvent envelope. The `data` attribute of the CloudEvent MUST be decoded using the global custom codec (if provided) to reconstruct the user's payload object.
+-   **FR-004**: When a `@NatsSubscriber` receives a message, the system MUST parse the CloudEvent envelope. The `data` attribute of the CloudEvent MUST be decoded using the global custom codec (if provided), passing the subscriber's target type and the CloudEvent `ce-type` to the codec's `decode` method, to reconstruct the user's payload object.
 -   **FR-005**: If no global custom codec is provided, the system MUST default to using Jackson to serialize the payload object into the CloudEvent `data` attribute.
 -   **FR-006**: The codec interface MUST support throwing exceptions to signal encoding, decoding, or validation failures.
 -   **FR-007**: The system MUST gracefully handle exceptions thrown by the global custom codec during deserialization, preventing the subscriber method from being called and ensuring the message is negatively acknowledged (NACKed). Failures MUST be logged at WARN level.
@@ -78,7 +80,7 @@ As a developer, I want my custom codec to be able to perform validation during d
 
 -   **Codec**: A non-generic interface that developers implement to provide global serialization and deserialization.
     - `byte[] encode(Object object) throws SerializationException`: Encodes an object to bytes. Throws `SerializationException` if encoding fails.
-    - `Object decode(byte[] data, Class<?> type) throws DeserializationException`: Decodes bytes to the target type. The `Class<?> type` parameter allows the codec to know the expected target type. Throws `DeserializationException` for validation or decoding failures.
+    - `Object decode(byte[] data, Class<?> type, String ceType) throws DeserializationException`: Decodes bytes to the target type. The `Class<?> type` parameter allows the codec to know the expected target type, and `ceType` provides the CloudEvents type from the message headers. Throws `DeserializationException` for validation or decoding failures.
     - `String getContentType()`: Returns the CloudEvents `datacontenttype` for the data produced by this codec.
 -   **SerializationException**: A checked exception thrown by `Codec.encode()` when encoding fails.
 -   **DeserializationException**: A checked exception thrown by `Codec.decode()` when decoding or validation fails.
