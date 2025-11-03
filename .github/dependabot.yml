@@ -45,3 +45,17 @@ updates:
     commit-message:
       prefix: "chore"
       include: "scope"
+
+  # Docker dependencies (integration test images)
+  - package-ecosystem: docker
+    directory: "/integration-tests"
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+      - "docker"
+    commit-message:
+      prefix: "chore"
+      include: "scope"

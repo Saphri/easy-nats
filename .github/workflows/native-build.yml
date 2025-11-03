@@ -42,6 +42,11 @@ jobs:
           java -version
           native-image --version
 
+      - name: Cache Docker images
+        uses: ScribeMD/docker-cache@0.5.0
+        with:
+          key: docker-${{ runner.os }}-${{ hashFiles('integration-tests/docker-compose-devservices.yml') }}
+
       - name: Build extension JARs (runtime + deployment)
         run: ./mvnw -B clean install -DskipTests
 
