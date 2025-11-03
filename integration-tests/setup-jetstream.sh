@@ -21,7 +21,7 @@ nats consumer add test-stream test-consumer \
   --ack explicit \
   --wait 30s \
   --max-deliver 5 \
-  --server "nats://guest:guest@nats:4222" \
-  --defaults
+  --pull \
+  --server "nats://guest:guest@nats:4222"
 
 echo "Stream and consumer setup complete."
