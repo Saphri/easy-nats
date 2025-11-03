@@ -49,6 +49,14 @@ Learn what types you can use and how to handle unsupported types:
 
 Customize serialization and deserialization behavior:
 
+- **[Custom Codec Guide](./guides/custom-codec.md)** - Implement custom serialization
+  - When to use custom codecs (Protobuf, MessagePack, compression, validation)
+  - Implementing the `Codec` interface
+  - Error handling with `SerializationException` and `DeserializationException`
+  - Thread-safe codec design
+  - Real-world examples: compression, validation, protocol translation
+  - Testing and troubleshooting
+
 - **[Jackson Annotations Guide](./JACKSON_ANNOTATIONS_GUIDE.md)** - Using Jackson annotations
   - @JsonProperty - Rename fields
   - @JsonIgnore - Exclude fields
@@ -59,7 +67,7 @@ Customize serialization and deserialization behavior:
   - @JsonInclude - Conditional inclusion
   - Complete examples for each annotation
 
-- **[Explicit Ack/Nak Guide](./EXPLICIT_ACK_NAK_GUIDE.md)** - Manual message control
+- **[Explicit Ack/Nak Guide](./guides/explicit-acknowledgment.md)** - Manual message control
   - `NatsMessage<T>` wrapper for explicit control
   - `ack()` for successful processing
   - `nak()` and `nakWithDelay()` for retries
@@ -130,8 +138,11 @@ For deeper understanding of the implementation:
 ### I need to customize field names or serialization
 → See [Jackson Annotations Guide](./JACKSON_ANNOTATIONS_GUIDE.md)
 
+### I need to use a different serialization format (Protobuf, etc.) or add validation
+→ See [Custom Codec Guide](./guides/custom-codec.md)
+
 ### I need full control over message retries
-→ See [Explicit Ack/Nak Guide](./EXPLICIT_ACK_NAK_GUIDE.md)
+→ See [Explicit Ack/Nak Guide](./guides/explicit-acknowledgment.md)
 
 ### I need to monitor NATS connection health
 → Health checks are automatically enabled! Access:
@@ -170,6 +181,7 @@ For deeper understanding of the implementation:
 | JACKSON_COMPATIBILITY_GUIDE | Type reference | Understanding supported types |
 | WRAPPER_PATTERN | Handling limitations | Wrapping primitives/arrays |
 | JACKSON_ANNOTATIONS_GUIDE | Advanced customization | Custom serialization |
+| CUSTOM_CODEC_GUIDE | Custom serialization format | Using Protobuf, compression, validation |
 | EXPLICIT_ACK_NAK_GUIDE | Advanced error handling | Implementing retries |
 | DISTRIBUTED_TRACING | End-to-end observability | Message flow monitoring |
 | ERROR_TROUBLESHOOTING | Problem solving | Debugging issues |
@@ -190,12 +202,13 @@ All documentation has been tested with working code examples:
 - ✅ JACKSON_COMPATIBILITY_GUIDE.md - Comprehensive reference
 - ✅ WRAPPER_PATTERN.md - Complete with examples
 - ✅ JACKSON_ANNOTATIONS_GUIDE.md - Deep dive guide
+- ✅ CUSTOM_CODEC_GUIDE.md - Custom serialization with validation and compression examples
 - ✅ EXPLICIT_ACK_NAK_GUIDE.md - Manual acknowledgment guide
 - ✅ DISTRIBUTED_TRACING.md - W3C Trace Context propagation and OpenTelemetry integration
 - ✅ ERROR_TROUBLESHOOTING.md - 9+ error scenarios covered
 
 ---
 
-**Last Updated**: 2025-11-02
-**Feature Version**: 1.0.0 + Dev Services
-**Status**: ✅ Complete with automatic NATS provisioning
+**Last Updated**: 2025-11-03
+**Feature Version**: 1.0.0 + Dev Services + Custom Codec
+**Status**: ✅ Complete with automatic NATS provisioning and pluggable codec

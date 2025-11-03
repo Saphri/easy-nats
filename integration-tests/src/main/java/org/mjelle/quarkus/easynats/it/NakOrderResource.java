@@ -34,7 +34,7 @@ public class NakOrderResource {
 
     NakOrderResource(
             NakOrderListener nakOrderListener,
-            @NatsSubject("test.order") NatsPublisher<OrderData> orderPublisher) {
+            @NatsSubject("test.nak.order") NatsPublisher<OrderData> orderPublisher) {
         this.nakOrderListener = nakOrderListener;
         this.orderPublisher = orderPublisher;
     }

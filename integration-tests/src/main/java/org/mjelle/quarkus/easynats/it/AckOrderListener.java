@@ -24,7 +24,7 @@ public class AckOrderListener {
     private AtomicReference<OrderData> lastAckedOrder = new AtomicReference<>(null);
     private AtomicReference<String> ackError = new AtomicReference<>(null);
 
-    @NatsSubscriber(subject = "test.order")
+    @NatsSubscriber(subject = "test.ack.order")
     public void handleOrderWithAck(final NatsMessage<OrderData> msg) {
         try {
             OrderData order = msg.payload();

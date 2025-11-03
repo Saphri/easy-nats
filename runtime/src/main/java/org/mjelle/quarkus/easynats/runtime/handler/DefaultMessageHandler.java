@@ -176,10 +176,6 @@ public class DefaultMessageHandler implements MessageHandler {
                             message.getHeaders().getFirst("ce-type") : null;
                     // Use global codec for deserialization
                     payload = codec.decode(eventData, targetType, ceType);
-                } catch (DeserializationException e) {
-                    // Codec-level deserialization exception (includes validation errors)
-                    // Re-throw as-is; the codec's checked exception is used directly
-                    throw e;
                 } catch (Exception e) {
                     throw new DeserializationException(
                             "Failed to deserialize to type " + payloadType.getTypeName(), e);

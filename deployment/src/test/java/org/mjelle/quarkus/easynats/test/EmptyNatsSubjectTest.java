@@ -8,7 +8,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.mjelle.quarkus.easynats.NatsPublisher;
 import org.mjelle.quarkus.easynats.NatsSubject;
-import jakarta.enterprise.inject.spi.DeploymentException;
+
+import jakarta.enterprise.inject.spi.DefinitionException;
 
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
@@ -21,7 +22,7 @@ public class EmptyNatsSubjectTest {
             .setArchiveProducer(() -> ShrinkWrap.create(JavaArchive.class)
                     .addClasses(EmptySubjectBean.class, NatsPublisher.class, NatsSubject.class))
             .assertException(t -> {
-                assertInstanceOf(DeploymentException.class, t);
+                assertInstanceOf(DefinitionException.class, t);
             });
 
     @Test

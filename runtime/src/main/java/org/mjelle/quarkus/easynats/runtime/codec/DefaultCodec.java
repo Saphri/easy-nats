@@ -2,9 +2,10 @@ package org.mjelle.quarkus.easynats.runtime.codec;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
+import io.quarkus.arc.DefaultBean;
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.enterprise.inject.Default;
-import jakarta.inject.Inject;
+
 import org.mjelle.quarkus.easynats.codec.Codec;
 import org.mjelle.quarkus.easynats.codec.DeserializationException;
 import org.mjelle.quarkus.easynats.codec.SerializationException;
@@ -15,8 +16,8 @@ import org.mjelle.quarkus.easynats.codec.SerializationException;
  * <p>
  * This is an internal bean that is automatically discovered and registered by the EasyNATS
  * extension. It serves as the fallback codec if the user does not provide a custom {@code Codec}
- * bean. The codec is registered as an {@code @ApplicationScoped} bean with {@code @Default} to
- * allow developers to override it with their own custom codec implementation.
+ * bean. The codec is registered as an {@code @ApplicationScoped} bean and can be overridden by
+ * providing a custom {@code Codec} bean in applications or tests.
  * </p>
  *
  * <p>
@@ -25,12 +26,11 @@ import org.mjelle.quarkus.easynats.codec.SerializationException;
  * </p>
  */
 @ApplicationScoped
-@Default
+@DefaultBean
 public class DefaultCodec implements Codec {
 
     private final ObjectMapper objectMapper;
 
-    @Inject
     public DefaultCodec(ObjectMapper objectMapper) {
         this.objectMapper = objectMapper;
     }

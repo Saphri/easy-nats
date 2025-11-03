@@ -24,22 +24,22 @@ This document outlines the actionable tasks to implement the custom payload code
 - [x] T009 [US1] Update `NatsPublisher.publish()` to use the `Codec` to encode the payload and set the `datacontenttype`
 - [x] T010 [US1] Modify `EasyNatsProcessor` in `deployment/src/main/java/org/mjelle/quarkus/easynats/deployment/EasyNatsProcessor.java` to look up the `Codec` bean
 - [x] T011 [US1] Update subscriber invocation logic in `EasyNatsProcessor` to use the `Codec` for decoding
-- [ ] T012 [US1] Make the integration test from T007 pass
+- [x] T012 [US1] Make the integration test from T007 pass
 
 ## Phase 4: User Story 2 - Perform Payload Validation & Error Handling
 
 **Goal**: The codec can perform validation, and failures are handled gracefully (NACK).
 **Independent Test**: A test where the custom codec's `decode` method throws a `DeserializationException`. The test asserts that the subscriber method is not called.
 
-- [ ] T013 [P] [US2] Write a new failing test in `CustomCodecTest.java` where `decode` throws `DeserializationException`
-- [ ] T014 [US2] In `EasyNatsProcessor`, wrap the call to `codec.decode()` in a try-catch block
-- [ ] T015 [US2] In the catch block, log the error and generate code to NACK the message
-- [ ] T016 [US2] Make the integration test from T013 pass
+- [x] T013 [P] [US2] Write a new failing test in `CustomCodecTest.java` where `decode` throws `DeserializationException`
+- [x] T014 [US2] In `EasyNatsProcessor`, wrap the call to `codec.decode()` in a try-catch block
+- [x] T015 [US2] In the catch block, log the error and generate code to NACK the message
+- [x] T016 [US2] Make the integration test from T013 pass
 
 ## Phase 5: Polish & Cross-Cutting Concerns
 
-- [ ] T017 Update documentation in the `docs/` directory to explain the custom codec feature
-- [ ] T018 Review all new public APIs and add Javadoc
+- [x] T017 Update documentation in the `docs/` directory to explain the custom codec feature
+- [x] T018 Review all new public APIs and add Javadoc
 
 ## Dependencies
 

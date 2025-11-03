@@ -9,7 +9,7 @@ import io.nats.client.JetStream;
 import io.nats.client.JetStreamApiException;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.context.Scope;
-import jakarta.enterprise.context.Dependent;
+import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.mjelle.quarkus.easynats.codec.Codec;
 import org.mjelle.quarkus.easynats.codec.SerializationException;
@@ -32,7 +32,7 @@ import org.mjelle.quarkus.easynats.runtime.subscriber.TypeValidationResult;
  *
  * @param <T> the type of payload to publish
  */
-@Dependent
+@ApplicationScoped
 public class NatsPublisher<T> {
 
     private final NatsConnectionManager connectionManager;

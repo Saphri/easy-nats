@@ -17,6 +17,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Stream;
+
 import org.jboss.logging.Logger;
 
 /**
@@ -176,7 +178,7 @@ public class NatsDevServicesProcessor {
                 var runningContainer = containerAddress.getRunningContainer();
                 if (runningContainer != null) {
                     // Collect NATS credentials and TLS vars - CredentialExtractor handles fallback logic
-                    java.util.stream.Stream.of("NATS_USERNAME", "NATS_USER", "NATS_PASSWORD",
+                    Stream.of("NATS_USERNAME", "NATS_USER", "NATS_PASSWORD",
                             "NATS_TLS_CERT", "NATS_TLS_KEY", "NATS_TLS_CA")
                         .forEach(envVar -> runningContainer.tryGetEnv(envVar)
                             .ifPresent(val -> containerEnv.put(envVar, val)));

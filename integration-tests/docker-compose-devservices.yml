@@ -2,6 +2,8 @@ name: easy-nats-integration-tests
 services:
   nats:
     image: nats:2.11
+    labels:
+      io.quarkus.devservices.compose.wait_for.logs: .*Server is ready.*
     container_name: nats
     environment:
       NATS_USERNAME: guest
@@ -15,20 +17,25 @@ services:
       - ./nats-config/nats.conf:/etc/nats/nats.conf:ro
 #      - ./certs:/etc/nats/certs:ro
     command: ["-c", "/etc/nats/nats.conf", "-js"]
-    labels:
-      io.quarkus.devservices.compose.wait_for.logs: .*Server is ready.*
   nats-setup:
     image: natsio/nats-box
+    labels:
+      io.quarkus.devservices.compose.wait_for.logs: .*Stream and consumer setup complete.*
+      io.quarkus.devservices.compose.wait_for.ports.disable: true
     environment:
       NATS_USERNAME: guest
       NATS_PASSWORD: guest
+    ports:
+      - "8080"
     depends_on:
       - nats
     volumes:
       - ./nats-config/setup-jetstream.sh:/setup-jetstream.sh
-    command: ["/bin/sh", "/setup-jetstream.sh"]
+    command: ["/bin/sh", "-c", "/setup-jetstream.sh && sleep infinity"]
   lgtm:
     image: grafana/otel-lgtm
+    labels:
+      io.quarkus.devservices.compose.wait_for.logs: .*Open ports.*
     container_name: lgtm
     ports:
       - "3000:3000"

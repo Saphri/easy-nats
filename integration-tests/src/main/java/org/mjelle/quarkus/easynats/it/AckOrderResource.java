@@ -33,7 +33,7 @@ public class AckOrderResource {
 
     AckOrderResource(
             AckOrderListener ackOrderListener,
-            @NatsSubject("test.order") NatsPublisher<OrderData> orderPublisher) {
+            @NatsSubject("test.ack.order") NatsPublisher<OrderData> orderPublisher) {
         this.ackOrderListener = ackOrderListener;
         this.orderPublisher = orderPublisher;
     }

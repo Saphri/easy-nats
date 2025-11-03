@@ -1,7 +1,6 @@
 package org.mjelle.quarkus.easynats.it;
 
 import io.quarkus.test.junit.QuarkusTest;
-import io.quarkus.test.common.QuarkusTestResource;
 import jakarta.enterprise.context.ApplicationScoped;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -19,7 +18,6 @@ import static org.assertj.core.api.Assertions.assertThat;
  * </p>
  */
 @QuarkusTest
-@QuarkusTestResource(NatsStreamTestResource.class)
 @DisplayName("Durable Consumer Verification Tests")
 class DurableConsumerVerificationTest {
 

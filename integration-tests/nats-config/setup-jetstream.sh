@@ -14,7 +14,8 @@ nats stream add test-stream \
 # Create test-consumer
 echo "Creating test-consumer..."
 nats consumer add test-stream test-consumer \
-  --filter "test.>" \
+  --filter "test.durable.>" \
+  --deliver 3 \
   --pull \
   --server "nats://${NATS_USERNAME}:${NATS_PASSWORD}@nats:4222" \
   --defaults
