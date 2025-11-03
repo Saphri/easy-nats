@@ -1,0 +1,154 @@
+name-template: 'v$RESOLVED_VERSION'
+tag-template: 'v$RESOLVED_VERSION'
+categories:
+  - title: '🚀 Features'
+    labels:
+      - 'feature'
+      - 'enhancement'
+    collapse-after: 10
+  - title: '🐛 Bug Fixes'
+    labels:
+      - 'bug'
+      - 'fix'
+    collapse-after: 10
+  - title: '📝 Documentation'
+    labels:
+      - 'documentation'
+      - 'docs'
+    collapse-after: 5
+  - title: '🔧 Maintenance'
+    labels:
+      - 'chore'
+      - 'dependencies'
+      - 'refactor'
+    collapse-after: 5
+  - title: '⚡ Performance'
+    labels:
+      - 'performance'
+      - 'optimization'
+    collapse-after: 5
+  - title: '🧪 Tests'
+    labels:
+      - 'test'
+      - 'testing'
+    collapse-after: 5
+  - title: '🔒 Security'
+    labels:
+      - 'security'
+    collapse-after: 0
+  - title: '💥 Breaking Changes'
+    labels:
+      - 'breaking'
+      - 'breaking-change'
+    collapse-after: 0
+
+# Automatically categorize PRs based on conventional commit prefixes in title
+category-template: |
+  ${{#if title}}
+    ${{#if (regexMatch 'feat(\(.*\))?:' title)}}🚀 Features${{/if}}
+    ${{#if (regexMatch 'fix(\(.*\))?:' title)}}🐛 Bug Fixes${{/if}}
+    ${{#if (regexMatch 'docs(\(.*\))?:' title)}}📝 Documentation${{/if}}
+    ${{#if (regexMatch 'chore(\(.*\))?:' title)}}🔧 Maintenance${{/if}}
+    ${{#if (regexMatch 'refactor(\(.*\))?:' title)}}🔧 Maintenance${{/if}}
+    ${{#if (regexMatch 'perf(\(.*\))?:' title)}}⚡ Performance${{/if}}
+    ${{#if (regexMatch 'test(\(.*\))?:' title)}}🧪 Tests${{/if}}
+  ${{/if}}
+
+change-template: '- $TITLE @$AUTHOR (#$NUMBER)'
+change-title-escapes: '\<*_&' # Escape special markdown characters
+
+version-resolver:
+  major:
+    labels:
+      - 'breaking'
+      - 'breaking-change'
+      - 'major'
+  minor:
+    labels:
+      - 'feature'
+      - 'enhancement'
+      - 'minor'
+  patch:
+    labels:
+      - 'bug'
+      - 'fix'
+      - 'chore'
+      - 'dependencies'
+      - 'documentation'
+      - 'patch'
+  default: patch
+
+template: |
+  ## Quarkus Extension Release ${{#if validate-native}}(Native-Validated ✓)${{/if}}
+
+  This release contains the EasyNATS Quarkus extension JARs:
+  - `quarkus-easy-nats-$RESOLVED_VERSION.jar` (runtime)
+  - `quarkus-easy-nats-deployment-$RESOLVED_VERSION.jar` (deployment)
+
+  ### 📦 Usage
+
+  Add to your Quarkus application's `pom.xml`:
+  ```xml
+  <dependency>
+    <groupId>org.mjelle.quarkus.easynats</groupId>
+    <artifactId>quarkus-easy-nats</artifactId>
+    <version>$RESOLVED_VERSION</version>
+  </dependency>
+  ```
+
+  ${{#if validate-native}}
+  ### 🔥 Native Builds
+
+  This release has been validated for native image compilation with Mandrel 23.1.5.0-Final.
+
+  Your application can be compiled to native:
+  ```bash
+  ./mvnw package -Dnative
+  ```
+  ${{/if}}
+
+  ## 📋 What's Changed
+
+  $CHANGES
+
+  **Full Changelog**: https://github.com/$OWNER/$REPOSITORY/compare/$PREVIOUS_TAG...v$RESOLVED_VERSION
+
+exclude-labels:
+  - 'skip-changelog'
+  - 'invalid'
+  - 'wontfix'
+  - 'duplicate'
+
+autolabeler:
+  - label: 'documentation'
+    title:
+      - '/^docs(\(.*\))?:/i'
+    files:
+      - '*.md'
+      - 'docs/**/*'
+  - label: 'feature'
+    title:
+      - '/^feat(\(.*\))?:/i'
+  - label: 'fix'
+    title:
+      - '/^fix(\(.*\))?:/i'
+  - label: 'chore'
+    title:
+      - '/^chore(\(.*\))?:/i'
+  - label: 'dependencies'
+    title:
+      - '/^chore\(deps\):/i'
+    files:
+      - 'pom.xml'
+      - '**/pom.xml'
+  - label: 'test'
+    title:
+      - '/^test(\(.*\))?:/i'
+    files:
+      - '**/*Test.java'
+      - '**/*IT.java'
+  - label: 'github-actions'
+    files:
+      - '.github/workflows/*'
+      - '.github/*.yml'
+      - '.github/*.yaml'

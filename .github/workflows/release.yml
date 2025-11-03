@@ -1,0 +1,173 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., 1.0.0)'
+        required: true
+        type: string
+      next-version:
+        description: 'Next development version (e.g., 1.1.0-SNAPSHOT)'
+        required: true
+        type: string
+      validate-native:
+        description: 'Validate native compatibility (slower but ensures extension works in native mode)'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 21 (Temurin)
+        if: ${{ !inputs.validate-native }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'maven'
+          server-id: github
+          server-username: GITHUB_ACTOR
+          server-password: GITHUB_TOKEN
+
+      - name: Set up Mandrel (for native validation)
+        if: ${{ inputs.validate-native }}
+        uses: graalvm/setup-graalvm@v1
+        with:
+          distribution: 'mandrel'
+          java-version: '21'
+          version: '23.1.5.0-Final'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          cache: 'maven'
+
+      - name: Configure Maven for GitHub Packages
+        if: ${{ inputs.validate-native }}
+        run: |
+          echo "GRAALVM_HOME: $GRAALVM_HOME"
+          echo "JAVA_HOME: $JAVA_HOME"
+          java -version
+          native-image --version
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Set release version
+        run: |
+          ./mvnw -B versions:set -DnewVersion=${{ inputs.version }} -DprocessAllModules=true
+          git add pom.xml */pom.xml
+          git commit -m "chore: release version ${{ inputs.version }}"
+
+      - name: Build and test extension (JVM mode)
+        if: ${{ !inputs.validate-native }}
+        run: ./mvnw -B clean install -Pit
+
+      - name: Build and validate extension (Native compatibility)
+        if: ${{ inputs.validate-native }}
+        run: |
+          echo "Building extension JARs and validating native compatibility..."
+          ./mvnw -B clean install -Pit -Dnative
+          echo "✓ Extension is compatible with native compilation"
+        env:
+          GRAALVM_HOME: ${{ env.GRAALVM_HOME }}
+
+      - name: Create Git tag
+        run: |
+          git tag -a v${{ inputs.version }} -m "Release version ${{ inputs.version }}"
+          git push origin v${{ inputs.version }}
+
+      - name: Create GitHub Release (Extension JARs)
+        if: ${{ !inputs.validate-native }}
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ inputs.version }}
+          name: Release ${{ inputs.version }}
+          draft: false
+          prerelease: false
+          files: |
+            runtime/target/quarkus-easy-nats-${{ inputs.version }}.jar
+            deployment/target/quarkus-easy-nats-deployment-${{ inputs.version }}.jar
+          generate_release_notes: true
+          body: |
+            ## Quarkus Extension Release
+
+            This release contains the EasyNATS Quarkus extension JARs:
+            - `quarkus-easy-nats-${{ inputs.version }}.jar` (runtime)
+            - `quarkus-easy-nats-deployment-${{ inputs.version }}.jar` (deployment)
+
+            ### Usage
+            Add to your Quarkus application's `pom.xml`:
+            ```xml
+            <dependency>
+              <groupId>org.mjelle.quarkus.easynats</groupId>
+              <artifactId>quarkus-easy-nats</artifactId>
+              <version>${{ inputs.version }}</version>
+            </dependency>
+            ```
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create GitHub Release (Native-Validated Extension)
+        if: ${{ inputs.validate-native }}
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ inputs.version }}
+          name: Release ${{ inputs.version }} (Native-Validated)
+          draft: false
+          prerelease: false
+          files: |
+            runtime/target/quarkus-easy-nats-${{ inputs.version }}.jar
+            deployment/target/quarkus-easy-nats-deployment-${{ inputs.version }}.jar
+          generate_release_notes: true
+          body: |
+            ## Quarkus Extension Release (Native-Validated ✓)
+
+            This release contains the EasyNATS Quarkus extension JARs:
+            - `quarkus-easy-nats-${{ inputs.version }}.jar` (runtime)
+            - `quarkus-easy-nats-deployment-${{ inputs.version }}.jar` (deployment)
+
+            **Native Compatibility:** This release has been validated for native image compilation with Mandrel ${{ matrix.mandrel-version || '23.1.5.0-Final' }}.
+
+            ### Usage
+            Add to your Quarkus application's `pom.xml`:
+            ```xml
+            <dependency>
+              <groupId>org.mjelle.quarkus.easynats</groupId>
+              <artifactId>quarkus-easy-nats</artifactId>
+              <version>${{ inputs.version }}</version>
+            </dependency>
+            ```
+
+            ### Native Builds
+            Your application can be compiled to native:
+            ```bash
+            ./mvnw package -Dnative
+            ```
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set next development version
+        run: |
+          ./mvnw -B versions:set -DnewVersion=${{ inputs.next-version }} -DprocessAllModules=true
+          git add pom.xml */pom.xml
+          git commit -m "chore: prepare next development version ${{ inputs.next-version }}"
+          git push origin
+
+      - name: Publish to GitHub Packages
+        run: ./mvnw -B deploy -DskipTests
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_ACTOR: ${{ github.actor }}

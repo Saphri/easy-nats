@@ -1,0 +1,98 @@
+name: Native Compatibility Validation
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  native-validation:
+    name: Validate Extension Native Compatibility with Mandrel ${{ matrix.mandrel-version }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-latest ]
+        mandrel-version: [ '23.1.5.0-Final' ]
+        java-version: [ '21' ]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Mandrel
+        uses: graalvm/setup-graalvm@v1
+        with:
+          distribution: 'mandrel'
+          java-version: ${{ matrix.java-version }}
+          version: ${{ matrix.mandrel-version }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          cache: 'maven'
+
+      - name: Verify GraalVM installation
+        run: |
+          echo "GRAALVM_HOME: $GRAALVM_HOME"
+          echo "JAVA_HOME: $JAVA_HOME"
+          java -version
+          native-image --version
+
+      - name: Build extension JARs (runtime + deployment)
+        run: ./mvnw -B clean install -DskipTests
+
+      - name: Validate extension descriptor
+        run: |
+          echo "Checking extension descriptor..."
+          if [ -f runtime/target/classes/META-INF/quarkus-extension.yaml ]; then
+            echo "✓ Extension descriptor found"
+            cat runtime/target/classes/META-INF/quarkus-extension.yaml
+          else
+            echo "✗ Extension descriptor missing"
+            exit 1
+          fi
+
+      - name: Build native image (validates extension native compatibility)
+        run: ./mvnw -B install -Dnative -DskipTests -Pit
+        env:
+          GRAALVM_HOME: ${{ env.GRAALVM_HOME }}
+
+      - name: Run native integration tests (validates extension works in native mode)
+        run: ./mvnw -B verify -Dnative -Pit
+        env:
+          GRAALVM_HOME: ${{ env.GRAALVM_HOME }}
+
+      - name: Upload native build logs (on failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-validation-logs-${{ matrix.os }}-mandrel-${{ matrix.mandrel-version }}
+          path: |
+            **/target/*.log
+            **/target/surefire-reports/
+            **/target/failsafe-reports/
+          retention-days: 7
+
+      - name: Verify native executable was created
+        if: success()
+        run: |
+          echo "Native validation successful! The extension is compatible with native compilation."
+          if [ -f integration-tests/target/*-runner ]; then
+            echo "Test native executable details:"
+            ls -lh integration-tests/target/*-runner
+            file integration-tests/target/*-runner
+          fi
+          echo ""
+          echo "Note: This native executable is for testing only and is not distributed."
+          echo "Users will build their own native executables that include this extension."
+
+      - name: Upload extension JARs (validated for native)
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: extension-jars-native-validated-${{ matrix.os }}
+          path: |
+            runtime/target/*.jar
+            deployment/target/*.jar
+            !**/target/original-*.jar
+          retention-days: 7
