@@ -4,7 +4,6 @@ import static io.restassured.RestAssured.given;
 import static org.assertj.core.api.Assertions.*;
 import static org.awaitility.Awaitility.await;
 
-import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.http.ContentType;
 import java.time.Duration;
@@ -26,7 +25,6 @@ import org.mjelle.quarkus.easynats.it.model.OrderData;
  * </p>
  */
 @QuarkusTest
-@QuarkusTestResource(NatsStreamTestResource.class)
 @DisplayName("Explicit Ack (NatsMessage.ack()) Integration Tests")
 class AckTest {
 

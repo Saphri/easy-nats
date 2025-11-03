@@ -460,6 +460,14 @@ if (appName != null && !appName.isEmpty()) {
 - Java 21
 
 ## Recent Changes
+- 018-custom-payload-codec: Implemented custom payload codec feature (Feature complete)
+  * Codec interface provides pluggable serialization/deserialization
+  * DefaultCodec uses Jackson (acts as @DefaultBean fallback)
+  * Integration: NatsPublisher calls codec.encode(), DefaultMessageHandler calls codec.decode()
+  * Error handling: DeserializationException triggers NACK in implicit mode, no auto-NAK in explicit mode
+  * 3 new Mockito unit tests validate codec error paths (US2)
+  * 62 integration tests validate real message flow (CloudEventTest, TypedSerializationTest, etc.)
+  * All 112 runtime tests + 62 integration tests pass; native compilation verified
 - 016-custom-nats-options: Implemented @DefaultBean CDI producer for NATS Options (Feature complete - User Story 1 MVP + User Story 2 integration)
   * NatsConnectionProducer enables default Options from properties
   * Developers can override with custom @Produces @Unremovable bean

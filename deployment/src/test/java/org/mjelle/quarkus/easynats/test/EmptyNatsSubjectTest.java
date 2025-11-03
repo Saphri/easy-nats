@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.mjelle.quarkus.easynats.NatsPublisher;
 import org.mjelle.quarkus.easynats.NatsSubject;
+
 import jakarta.enterprise.inject.spi.DeploymentException;
 
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;

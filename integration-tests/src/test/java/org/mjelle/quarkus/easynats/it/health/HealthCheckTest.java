@@ -1,11 +1,9 @@
 package org.mjelle.quarkus.easynats.it.health;
 
-import io.quarkus.test.common.QuarkusTestResource;
 import io.restassured.http.ContentType;
 import io.restassured.response.Response;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.mjelle.quarkus.easynats.it.NatsStreamTestResource;
 
 import static io.restassured.RestAssured.given;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -17,7 +15,6 @@ import static org.assertj.core.api.Assertions.assertThat;
  * the status of the NATS connection according to the specification.
  */
 @io.quarkus.test.junit.QuarkusTest
-@QuarkusTestResource(NatsStreamTestResource.class)
 @DisplayName("NATS Health Check Endpoints")
 class HealthCheckTest {
 

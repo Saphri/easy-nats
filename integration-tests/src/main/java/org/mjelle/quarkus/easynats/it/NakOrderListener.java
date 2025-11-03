@@ -25,7 +25,7 @@ public class NakOrderListener {
     private AtomicReference<OrderData> lastProcessedOrder = new AtomicReference<>(null);
     private AtomicReference<String> lastNakError = new AtomicReference<>(null);
 
-    @NatsSubscriber(subject = "test.order")
+    @NatsSubscriber(subject = "test.nak.order")
     public void handleOrderWithNak(final NatsMessage<OrderData> msg) {
         try {
             OrderData order = msg.payload();

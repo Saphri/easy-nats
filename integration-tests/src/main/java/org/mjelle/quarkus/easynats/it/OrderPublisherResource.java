@@ -28,7 +28,7 @@ public class OrderPublisherResource {
     /**
      * Constructor injection - typed publishers provided by Quarkus CDI via NatsPublisherFactory.
      */
-    OrderPublisherResource(@NatsSubject("test.order") NatsPublisher<OrderData> orderPublisher) {
+    OrderPublisherResource(@NatsSubject("test.plain.order") NatsPublisher<OrderData> orderPublisher) {
         this.orderPublisher = orderPublisher;
     }
 

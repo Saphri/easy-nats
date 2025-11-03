@@ -3,6 +3,8 @@ services:
   nats:
     image: nats:2.11
     container_name: nats
+    labels:
+      io.quarkus.devservices.compose.wait_for.logs: .*Server is ready.*
     environment:
       NATS_USERNAME: guest
       NATS_PASSWORD: guest
@@ -15,21 +17,27 @@ services:
       - ./nats-config/nats.conf:/etc/nats/nats.conf:ro
 #      - ./certs:/etc/nats/certs:ro
     command: ["-c", "/etc/nats/nats.conf", "-js"]
-    labels:
-      io.quarkus.devservices.compose.wait_for.logs: .*Server is ready.*
   nats-setup:
-    image: natsio/nats-box
+    image: natsio/nats-box:0.19.2
+    container_name: nats-setup
+    labels:
+      io.quarkus.devservices.compose.wait_for.logs: .*Stream and consumer setup complete.*
+      io.quarkus.devservices.compose.wait_for.ports.disable: true
     environment:
       NATS_USERNAME: guest
       NATS_PASSWORD: guest
+    ports:
+      - "8080" # fake port for quarkus compose
     depends_on:
       - nats
     volumes:
       - ./nats-config/setup-jetstream.sh:/setup-jetstream.sh
-    command: ["/bin/sh", "/setup-jetstream.sh"]
+    command: ["/bin/sh", "-c", "/setup-jetstream.sh"]
   lgtm:
-    image: grafana/otel-lgtm
+    image: grafana/otel-lgtm:0.11.14
     container_name: lgtm
+    labels:
+      io.quarkus.devservices.compose.wait_for.logs: .*Open ports.*
     ports:
       - "3000:3000"
       - "4317:4317"

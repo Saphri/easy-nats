@@ -3,11 +3,9 @@ package org.mjelle.quarkus.easynats.it.example;
 import static io.restassured.RestAssured.given;
 import static org.awaitility.Awaitility.await;
 
-import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
 import java.time.Duration;
 import org.junit.jupiter.api.Test;
-import org.mjelle.quarkus.easynats.it.NatsStreamTestResource;
 
 /**
  * Integration test for the greeting example.
@@ -15,7 +13,6 @@ import org.mjelle.quarkus.easynats.it.NatsStreamTestResource;
  * Verifies that messages sent via the REST endpoint are received by the listener.
  */
 @QuarkusTest
-@QuarkusTestResource(NatsStreamTestResource.class)
 class GreetingExampleTest {
 
     @Test

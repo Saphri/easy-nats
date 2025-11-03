@@ -12,13 +12,14 @@ import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.context.Scope;
 import org.jboss.logging.Logger;
 import org.mjelle.quarkus.easynats.NatsMessage;
+import org.mjelle.quarkus.easynats.codec.Codec;
+import org.mjelle.quarkus.easynats.codec.DeserializationException;
 import org.mjelle.quarkus.easynats.runtime.NatsConfiguration;
 import org.mjelle.quarkus.easynats.runtime.metadata.SubscriberMetadata;
 import org.mjelle.quarkus.easynats.runtime.observability.NatsTraceService;
 import org.mjelle.quarkus.easynats.runtime.subscriber.CloudEventException;
 import org.mjelle.quarkus.easynats.runtime.subscriber.CloudEventUnwrapper;
 import org.mjelle.quarkus.easynats.runtime.subscriber.DefaultNatsMessage;
-import org.mjelle.quarkus.easynats.runtime.subscriber.DeserializationException;
 
 /**
  * Default implementation of {@link MessageHandler}.
@@ -41,6 +42,7 @@ public class DefaultMessageHandler implements MessageHandler {
     private final Object bean;
     private final Method method;
     private final ObjectMapper objectMapper;
+    private final Codec codec;
     private final JavaType parameterType;
     private final boolean isExplicitMode;
     private final JavaType payloadType;
@@ -54,11 +56,12 @@ public class DefaultMessageHandler implements MessageHandler {
      * @param bean the bean instance containing the subscriber method
      * @param method the subscriber method
      * @param objectMapper the Jackson ObjectMapper for typed deserialization
+     * @param codec the global payload codec for deserialization
      * @param config the NATS configuration for logging settings
      */
     public DefaultMessageHandler(SubscriberMetadata metadata, Object bean, Method method,
-            ObjectMapper objectMapper, NatsConfiguration config) {
-        this(metadata, bean, method, objectMapper, config, null);
+            ObjectMapper objectMapper, Codec codec, NatsConfiguration config) {
+        this(metadata, bean, method, objectMapper, codec, config, null);
     }
 
     /**
@@ -68,15 +71,17 @@ public class DefaultMessageHandler implements MessageHandler {
      * @param bean the bean instance containing the subscriber method
      * @param method the subscriber method
      * @param objectMapper the Jackson ObjectMapper for typed deserialization
+     * @param codec the global payload codec for deserialization
      * @param config the NATS configuration for logging settings
      * @param traceService the OpenTelemetry tracing service (may be null if tracing not available)
      */
     public DefaultMessageHandler(SubscriberMetadata metadata, Object bean, Method method,
-            ObjectMapper objectMapper, NatsConfiguration config, NatsTraceService traceService) {
+            ObjectMapper objectMapper, Codec codec, NatsConfiguration config, NatsTraceService traceService) {
         this.metadata = metadata;
         this.bean = bean;
         this.method = method;
         this.objectMapper = objectMapper;
+        this.codec = codec;
         this.config = config;
         this.traceService = traceService;
 
@@ -159,12 +164,18 @@ public class DefaultMessageHandler implements MessageHandler {
                 // Step 1: Unwrap CloudEvent (binary-mode)
                 eventData = CloudEventUnwrapper.unwrapData(message);
 
-                // Step 2: Deserialize to typed object using JavaType
+                // Step 2: Deserialize to typed object using the global codec
                 // This handles complex types, generics, and user-defined classes
                 // For explicit mode: deserialize to T (the payload type inside NatsMessage<T>)
                 // For implicit mode: deserialize to the subscriber's parameter type directly
                 try {
-                    payload = objectMapper.readValue(eventData, payloadType);
+                    // Get the target class from the JavaType
+                    Class<?> targetType = payloadType.getRawClass();
+                    // Get CloudEvent ce-type header for codec context
+                    String ceType = message.getHeaders() != null ?
+                            message.getHeaders().getFirst("ce-type") : null;
+                    // Use global codec for deserialization
+                    payload = codec.decode(eventData, targetType, ceType);
                 } catch (Exception e) {
                     throw new DeserializationException(
                             "Failed to deserialize to type " + payloadType.getTypeName(), e);

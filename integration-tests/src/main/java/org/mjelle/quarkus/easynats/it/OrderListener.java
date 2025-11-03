@@ -14,7 +14,7 @@ public class OrderListener {
 
     private AtomicReference<OrderData> lastOrderPojo = new AtomicReference<>(null);
 
-    @NatsSubscriber(subject = "test.order")
+    @NatsSubscriber(subject = "test.plain.order")
     public void handleOrderPojo(final OrderData order) {
         LOGGER.infof("📦 Received order: %s", order);
         lastOrderPojo.set(order);

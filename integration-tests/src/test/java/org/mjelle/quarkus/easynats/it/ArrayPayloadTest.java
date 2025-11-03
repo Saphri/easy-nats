@@ -1,6 +1,5 @@
 package org.mjelle.quarkus.easynats.it;
 
-import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.http.ContentType;
 import org.junit.jupiter.api.DisplayName;
@@ -14,7 +13,6 @@ import static org.awaitility.Awaitility.await;
 import java.util.concurrent.TimeUnit;
 
 @QuarkusTest
-@QuarkusTestResource(NatsStreamTestResource.class)
 class ArrayPayloadTest {
 
     @Test
