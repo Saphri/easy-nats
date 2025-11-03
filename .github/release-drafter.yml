@@ -150,3 +150,5 @@ autolabeler:
   - label: 'github-actions'
     files:
       - '.github/workflows/*'
+      - '.github/*.yml'
+      - '.github/*.yaml'
