@@ -513,6 +513,11 @@ Message with invalid codec
 Subscribe to the DLQ to monitor, investigate, and log problematic messages:
 
 ```java
+import org.jboss.logging.Logger;
+import jakarta.enterprise.context.ApplicationScoped;
+import org.mjelle.quarkus.easynats.NatsMessage;
+import org.mjelle.quarkus.easynats.NatsSubscriber;
+
 @Singleton
 public class OrderDLQListener {
 
