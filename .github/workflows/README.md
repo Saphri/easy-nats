@@ -27,31 +27,24 @@ This directory contains automated workflows for building, testing, and releasing
 **Purpose:** Validates that the project builds correctly and all tests pass
 
 **Steps:**
-1. Checkout code
+1. Checkout code (with full history for PR diffs)
 2. Set up JDK 21 (with Maven cache)
 3. Build project (`./mvnw clean install -DskipTests`)
 4. Run unit tests (`./mvnw test`)
 5. Run integration tests (`./mvnw verify -Pit`)
-6. Upload test results and build artifacts
+6. Check code formatting (`./mvnw validate`)
+7. Generate test summary in GitHub Step Summary
+8. Post comment on PR (only for pull requests)
+9. Upload test results and build artifacts
+
+**PR-specific features:**
+- Posts automated comment: `✅ Build and test success` or `❌ Build and test failure`
+- Generates test summary visible in PR checks
+- Full git history for better diff analysis
 
 **Matrix:** Currently tests on JDK 21 (can be extended to test on multiple Java versions)
 
----
-
-### ✅ PR Validation (`pr-validation.yml`)
-
-**Trigger:** Runs on pull request events (opened, synchronized, reopened)
-
-**Purpose:** Comprehensive validation of pull requests with automated feedback
-
-**Steps:**
-1. Checkout code
-2. Set up JDK 21
-3. Build project
-4. Run all tests (unit + integration)
-5. Check code formatting
-6. Generate PR report summary
-7. Post automated comment on PR with validation status
+**Note:** This single workflow handles both main branch validation AND pull request validation, eliminating duplication.
 
 ---
 
@@ -396,10 +389,9 @@ native-image --version
 
 The workflows require the following permissions:
 
-- **build.yml**: Read access to repository
-- **pr-validation.yml**: Read repository + Write issues (for PR comments)
-- **release.yml**: Write contents + Write packages
+- **build.yml**: Read repository + Write pull-requests + Write issues (for PR comments and test summaries)
 - **native-build.yml**: Read access to repository
+- **release.yml**: Write contents + Write packages
 - **release-drafter.yml**: Write contents + Write pull-requests
 
 These are configured via `permissions:` in each workflow file.
