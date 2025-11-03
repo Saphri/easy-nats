@@ -48,8 +48,8 @@ jobs:
         with:
           distribution: 'mandrel'
           java-version: '21'
+          version: '23.1.5.0-Final'
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          mandrel-version: '23.1.5.0-Final'
           cache: 'maven'
 
       - name: Configure Maven for GitHub Packages

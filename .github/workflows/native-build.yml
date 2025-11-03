@@ -27,8 +27,8 @@ jobs:
         with:
           distribution: 'mandrel'
           java-version: ${{ matrix.java-version }}
+          version: ${{ matrix.mandrel-version }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          mandrel-version: ${{ matrix.mandrel-version }}
           cache: 'maven'
 
       - name: Verify GraalVM installation
