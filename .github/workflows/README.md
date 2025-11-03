@@ -399,8 +399,122 @@ The workflows require the following permissions:
 - **build.yml**: Read access to repository
 - **pr-validation.yml**: Read repository + Write issues (for PR comments)
 - **release.yml**: Write contents + Write packages
+- **native-build.yml**: Read access to repository
+- **release-drafter.yml**: Write contents + Write pull-requests
 
 These are configured via `permissions:` in each workflow file.
+
+---
+
+## Maven Dependency Caching
+
+**Status:** ✅ **Enabled in all workflows**
+
+All workflows use Maven dependency caching to speed up builds significantly.
+
+### What Gets Cached
+
+The `cache: 'maven'` parameter in `actions/setup-java@v4` and `graalvm/setup-graalvm@v1` automatically caches:
+
+| Path | Contents | Size (typical) |
+|------|----------|----------------|
+| `~/.m2/repository` | Downloaded Maven dependencies | 200-500 MB |
+| `~/.m2/wrapper` | Maven wrapper distributions | 10-20 MB |
+
+### Cache Configuration
+
+All workflows have caching enabled:
+
+```yaml
+# JVM workflows (build.yml, pr-validation.yml)
+- name: Set up JDK 21
+  uses: actions/setup-java@v4
+  with:
+    java-version: '21'
+    distribution: 'temurin'
+    cache: 'maven'  # ✅ Caching enabled
+
+# Native workflows (native-build.yml, release.yml with native)
+- name: Set up Mandrel
+  uses: graalvm/setup-graalvm@v1
+  with:
+    distribution: 'mandrel'
+    java-version: '21'
+    cache: 'maven'  # ✅ Caching enabled
+```
+
+### Performance Impact
+
+**Without cache (cold start):**
+- Initial dependency download: ~2-3 minutes
+- Build time: ~5-7 minutes total
+
+**With cache (warm start):**
+- Cache restore: ~10-20 seconds
+- Build time: ~2-3 minutes total
+
+**Savings:** ~3-4 minutes per workflow run ⚡
+
+### How Cache Keys Work
+
+The cache key is automatically generated based on:
+```
+${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+```
+
+**Cache behavior:**
+- ✅ **Cache hit**: pom.xml unchanged → restore full cache (~10-20s)
+- ⚠️ **Cache miss**: pom.xml changed → download new/updated dependencies
+- 🔄 **Auto-update**: Cache saved at end of workflow for next run
+
+**Example cache keys:**
+```
+Linux-maven-abc123def456  # First run with pom.xml v1
+Linux-maven-abc123def456  # Second run - cache hit! ✅
+Linux-maven-789xyz012abc  # After updating dependencies - new cache
+```
+
+### Cache Retention
+
+- **Duration:** 7 days of inactivity
+- **Size limit:** 10 GB per repository
+- **Auto-eviction:** Least recently used caches removed first
+
+### Viewing Cache Usage
+
+1. Go to **Actions** tab
+2. Click **Caches** in sidebar
+3. See all cached entries with:
+   - Cache key
+   - Size
+   - Last used
+   - Created date
+
+### Manual Cache Management
+
+**Clear cache if needed:**
+1. Go to Actions → Caches
+2. Find the Maven cache entry
+3. Click the trash icon to delete
+
+**When to clear cache:**
+- Corrupted dependencies (rare)
+- Persistent build failures after dependency updates
+- Testing clean build behavior
+
+### Multi-Workflow Cache Sharing
+
+✅ **Cache is shared across workflows:**
+- build.yml creates cache → pr-validation.yml reuses it
+- native-build.yml and release.yml share the same cache
+- All workflows benefit from first cache creation
+
+**First PR workflow run:**
+```
+build.yml:           Downloads deps → Saves cache
+pr-validation.yml:   Restores cache ✅ (runs in parallel)
+native-build.yml:    Restores cache ✅ (runs in parallel)
+```
 
 ---
 
