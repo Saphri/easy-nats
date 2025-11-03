@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.mjelle.quarkus.easynats</groupId>
     <artifactId>quarkus-easy-nats-parent</artifactId>
-    <version>999-SNAPSHOT</version>
+    <version>0.2.0</version>
     <packaging>pom</packaging>
     <name>quarkus-easy-nats - Parent</name>
 
