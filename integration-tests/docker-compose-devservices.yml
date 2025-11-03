@@ -17,6 +17,25 @@ services:
     command: ["-c", "/etc/nats/nats.conf", "-js"]
     labels:
       io.quarkus.devservices.compose.wait_for.logs: .*Server is ready.*
+    healthcheck:
+      test: ["CMD", "nats", "server", "check", "connection", "--server=nats://guest:guest@localhost:4222"]
+      interval: 1s
+      timeout: 3s
+      retries: 30
+      start_period: 2s
+
+  nats-setup:
+    image: nats:2.11
+    container_name: nats-setup
+    environment:
+      NATS_USERNAME: guest
+      NATS_PASSWORD: guest
+    volumes:
+      - ./setup-streams.sh:/setup-streams.sh:ro
+    command: ["/setup-streams.sh"]
+    depends_on:
+      nats:
+        condition: service_healthy
   lgtm:
     image: grafana/otel-lgtm
     container_name: lgtm
