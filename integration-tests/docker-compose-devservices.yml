@@ -19,6 +19,9 @@ services:
       io.quarkus.devservices.compose.wait_for.logs: .*Server is ready.*
   nats-setup:
     image: natsio/nats-box
+    environment:
+      NATS_USERNAME: guest
+      NATS_PASSWORD: guest
     depends_on:
       - nats
     volumes:

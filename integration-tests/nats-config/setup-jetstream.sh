@@ -10,7 +10,7 @@ nats stream add test-stream \
   --subjects "test.>" \
   --storage memory \
   --max-age 1h \
-  --server "nats://guest:guest@nats:4222" \
+  --server "nats://${NATS_USERNAME}:${NATS_PASSWORD}@nats:4222" \
   --defaults
 
 # Create test-consumer
@@ -23,6 +23,6 @@ nats consumer add test-stream test-consumer \
   --wait 30s \
   --max-deliver 5 \
   --pull \
-  --server "nats://guest:guest@nats:4222"
+  --server "nats://${NATS_USERNAME}:${NATS_PASSWORD}@nats:4222"
 
 echo "Stream and consumer setup complete."
