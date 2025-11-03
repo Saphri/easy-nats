@@ -1,74 +1,77 @@
 # Quickstart: Using a Global Custom Payload Codec
 
-This guide demonstrates how to provide a single, global custom payload codec to override the default JSON/CloudEvents serialization for your entire application.
+This guide demonstrates how to provide a single, global custom payload codec to serialize the `data` attribute of the CloudEvent.
 
-## 1. Create a Global Codec
+## 1. Define your Data Format
 
-Implement the `Codec` interface and declare it as a Quarkus bean (e.g., with `@ApplicationScoped`). This single bean will handle all serialization and deserialization for `NatsPublisher` and `@NatsSubscriber`.
-
-In this example, we'll create a codec that uses `jakarta.json.bind.Jsonb` for all objects.
-
-**GlobalJsonbCodec.java**
-```java
-import org.mjelle.quarkus.easynats.codec.Codec;
-import org.mjelle.quarkus.easynats.codec.SerializationException;
-import org.mjelle.quarkus.easynats.codec.DeserializationException;
-import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.json.bind.Jsonb;
-import jakarta.json.bind.JsonbBuilder;
-
-@ApplicationScoped
-public class GlobalJsonbCodec implements Codec {
-
-    private final Jsonb jsonb = JsonbBuilder.create();
-
-    @Override
-    public byte[] encode(Object object) throws SerializationException {
-        if (object == null) {
-            return null;
-        }
-        try {
-            return jsonb.toJson(object).getBytes();
-        } catch (Exception e) {
-            throw new SerializationException("Failed to serialize object with JSON-B", e);
-        }
-    }
-
-    @Override
-    public Object decode(byte[] data, Class<?> type) throws DeserializationException {
-        if (data == null || data.length == 0) {
-            return null;
-        }
-        try {
-            return jsonb.fromJson(new String(data), type);
-        } catch (Exception e) {
-            throw new DeserializationException("Failed to deserialize object with JSON-B", e);
-        }
-    }
-}
-```
-By annotating the class with `@ApplicationScoped`, Quarkus automatically discovers it and EasyNATS will use it as the global codec, overriding the default.
-
-## 2. Publisher and Subscriber
-
-Your publisher and subscriber code requires no changes. The global codec is applied transparently.
+For this example, we'll use a simple `Product` class.
 
 **Product.java**
 ```java
 public class Product {
     public String id;
     public String name;
+
+    public Product(String id, String name) {
+        this.id = id;
+        this.name = name;
+    }
+
+    // A custom text-based format: "id|name"
+    public String toText() {
+        return id + "|" + name;
+    }
+
+    public static Product fromText(String text) {
+        String[] parts = text.split("\\|");
+        return new Product(parts[0], parts[1]);
+    }
 }
 ```
 
-**User.java**
+## 2. Create a Global Codec
+
+Implement the `Codec` interface and declare it as a Quarkus bean (`@ApplicationScoped`). This bean will handle the serialization of the `data` payload for all publishers and subscribers.
+
+**TextPlainCodec.java**
 ```java
-public class User {
-    public String email;
+import org.mjelle.quarkus.easynats.codec.Codec;
+import org.mjelle.quarkus.easynats.codec.SerializationException;
+import org.mjelle.quarkus.easynats.codec.DeserializationException;
+import jakarta.enterprise.context.ApplicationScoped;
+
+@ApplicationScoped
+public class TextPlainCodec implements Codec {
+
+    @Override
+    public String getContentType() {
+        return "text/plain";
+    }
+
+    @Override
+    public byte[] encode(Object object) throws SerializationException {
+        if (object instanceof Product) {
+            return ((Product) object).toText().getBytes();
+        }
+        throw new SerializationException("Unsupported type for TextPlainCodec: " + object.getClass().getName());
+    }
+
+    @Override
+    public Object decode(byte[] data, Class<?> type, String ceType) throws DeserializationException {
+        if (type.equals(Product.class)) {
+            return Product.fromText(new String(data));
+        }
+        throw new DeserializationException("Unsupported type for TextPlainCodec: " + type.getName());
+    }
 }
 ```
+By annotating the class with `@ApplicationScoped`, Quarkus automatically discovers it, and EasyNATS will use it as the global payload codec.
 
-**MessagingService.java**
+## 3. Publisher and Subscriber
+
+Your publisher and subscriber code requires no changes. The global codec is applied transparently to the CloudEvent `data` payload.
+
+**ProductService.java**
 ```java
 import org.mjelle.quarkus.easynats.NatsPublisher;
 import org.mjelle.quarkus.easynats.annotations.NatsSubject;
@@ -77,38 +80,24 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
 @ApplicationScoped
-public class MessagingService {
+public class ProductService {
 
     @Inject
     @NatsSubject("products")
     NatsPublisher<Product> productPublisher;
 
-    @Inject
-    @NatsSubject("users")
-    NatsPublisher<User> userPublisher;
-
-    public void sendMessages() {
-        Product product = new Product();
-        product.id = "p1";
-        product.name = "Laptop";
+    public void sendProduct(Product product) {
+        // The Product object will be serialized to "id|name"
+        // and placed in the 'data' attribute of the CloudEvent.
+        // The 'datacontenttype' header will be set to "text/plain".
         productPublisher.publish(product);
-
-        User user = new User();
-        user.email = "test@example.com";
-        user.publish(user);
     }
 
     @NatsSubscriber(subject = "products")
     public void onProductMessage(Product product) {
-        // 'product' was deserialized by GlobalJsonbCodec
-        System.out.println("Got product: " + product.name);
-    }
-
-    @NatsSubscriber(subject = "users")
-    public void onUserMessage(User user) {
-        // 'user' was also deserialized by GlobalJsonbCodec
-        System.out.println("Got user: " + user.email);
+        // The 'data' attribute of the CloudEvent was deserialized
+        // from "id|name" into a Product object by the TextPlainCodec.
+        System.out.println("Received product: " + product.name);
     }
 }
 ```
-Both the `Product` and `User` objects will be serialized and deserialized using the single `GlobalJsonbCodec` instance.
