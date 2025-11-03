@@ -1,31 +1,31 @@
-# Data Model: Custom Payload Codec
+# Data Model: Custom Payload Codec (Global)
 
-This document defines the key data structures and interfaces for the Custom Payload Codec feature.
+This document defines the key data structures for the global Custom Payload Codec feature.
 
-## 1. `Codec<T>` Interface
+## 1. `Codec` Interface
 
-This is the central public interface that developers will implement to provide custom serialization and deserialization logic.
+This is the public interface that developers will implement to provide a single, global serialization and deserialization strategy.
 
 -   **Package**: `org.mjelle.quarkus.easynats.codec`
 -   **Signature**:
     ```java
-    public interface Codec<T> {
+    public interface Codec {
         /**
          * Encodes the given object into a byte array.
-         * @param object The object to encode.
+         * @param object The object to encode. Can be of any type.
          * @return The byte array representation of the object.
          * @throws SerializationException if encoding fails.
          */
-        byte[] encode(T object) throws SerializationException;
+        byte[] encode(Object object) throws SerializationException;
 
         /**
          * Decodes a byte array into an object of the specified type.
          * @param data The byte array to decode.
-         * @param type The target class of the object.
-         * @return The decoded object.
+         * @param type The target class of the object, provided by the subscriber's method signature.
+         * @return The decoded object. The object's class should be compatible with the 'type' parameter.
          * @throws DeserializationException if decoding or validation fails.
          */
-        T decode(byte[] data, Class<T> type) throws DeserializationException;
+        Object decode(byte[] data, Class<?> type) throws DeserializationException;
     }
     ```
 
@@ -47,17 +47,7 @@ These custom exceptions provide clear error handling for codec operations.
 
 ## 3. Internal Components
 
-These components are not part of the public API but are crucial for the implementation.
-
-### `CodecRegistry`
-
--   **Type**: Internal CDI Bean (`@ApplicationScoped`)
--   **Purpose**: Manages the lifecycle and lookup of all `Codec` implementations.
--   **Key Methods**:
-    -   `void register(Class<?> type, Codec<?> codec)`: Registers a codec for a specific type.
-    -   `Optional<Codec<?>> getCodec(Class<?> type)`: Retrieves the codec for a given type, returning the custom one if it exists, otherwise falling back to the default.
-
 ### `DefaultCodec`
 
 -   **Type**: Internal CDI Bean (`@ApplicationScoped`, `@DefaultBean`)
--   **Purpose**: Implements `Codec<Object>` and contains the default Jackson/CloudEvents serialization logic. It serves as the fallback for any type without a custom codec.
+-   **Purpose**: Implements the `Codec` interface and contains the default Jackson/CloudEvents serialization logic. It serves as the fallback if the user does not provide a custom `Codec` bean.

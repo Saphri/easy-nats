@@ -1,99 +1,114 @@
-# Quickstart: Using a Custom Payload Codec
+# Quickstart: Using a Global Custom Payload Codec
 
-This guide demonstrates how to provide a custom payload encoder/decoder (codec) to override the default JSON/CloudEvents serialization.
+This guide demonstrates how to provide a single, global custom payload codec to override the default JSON/CloudEvents serialization for your entire application.
 
-## 1. Create a Custom Codec
+## 1. Create a Global Codec
 
-First, implement the `Codec` interface. In this example, we'll create a simple codec that serializes a custom `Product` object into a pipe-separated string.
+Implement the `Codec` interface and declare it as a Quarkus bean (e.g., with `@ApplicationScoped`). This single bean will handle all serialization and deserialization for `NatsPublisher` and `@NatsSubscriber`.
+
+In this example, we'll create a codec that uses `jakarta.json.bind.Jsonb` for all objects.
+
+**GlobalJsonbCodec.java**
+```java
+import org.mjelle.quarkus.easynats.codec.Codec;
+import org.mjelle.quarkus.easynats.codec.SerializationException;
+import org.mjelle.quarkus.easynats.codec.DeserializationException;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.json.bind.Jsonb;
+import jakarta.json.bind.JsonbBuilder;
+
+@ApplicationScoped
+public class GlobalJsonbCodec implements Codec {
+
+    private final Jsonb jsonb = JsonbBuilder.create();
+
+    @Override
+    public byte[] encode(Object object) throws SerializationException {
+        if (object == null) {
+            return null;
+        }
+        try {
+            return jsonb.toJson(object).getBytes();
+        } catch (Exception e) {
+            throw new SerializationException("Failed to serialize object with JSON-B", e);
+        }
+    }
+
+    @Override
+    public Object decode(byte[] data, Class<?> type) throws DeserializationException {
+        if (data == null || data.length == 0) {
+            return null;
+        }
+        try {
+            return jsonb.fromJson(new String(data), type);
+        } catch (Exception e) {
+            throw new DeserializationException("Failed to deserialize object with JSON-B", e);
+        }
+    }
+}
+```
+By annotating the class with `@ApplicationScoped`, Quarkus automatically discovers it and EasyNATS will use it as the global codec, overriding the default.
+
+## 2. Publisher and Subscriber
+
+Your publisher and subscriber code requires no changes. The global codec is applied transparently.
 
 **Product.java**
 ```java
 public class Product {
     public String id;
     public String name;
-
-    // Constructors, getters, setters
 }
 ```
 
-**ProductCodec.java**
+**User.java**
 ```java
-import org.mjelle.quarkus.easynats.codec.Codec;
-import org.mjelle.quarkus.easynats.codec.SerializationException;
-import org.mjelle.quarkus.easynats.codec.DeserializationException;
-import jakarta.enterprise.context.ApplicationScoped;
-
-@ApplicationScoped
-public class ProductCodec implements Codec<Product> {
-
-    @Override
-    public byte[] encode(Product product) throws SerializationException {
-        if (product == null) {
-            return null;
-        }
-        String payload = product.id + "|" + product.name;
-        return payload.getBytes();
-    }
-
-    @Override
-    public Product decode(byte[] data, Class<Product> type) throws DeserializationException {
-        if (data == null || data.length == 0) {
-            return null;
-        }
-        String payload = new String(data);
-        String[] parts = payload.split("\\|");
-        if (parts.length != 2) {
-            throw new DeserializationException("Invalid payload format for Product");
-        }
-        Product product = new Product();
-        product.id = parts[0];
-        product.name = parts[1];
-        return product;
-    }
+public class User {
+    public String email;
 }
 ```
-*Note: By annotating our codec with `@ApplicationScoped`, it is automatically discovered by Quarkus CDI and registered with EasyNATS.*
 
-## 2. Publisher and Subscriber
-
-Your publisher and subscriber code remains exactly the same. EasyNATS will automatically discover and use your custom `ProductCodec` for the `Product` type.
-
-**ProductPublisher.java**
+**MessagingService.java**
 ```java
 import org.mjelle.quarkus.easynats.NatsPublisher;
 import org.mjelle.quarkus.easynats.annotations.NatsSubject;
+import org.mjelle.quarkus.easynats.annotations.NatsSubscriber;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
 @ApplicationScoped
-public class ProductPublisher {
+public class MessagingService {
 
     @Inject
     @NatsSubject("products")
     NatsPublisher<Product> productPublisher;
 
-    public void sendProduct(Product product) {
+    @Inject
+    @NatsSubject("users")
+    NatsPublisher<User> userPublisher;
+
+    public void sendMessages() {
+        Product product = new Product();
+        product.id = "p1";
+        product.name = "Laptop";
         productPublisher.publish(product);
+
+        User user = new User();
+        user.email = "test@example.com";
+        user.publish(user);
     }
-}
-```
-
-**ProductSubscriber.java**
-```java
-import org.mjelle.quarkus.easynats.annotations.NatsSubscriber;
-import jakarta.enterprise.context.ApplicationScoped;
-
-@ApplicationScoped
-public class ProductSubscriber {
 
     @NatsSubscriber(subject = "products")
     public void onProductMessage(Product product) {
-        System.out.println("Received product: " + product.name);
-        // The 'product' object was deserialized using ProductCodec
+        // 'product' was deserialized by GlobalJsonbCodec
+        System.out.println("Got product: " + product.name);
+    }
+
+    @NatsSubscriber(subject = "users")
+    public void onUserMessage(User user) {
+        // 'user' was also deserialized by GlobalJsonbCodec
+        System.out.println("Got user: " + user.email);
     }
 }
 ```
-
-When `ProductPublisher.sendProduct()` is called, the `ProductCodec`'s `encode` method will be used. When a message arrives on the "products" subject, the `decode` method will be used before `onProductMessage()` is invoked.
-
-```
+Both the `Product` and `User` objects will be serialized and deserialized using the single `GlobalJsonbCodec` instance.

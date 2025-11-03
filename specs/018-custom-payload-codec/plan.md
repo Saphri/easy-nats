@@ -1,4 +1,4 @@
-# Implementation Plan: Custom Payload Codec
+# Implementation Plan: Custom Payload Codec (Global)
 
 **Feature Branch**: `018-custom-payload-codec`
 **Status**: In Progress
@@ -7,41 +7,38 @@
 
 ### 1. Technical Context
 
--   **High-Level Approach**: The goal is to introduce a mechanism that allows developers to override the default Jackson/CloudEvents serialization. This will be achieved by defining a `Codec` interface and a `CodecRegistry` to manage custom implementations. The system will look up a codec for a given type; if a custom one is found, it will be used for both serialization (in `NatsPublisher`) and deserialization (in the subscriber logic). If not, it will fall back to the default.
+-   **High-Level Approach**: The feature will provide a mechanism for developers to replace the default Jackson/CloudEvents serialization with a single, global custom codec. This is achieved by defining a `Codec` interface. Developers can provide one implementation of this interface as a CDI bean. If such a bean is present in the application, the EasyNATS extension will use it for all serialization and deserialization. Otherwise, it will use a default implementation that preserves the existing CloudEvents behavior.
 
 -   **Key Components**:
-    -   `Codec<T>`: A public interface for developers to implement. It will define `byte[] encode(T object)` and `T decode(byte[] data)` methods.
-    -   `CodecRegistry`: An internal CDI bean that will hold a map of `Class<?>` to `Codec<?>`. It will be responsible for registering and looking up codecs.
-    -   `DefaultCodec`: A Quarkus `@DefaultBean` implementation of the `Codec` interface that encapsulates the current Jackson/CloudEvents logic. This ensures backward compatibility.
-    -   `NatsPublisher`: Will be modified to consult the `CodecRegistry` before sending a message.
-    -   Subscriber Invocation Logic: The part of the `deployment` module that handles message dispatching to `@NatsSubscriber` methods will be updated to use the `CodecRegistry` for deserialization.
+    -   `Codec`: A public interface for developers to implement. It will define methods to handle any object type: `byte[] encode(Object object)` and `Object decode(byte[] data, Class<?> type)`.
+    -   `DefaultCodec`: A Quarkus `@DefaultBean` implementation of the `Codec` interface. This bean will contain the current Jackson/CloudEvents logic, ensuring full backward compatibility if no custom codec is provided.
+    -   `NatsPublisher`: Will be modified to receive an injection of the global `Codec` and use it for all serialization.
+    -   Subscriber Invocation Logic: The build-time logic will be adjusted to ensure the global `Codec` is used for deserializing all incoming messages before they are passed to `@NatsSubscriber` methods.
 
 -   **Dependencies**:
-    -   Quarkus CDI (`quarkus-arc`): For bean management, including `@ApplicationScoped`, `@DefaultBean`, and programmatic lookup.
-    -   No new external dependencies are anticipated.
+    -   Quarkus CDI (`quarkus-arc`): Used for discovering the user-provided codec bean and for the `@DefaultBean` mechanism.
+    -   No new external dependencies are required.
 
 -   **User Input Analysis**:
-    -   "both encode and decode must validate the type is allowed (cached)": This implies the `CodecRegistry` should cache lookups for performance. The "allowed" part suggests that the type must be explicitly registered.
-    -   "Quarkus @DefaultBean can provide the default codec": This is a direct implementation hint. We will create a `DefaultCodec` and mark it with `@DefaultBean`. Custom codecs provided by the user will override it.
-    -   "@SerializationException and @DeserializationException be used from then codec": We will need to define these two custom, checked exceptions to provide clear error handling.
+    -   "the codec is global.. not per type": This is the core directive. The design is now centered around a single, application-wide codec rather than a registry of type-specific codecs. This simplifies the implementation significantly.
 
 -   **Unknowns & Risks**:
-    -   **Risk**: Modifying the core publisher and subscriber logic is sensitive. Extensive integration testing is required to ensure we don't break existing functionality. The user noted that existing tests should cover this, which is a good starting point.
-    -   **Unknown**: How to handle generic types and type erasure in the `CodecRegistry`. We need a reliable way to map a `Class<?>` to its codec, especially for collections or generic container types. [NEEDS CLARIFICATION: What is the strategy for handling generic types like `List<Product>`? Do users register a codec for `List` or for `Product`?]
+    -   **Risk**: A global codec shifts more responsibility to the developer. They must handle different object types within a single `encode`/`decode` implementation (e.g., using `instanceof` checks or a serialization library that handles polymorphism). The documentation must be very clear about this.
+    -   **Risk**: The `decode` method returns `Object`. The subscriber invocation logic must safely cast this to the type expected by the `@NatsSubscriber` method. This cast is a potential source of `ClassCastException` if the codec returns the wrong type, so error handling must be robust.
 
 ### 2. Constitution Check
 
 | Principle | Adherence | Justification |
 | :--- | :--- | :--- |
-| **I. Extension-First Architecture** | ✅ Yes | The changes will be correctly split between `runtime` (new `Codec` interface, exceptions) and `deployment` (modifications to the build-time subscriber processing). |
-| **II. Minimal Runtime Dependencies** | ✅ Yes | No new runtime dependencies will be added. The feature extends existing functionality. |
-| **III. Test-Driven Development** | ✅ Yes | New integration tests will be created to validate the custom codec functionality before implementation. |
+| **I. Extension-First Architecture** | ✅ Yes | The `Codec` interface will be in the `runtime` module, and the logic for injecting and using it will be correctly placed in the `runtime` and `deployment` modules. |
+| **II. Minimal Runtime Dependencies** | ✅ Yes | No new runtime dependencies are being added. |
+| **III. Test-Driven Development** | ✅ Yes | An integration test will be written to verify that a user-provided global codec is correctly discovered and used for both publishing and subscribing. |
 | **IV. Java 21 Compatibility** | ✅ Yes | All new code will be Java 21 compliant. |
-| **V. CloudEvents Compliance** | ✅ Yes | The default behavior remains CloudEvents compliant. This feature allows *overriding* it, which is the explicit goal. |
-| **VI. Developer Experience First** | ✅ Yes | The feature enhances DX by giving developers more control. The registration mechanism will be designed to be simple and intuitive. |
-| **VII. Observability First** | ✅ Yes | No changes are planned for tracing or health checks, so existing observability will not be affected. |
+| **V. CloudEvents Compliance** | ✅ Yes | The default codec will ensure CloudEvents compliance is maintained. The user is explicitly given the power to override this, which is the feature's purpose. |
+| **VI. Developer Experience First** | ✅ Yes | This approach simplifies the API. Instead of registering multiple codecs, the developer provides a single bean to customize serialization, which is a common pattern in Quarkus. |
+| **VII. Observability First** | ✅ Yes | This change does not impact tracing or health checks. |
 
-**Gate Evaluation**: All development quality gates from the constitution will be followed. The plan adheres to all core principles.
+**Gate Evaluation**: The plan adheres to all core principles and development quality gates.
 
 ---
 
@@ -49,27 +46,23 @@
 
 ### 1. Research (`research.md`)
 
--   **R-01**: Investigate and decide on a strategy for handling generic types in the `CodecRegistry`. This involves exploring Quarkus's `Type` discovery mechanisms and how to robustly map parameterized types like `List<Product>` or `Map<String, User>` to a specific codec.
--   **R-02**: Research best practices for creating and using `@DefaultBean` in Quarkus to ensure the fallback mechanism is implemented correctly and robustly.
+-   No research is required for this simplified design. The use of a global CDI bean with a `@DefaultBean` fallback is a standard and well-understood pattern in Quarkus.
 
 ### 2. Data Model (`data-model.md`)
 
--   **`Codec<T>` Interface**:
-    -   `byte[] encode(T object) throws SerializationException;`
-    -   `T decode(byte[] data, Class<T> type) throws DeserializationException;`
+-   **`Codec` Interface**:
+    -   `byte[] encode(Object object) throws SerializationException;`
+    -   `Object decode(byte[] data, Class<?> type) throws DeserializationException;`
 -   **`SerializationException`**: Custom exception for encoding failures.
--   **`DeserializationException`**: Custom exception for decoding failures, including validation errors.
--   **`CodecRegistry`**:
-    -   `void register(Class<?> type, Codec<?> codec);`
-    -   `Optional<Codec<?>> getCodec(Class<?> type);`
+-   **`DeserializationException`**: Custom exception for decoding failures.
 
 ### 3. API Contracts & Quickstart
 
--   **API Contracts**: No external API contracts (e.g., REST) are part of this feature. The public contract is the `Codec<T>` interface and the registration mechanism.
+-   **API Contracts**: The public contract is the `Codec` interface.
 -   **Quickstart Guide (`quickstart.md`)**:
-    -   Show how to create a custom `StringCodec`.
-    -   Demonstrate how to register the codec in a Quarkus application (e.g., using a startup bean).
-    -   Provide an example of injecting `NatsPublisher<String>` and using a `@NatsSubscriber` with a `String` parameter, showing that the custom codec is invoked.
+    -   Show how to create a global `JsonbCodec` that uses `jakarta.json.bind.Jsonb` for all serialization.
+    -   Demonstrate how to declare it as an `@ApplicationScoped` bean.
+    -   Provide examples of publishing and subscribing with different data types, showing that the single global codec is used for all of them.
 
 ---
 
