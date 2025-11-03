@@ -6,16 +6,103 @@ A Quarkus extension for integrating with NATS JetStream, designed for simplicity
 
 **Note:** This project is currently under active development.
 
-## Features
+## Why Choose Quarkus EasyNATS Over Raw JNATS?
 
-*   **Simplified NATS Publishing:** Inject a `NatsPublisher` bean to easily publish messages to NATS subjects.
-*   **Typed Payloads:** Publish any Java object as a JSON payload with `NatsPublisher<T>`.
-*   **Annotation-Driven:** Use the `@NatsSubject` annotation to configure the NATS subject declaratively.
-*   **CloudEvents Support:** First-class support for the CloudEvents specification with automatic header generation.
-*   **Quarkus Integration:** Automatically configures and manages the NATS connection lifecycle.
-*   **JetStream Support:** Built on top of NATS JetStream for reliable messaging.
-*   **Explicit Ack/Nak Control:** Manually acknowledge or reject messages for advanced error handling.
-*   **Distributed Tracing:** Automatic W3C Trace Context propagation with OpenTelemetry integration for end-to-end observability.
+This extension eliminates the boilerplate and complexity of raw JNATS while providing a modern, production-ready messaging experience. Here are the top 10 reasons to use it:
+
+### 1. 🚀 **Zero-Configuration Dev Services**
+Stop manually managing NATS containers. The extension automatically discovers NATS running in Docker Compose (via labels) and configures connection settings—including credentials and TLS—without a single line of configuration. Perfect for local development and CI/CD pipelines.
+
+**Raw JNATS**: Manual container setup, connection URLs, credential management
+**Quarkus EasyNATS**: Automatic discovery and configuration
+
+### 2. 🛡️ **Type-Safe Generic Publishers**
+Publish strongly-typed messages with `NatsPublisher<OrderEvent>` and catch serialization issues at compile-time. The extension validates your types on first publish and provides clear error messages if Jackson can't serialize them.
+
+**Raw JNATS**: Manual `byte[]` encoding, runtime serialization failures
+**Quarkus EasyNATS**: Compile-time type safety with automatic JSON serialization
+
+```java
+@Inject @NatsSubject("orders") NatsPublisher<OrderEvent> publisher;
+publisher.publish(new OrderEvent("ORDER-123", 99.99)); // Type-safe!
+```
+
+### 3. 📬 **Declarative Subscribers with @NatsSubscriber**
+No more manual consumer creation, message loops, or lifecycle management. Just annotate a method with `@NatsSubscriber` and the extension handles ephemeral/durable consumer setup, message deserialization, and graceful shutdown.
+
+**Raw JNATS**: 50+ lines of boilerplate per subscriber
+**Quarkus EasyNATS**: 3 lines with `@NatsSubscriber`
+
+```java
+@NatsSubscriber(stream = "orders", consumer = "order-processor")
+public void onOrder(OrderEvent event) {
+    // Message automatically deserialized and acknowledged
+}
+```
+
+### 4. ☁️ **Automatic CloudEvents 1.0 Support**
+Every message is automatically wrapped as a CloudEvents 1.0 binary-mode event with spec-compliant headers (`ce-type`, `ce-source`, `ce-id`, `ce-time`, etc.). No manual header management or spec compliance checking—it just works.
+
+**Raw JNATS**: Manual CloudEvents header generation and validation
+**Quarkus EasyNATS**: Transparent CloudEvents wrapping with zero code
+
+### 5. 💉 **Native Quarkus CDI Integration**
+Inject `NatsPublisher`, `NatsConnection`, and custom configuration beans anywhere in your application. The extension manages the NATS connection lifecycle (startup, shutdown, reconnection) automatically as a singleton.
+
+**Raw JNATS**: Manual connection management, singleton patterns, shutdown hooks
+**Quarkus EasyNATS**: CDI-managed lifecycle with constructor injection
+
+### 6. ✅ **Flexible Acknowledgment Modes**
+Choose between automatic acknowledgment (simple) or explicit control (advanced). Use `NatsMessage<T>` to manually `ack()`, `nak()`, `nakWithDelay()`, or `term()` messages for sophisticated error handling and retry logic.
+
+**Raw JNATS**: Manual ack tracking across methods
+**Quarkus EasyNATS**: Choose auto-ack or explicit control per subscriber
+
+```java
+@NatsSubscriber(stream = "orders", consumer = "processor")
+public void onOrder(NatsMessage<OrderEvent> msg) {
+    try {
+        process(msg.payload());
+        msg.ack();
+    } catch (Exception e) {
+        msg.nakWithDelay(Duration.ofSeconds(30)); // Retry with backoff
+    }
+}
+```
+
+### 7. 🏥 **Production-Ready Health Checks**
+Three-tier health probing out-of-the-box: **Startup** (latch on first connection), **Readiness** (tolerates reconnects), and **Liveness** (prevents premature termination). Kubernetes-ready with no configuration.
+
+**Raw JNATS**: Manual health check implementation
+**Quarkus EasyNATS**: `/q/health/live`, `/q/health/ready`, `/q/health/started` work immediately
+
+### 8. 🔍 **Distributed Tracing with OpenTelemetry**
+Automatic W3C Trace Context propagation via `traceparent` and `tracestate` headers. Every publish and subscribe operation creates OpenTelemetry spans for end-to-end observability across services.
+
+**Raw JNATS**: Manual trace context injection and extraction
+**Quarkus EasyNATS**: Automatic tracing with Quarkus OpenTelemetry extension
+
+### 9. 🧪 **Build-Time Type Validation**
+Validates message types at compile-time (subscribers) and first-publish (publishers). Rejects primitives, arrays, and types without no-arg constructors with helpful error messages guiding you to solutions.
+
+**Raw JNATS**: Runtime serialization surprises
+**Quarkus EasyNATS**: Early validation with actionable error messages
+
+### 10. ⚡ **GraalVM Native Image Support**
+Compiles to native executables with subsecond startup and minimal memory footprint. The extension automatically registers reflection metadata for your subscriber types—no manual configuration needed.
+
+**Raw JNATS**: Manual reflection configuration, trial-and-error native builds
+**Quarkus EasyNATS**: Native-ready out-of-the-box with automatic reflection registration
+
+---
+
+## Additional Features
+
+*   **Custom NATS Options via CDI:** Advanced users can provide custom `io.nats.client.Options` beans for fine-grained control (connection timeouts, SSL/TLS, retry policies)
+*   **Docker-Compose Discovery:** Detects NATS containers by label (`nats-jetstream-server`) and extracts credentials from environment variables
+*   **Clear Error Messages:** All exceptions include actionable guidance with configurable payload logging
+*   **Durable Consumer Support:** Works with pre-configured JetStream consumers or creates ephemeral consumers on-demand
+*   **JetStream Support:** Built on top of NATS JetStream for reliable, persistent messaging
 
 ## Getting Started
 
