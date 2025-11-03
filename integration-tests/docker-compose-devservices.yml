@@ -12,7 +12,7 @@ services:
     ports:
       - "4222:4222"
     volumes:
-      - ./nats.conf:/etc/nats/nats.conf:ro
+      - ./nats-config/nats.conf:/etc/nats/nats.conf:ro
 #      - ./certs:/etc/nats/certs:ro
     command: ["-c", "/etc/nats/nats.conf", "-js"]
     labels:
@@ -22,7 +22,7 @@ services:
     depends_on:
       - nats
     volumes:
-      - ./setup-jetstream.sh:/setup-jetstream.sh
+      - ./nats-config/setup-jetstream.sh:/setup-jetstream.sh
     command: ["/bin/sh", "/setup-jetstream.sh"]
   lgtm:
     image: grafana/otel-lgtm
