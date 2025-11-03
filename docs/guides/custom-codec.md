@@ -186,7 +186,7 @@ public Object decode(byte[] data, Class<?> type, String ceType)
     // Custom validation
     if (result instanceof OrderData) {
         OrderData order = (OrderData) result;
-        if (order.getAmount() < 0) {
+        if (order.getAmount() != null && order.getAmount().signum() < 0) {
             throw new DeserializationException("Order amount cannot be negative");
         }
     }
