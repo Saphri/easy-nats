@@ -91,7 +91,7 @@ jobs:
 
       - name: Create GitHub Release (Extension JARs)
         if: ${{ !inputs.validate-native }}
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ inputs.version }}
           name: Release ${{ inputs.version }}
@@ -122,7 +122,7 @@ jobs:
 
       - name: Create GitHub Release (Native-Validated Extension)
         if: ${{ inputs.validate-native }}
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ inputs.version }}
           name: Release ${{ inputs.version }} (Native-Validated)
