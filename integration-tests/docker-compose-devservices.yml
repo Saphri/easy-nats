@@ -12,11 +12,21 @@ services:
     ports:
       - "4222:4222"
     volumes:
-      - ./nats.conf:/etc/nats/nats.conf:ro
+      - ./nats-config/nats.conf:/etc/nats/nats.conf:ro
 #      - ./certs:/etc/nats/certs:ro
     command: ["-c", "/etc/nats/nats.conf", "-js"]
     labels:
       io.quarkus.devservices.compose.wait_for.logs: .*Server is ready.*
+  nats-setup:
+    image: natsio/nats-box
+    environment:
+      NATS_USERNAME: guest
+      NATS_PASSWORD: guest
+    depends_on:
+      - nats
+    volumes:
+      - ./nats-config/setup-jetstream.sh:/setup-jetstream.sh
+    command: ["/bin/sh", "/setup-jetstream.sh"]
   lgtm:
     image: grafana/otel-lgtm
     container_name: lgtm
