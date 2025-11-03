@@ -40,12 +40,16 @@ public class CloudEventsHeaders {
         public final String dataContentType;
 
         public CloudEventsMetadata(String type, String source) {
+            this(type, source, CONTENT_TYPE_JSON);
+        }
+
+        public CloudEventsMetadata(String type, String source, String dataContentType) {
             this.specVersion = SPEC_VERSION;
             this.type = type;
             this.source = source;
             this.id = generateId();
             this.time = generateTime();
-            this.dataContentType = CONTENT_TYPE_JSON;
+            this.dataContentType = dataContentType != null ? dataContentType : CONTENT_TYPE_JSON;
         }
     }
 
@@ -112,9 +116,23 @@ public class CloudEventsHeaders {
      */
     public static CloudEventsMetadata generateMetadata(
         Class<?> payloadClass, String ceTypeOverride, String ceSourceOverride) {
+        return generateMetadata(payloadClass, ceTypeOverride, ceSourceOverride, null);
+    }
+
+    /**
+     * Generate CloudEvents metadata for a payload with custom content type.
+     *
+     * @param payloadClass the class of the payload (used to auto-generate ce-type)
+     * @param ceTypeOverride the ce-type override (nullable; auto-generated if null)
+     * @param ceSourceOverride the ce-source override (nullable; auto-generated if null)
+     * @param dataContentType the datacontenttype override (nullable; defaults to application/json)
+     * @return a CloudEventsMetadata object with all attributes set
+     */
+    public static CloudEventsMetadata generateMetadata(
+        Class<?> payloadClass, String ceTypeOverride, String ceSourceOverride, String dataContentType) {
         String ceType = ceTypeOverride != null ? ceTypeOverride : generateType(payloadClass);
         String ceSource = ceSourceOverride != null ? ceSourceOverride : generateSource();
-        return new CloudEventsMetadata(ceType, ceSource);
+        return new CloudEventsMetadata(ceType, ceSource, dataContentType);
     }
 
     /**
@@ -149,7 +167,21 @@ public class CloudEventsHeaders {
      */
     public static HeadersWithMetadata createHeadersWithMetadata(
         Class<?> payloadClass, String ceTypeOverride, String ceSourceOverride) {
-        CloudEventsMetadata metadata = generateMetadata(payloadClass, ceTypeOverride, ceSourceOverride);
+        return createHeadersWithMetadata(payloadClass, ceTypeOverride, ceSourceOverride, null);
+    }
+
+    /**
+     * Create NATS Headers object and return the generated metadata with custom content type.
+     *
+     * @param payloadClass the class of the payload (used to auto-generate ce-type)
+     * @param dataContentType the datacontenttype override (nullable; defaults to application/json)
+     * @param ceTypeOverride the ce-type override (nullable; auto-generated if null)
+     * @param ceSourceOverride the ce-source override (nullable; auto-generated if null)
+     * @return a HeadersWithMetadata containing both Headers and the generated CloudEventsMetadata
+     */
+    public static HeadersWithMetadata createHeadersWithMetadata(
+        Class<?> payloadClass, String dataContentType, String ceTypeOverride, String ceSourceOverride) {
+        CloudEventsMetadata metadata = generateMetadata(payloadClass, ceTypeOverride, ceSourceOverride, dataContentType);
         Headers headers = new Headers();
 
         headers.add(HEADER_SPECVERSION, metadata.specVersion);

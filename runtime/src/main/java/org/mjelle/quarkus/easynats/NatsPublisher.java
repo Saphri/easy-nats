@@ -12,6 +12,8 @@ import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.context.Scope;
 import jakarta.enterprise.context.Dependent;
 import jakarta.inject.Inject;
+import org.mjelle.quarkus.easynats.codec.Codec;
+import org.mjelle.quarkus.easynats.codec.SerializationException;
 import org.mjelle.quarkus.easynats.runtime.observability.NatsTraceService;
 import org.mjelle.quarkus.easynats.runtime.subscriber.TypeValidator;
 import org.mjelle.quarkus.easynats.runtime.subscriber.TypeValidationResult;
@@ -27,7 +29,7 @@ import org.mjelle.quarkus.easynats.runtime.subscriber.TypeValidationResult;
  * - ce-source: The application name (from quarkus.application.name), hostname, or "localhost"
  * - ce-id: Auto-generated UUID
  * - ce-time: Current timestamp in ISO 8601 UTC format
- * - ce-datacontenttype: "application/json"
+ * - ce-datacontenttype: The value returned by the global codec's getContentType() method (default: "application/json")
  *
  * @param <T> the type of payload to publish
  */
@@ -36,6 +38,7 @@ public class NatsPublisher<T> {
 
     private final NatsConnectionManager connectionManager;
     private final ObjectMapper objectMapper;
+    private final Codec codec;
     private final String subject;
     private final AtomicBoolean typeValidated = new AtomicBoolean(false);
     private final NatsTraceService traceService;
@@ -45,9 +48,10 @@ public class NatsPublisher<T> {
      *
      * @param connectionManager the NATS connection manager (injected by Quarkus)
      * @param objectMapper the Jackson ObjectMapper (injected by Quarkus)
+     * @param codec the global payload codec (injected by Quarkus)
      */
-    public NatsPublisher(NatsConnectionManager connectionManager, ObjectMapper objectMapper) {
-        this(connectionManager, objectMapper, null, null);
+    public NatsPublisher(NatsConnectionManager connectionManager, ObjectMapper objectMapper, Codec codec) {
+        this(connectionManager, objectMapper, codec, null, null);
     }
 
     /**
@@ -55,10 +59,11 @@ public class NatsPublisher<T> {
      *
      * @param connectionManager the NATS connection manager (injected by Quarkus)
      * @param objectMapper the Jackson ObjectMapper (injected by Quarkus)
+     * @param codec the global payload codec (injected by Quarkus)
      * @param subject the default NATS subject for this publisher
      */
-    public NatsPublisher(NatsConnectionManager connectionManager, ObjectMapper objectMapper, String subject) {
-        this(connectionManager, objectMapper, null, subject);
+    public NatsPublisher(NatsConnectionManager connectionManager, ObjectMapper objectMapper, Codec codec, String subject) {
+        this(connectionManager, objectMapper, codec, null, subject);
     }
 
     /**
@@ -66,11 +71,12 @@ public class NatsPublisher<T> {
      *
      * @param connectionManager the NATS connection manager (injected by Quarkus)
      * @param objectMapper the Jackson ObjectMapper (injected by Quarkus)
+     * @param codec the global payload codec (injected by Quarkus)
      * @param traceService the tracing service (injected by Quarkus)
      */
     @Inject
-    public NatsPublisher(NatsConnectionManager connectionManager, ObjectMapper objectMapper, NatsTraceService traceService) {
-        this(connectionManager, objectMapper, traceService, null);
+    public NatsPublisher(NatsConnectionManager connectionManager, ObjectMapper objectMapper, Codec codec, NatsTraceService traceService) {
+        this(connectionManager, objectMapper, codec, traceService, null);
     }
 
     /**
@@ -78,12 +84,14 @@ public class NatsPublisher<T> {
      *
      * @param connectionManager the NATS connection manager (injected by Quarkus)
      * @param objectMapper the Jackson ObjectMapper (injected by Quarkus)
+     * @param codec the global payload codec (injected by Quarkus)
      * @param traceService the tracing service (injected by Quarkus)
      * @param subject the default NATS subject for this publisher
      */
-    public NatsPublisher(NatsConnectionManager connectionManager, ObjectMapper objectMapper, NatsTraceService traceService, String subject) {
+    public NatsPublisher(NatsConnectionManager connectionManager, ObjectMapper objectMapper, Codec codec, NatsTraceService traceService, String subject) {
         this.connectionManager = connectionManager;
         this.objectMapper = objectMapper;
+        this.codec = codec;
         this.traceService = traceService;
         this.subject = subject;
     }
@@ -98,7 +106,9 @@ public class NatsPublisher<T> {
      * - ce-source: The application name (from quarkus.application.name), hostname, or "localhost"
      * - ce-id: Auto-generated UUID
      * - ce-time: Current timestamp in ISO 8601 UTC format
-     * - ce-datacontenttype: "application/json"
+     * - ce-datacontenttype: The value returned by the global codec's getContentType() method
+     *
+     * The payload is encoded using the global codec (default: Jackson JSON encoder).
      *
      * @param payload the object to publish (must not be null)
      * @throws IllegalArgumentException if payload is null
@@ -118,7 +128,9 @@ public class NatsPublisher<T> {
      * - ce-source: The application name (from quarkus.application.name), hostname, or "localhost"
      * - ce-id: Auto-generated UUID
      * - ce-time: Current timestamp in ISO 8601 UTC format
-     * - ce-datacontenttype: "application/json"
+     * - ce-datacontenttype: The value returned by the global codec's getContentType() method
+     *
+     * The payload is encoded using the global codec (default: Jackson JSON encoder).
      *
      * @param subject the NATS subject to publish to
      * @param payload the object to publish (must not be null)
@@ -136,8 +148,9 @@ public class NatsPublisher<T> {
         Scope scope = null;
         try {
             byte[] encodedPayload = encodePayload(payload);
+            String contentType = codec.getContentType();
             CloudEventsHeaders.HeadersWithMetadata hwm = CloudEventsHeaders.createHeadersWithMetadata(
-                payload.getClass(), null, null);
+                payload.getClass(), contentType, null, null);
 
             // Create a tracing span for this publish operation
             if (traceService != null) {
@@ -215,19 +228,15 @@ public class NatsPublisher<T> {
         return null;
     }
 
-
     /**
-     * Encode a payload to JSON using Jackson.
-     *
-     * Only Jackson-compatible types (POJOs, records, generic types) are supported.
-     * Primitives and arrays must be wrapped in Jackson-compatible POJOs by users.
+     * Encode a payload using the global codec.
      *
      * @param payload the object to encode
-     * @return the JSON-encoded byte array
-     * @throws SerializationException if Jackson encoding fails
+     * @return the encoded byte array
+     * @throws SerializationException if codec encoding fails
      */
     private byte[] encodePayload(T payload) throws SerializationException {
-        return TypedPayloadEncoder.encodeWithJackson(payload, objectMapper);
+        return codec.encode(payload);
     }
 
     /**

@@ -4,16 +4,16 @@ This document outlines the actionable tasks to implement the custom payload code
 
 ## Phase 1: Setup Public API
 
-- [ ] T001 Create package `org.mjelle.quarkus.easynats.codec` in `runtime/src/main/java/`
-- [ ] T002 Define `Codec` interface in `runtime/src/main/java/org/mjelle/quarkus/easynats/codec/Codec.java`
-- [ ] T003 Define `SerializationException` in `runtime/src/main/java/org/mjelle/quarkus/easynats/codec/SerializationException.java`
-- [ ] T004 Define `DeserializationException` in `runtime/src/main/java/org/mjelle/quarkus/easynats/codec/DeserializationException.java`
+- [x] T001 Create package `org.mjelle.quarkus.easynats.codec` in `runtime/src/main/java/`
+- [x] T002 Define `Codec` interface in `runtime/src/main/java/org/mjelle/quarkus/easynats/codec/Codec.java`
+- [x] T003 Define `SerializationException` in `runtime/src/main/java/org/mjelle/quarkus/easynats/codec/SerializationException.java`
+- [x] T004 Define `DeserializationException` in `runtime/src/main/java/org/mjelle/quarkus/easynats/codec/DeserializationException.java`
 
 ## Phase 2: Foundational Implementation
 
-- [ ] T005 Implement `DefaultCodec` in `runtime/src/main/java/org/mjelle/quarkus/easynats/runtime/codec/DefaultCodec.java`
-- [ ] T006 Create integration test file `CustomCodecTest.java` in `integration-tests/src/test/java/org/mjelle/quarkus/easynats/it/`
-- [ ] T007 [P] Write a failing test in `CustomCodecTest.java` to verify a custom codec is used for publishing and subscribing
+- [x] T005 Implement `DefaultCodec` in `runtime/src/main/java/org/mjelle/quarkus/easynats/runtime/codec/DefaultCodec.java`
+- [x] T006 Create integration test file `CustomCodecTest.java` in `integration-tests/src/test/java/org/mjelle/quarkus/easynats/it/`
+- [x] T007 [P] Write a failing test in `CustomCodecTest.java` to verify a custom codec is used for publishing and subscribing
 
 ## Phase 3: User Story 1 - Register Global Custom Payload Codec
 
