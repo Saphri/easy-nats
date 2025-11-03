@@ -457,9 +457,6 @@ if (appName != null && !appName.isEmpty()) {
 - CloudEvents 1.0 (transparent event format) (005-transparent-cloudevents)
 - NATS JetStream (messaging broker)
 - Jackson Databind (serialization)
-- Java 21 (enforced by Constitution Principle IV) (016-custom-nats-options)
-- Java 21 (per Constitution Principle IV) (017-docker-compose-discovery)
-- N/A (configuration discovery only, no persistent state) (017-docker-compose-discovery)
 
 ## Recent Changes
 - 016-custom-nats-options: Implemented @DefaultBean CDI producer for NATS Options (Feature complete - User Story 1 MVP + User Story 2 integration)
