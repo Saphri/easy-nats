@@ -13,7 +13,7 @@ As a developer, I want to register a single, global encoder/decoder (codec) for 
 
 **Why this priority**: This is the core functionality of the feature. It enables developers to integrate their own serialization formats like Protobuf, Avro, or other binary formats, which is crucial for performance-sensitive applications or for integrating with existing systems.
 
-**Independent Test**: A test can be created where a custom codec is registered for a `Product` class. The test will publish a `Product` object using `NatsPublisher<Product>` and a `@NatsSubscriber` will receive it. The test will verify that the custom codec's `encode` and `decode` methods were invoked.
+**Independent Test**: A test can be created where a global custom codec is registered. The test will publish an object using `NatsPublisher` and a `@NatsSubscriber` will receive it. The test will verify that the global custom codec's `encode` and `decode` methods were invoked.
 
 **Acceptance Scenarios**:
 
