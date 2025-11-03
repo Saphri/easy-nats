@@ -7,6 +7,10 @@ on:
     branches: [ main, master ]
   workflow_dispatch:
 
+permissions:
+  contents: read
+  actions: write
+
 jobs:
   native-validation:
     name: Validate Extension Native Compatibility with Mandrel ${{ matrix.mandrel-version }}
