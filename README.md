@@ -17,7 +17,7 @@ Stop manually managing NATS containers. The extension automatically discovers NA
 **Quarkus EasyNATS**: Automatic discovery and configuration
 
 ### 2. 🛡️ **Type-Safe Generic Publishers**
-Publish strongly-typed messages with `NatsPublisher<OrderEvent>` and catch serialization issues at compile-time. The extension validates your types on first publish and provides clear error messages if Jackson can't serialize them.
+Publish strongly-typed messages with `NatsPublisher<OrderEvent>` for compile-time type safety. The extension validates your types on first publish and provides clear error messages if Jackson can't serialize them.
 
 **Raw JNATS**: Manual `byte[]` encoding, runtime serialization failures
 **Quarkus EasyNATS**: Compile-time type safety with automatic JSON serialization
