@@ -6,8 +6,8 @@ import java.util.Map;
 /**
  * Test resource for integration tests.
  *
- * Stream and consumer creation is now handled by nats.conf.
- * This resource simply validates the connection can be established.
+ * Stream and consumer creation is now handled by nats.conf, so this
+ * resource no longer performs any initialization.
  */
 public class NatsStreamTestResource implements QuarkusTestResourceLifecycleManager {
 
