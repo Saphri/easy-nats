@@ -8,8 +8,6 @@ sleep 3
 echo "Creating test-stream..."
 nats stream add test-stream \
   --subjects "test.>" \
-  --storage memory \
-  --max-age 1h \
   --server "nats://${NATS_USERNAME}:${NATS_PASSWORD}@nats:4222" \
   --defaults
 
@@ -17,12 +15,8 @@ nats stream add test-stream \
 echo "Creating test-consumer..."
 nats consumer add test-stream test-consumer \
   --filter "test.>" \
-  --deliver all \
-  --ack explicit \
-  --replay instant \
-  --wait 30s \
-  --max-deliver 5 \
   --pull \
-  --server "nats://${NATS_USERNAME}:${NATS_PASSWORD}@nats:4222"
+  --server "nats://${NATS_USERNAME}:${NATS_PASSWORD}@nats:4222" \
+  --defaults
 
 echo "Stream and consumer setup complete."
