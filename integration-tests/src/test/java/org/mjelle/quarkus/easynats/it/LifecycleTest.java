@@ -2,6 +2,9 @@ package org.mjelle.quarkus.easynats.it;
 
 import static io.restassured.RestAssured.given;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
+
+import java.time.Duration;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -55,7 +58,7 @@ class LifecycleTest {
 
   @Test
   @DisplayName("Multiple REST calls over time verify connection remains open")
-  void testConnectionStabilityOverTime() throws InterruptedException {
+  void testConnectionStabilityOverTime() {
     // When - Make multiple calls to verify connection stability
     for (int i = 0; i < 5; i++) {
       // Publish a message
@@ -82,8 +85,10 @@ class LifecycleTest {
       assertThat(status.getBoolean("active")).isTrue();
       assertThat(status.getString("status")).isEqualTo("CONNECTED");
 
-      // Small delay between iterations
-      Thread.sleep(100);
+      // Small delay between iterations using awaitility
+      if (i < 4) {
+        await().pollDelay(Duration.ofMillis(100)).atMost(Duration.ofMillis(200)).until(() -> true);
+      }
     }
   }
 

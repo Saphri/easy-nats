@@ -1,5 +1,7 @@
 package org.mjelle.quarkus.easynats.runtime;
 
+import java.util.concurrent.TimeUnit;
+
 import org.mjelle.quarkus.easynats.runtime.subscriber.MessageType;
 
 /**
@@ -11,7 +13,8 @@ import org.mjelle.quarkus.easynats.runtime.subscriber.MessageType;
 public class SerializationContext<T> {
   private final MessageType<T> messageType;
   private final T payload;
-  private final long serializationStartTime;
+  private final long serializationStartTimeMillis;
+  private final long serializationStartTimeNanos;
 
   /**
    * Creates a serialization context.
@@ -22,7 +25,8 @@ public class SerializationContext<T> {
   public SerializationContext(MessageType<T> messageType, T payload) {
     this.messageType = messageType;
     this.payload = payload;
-    this.serializationStartTime = System.currentTimeMillis();
+    this.serializationStartTimeMillis = System.currentTimeMillis();
+    this.serializationStartTimeNanos = System.nanoTime();
 
     // Validate invariants
     if (!messageType.getValidationResult().isValid()) {
@@ -45,12 +49,12 @@ public class SerializationContext<T> {
 
   /** Returns the time when serialization started (milliseconds since epoch). */
   public long getSerializationStartTime() {
-    return serializationStartTime;
+    return serializationStartTimeMillis;
   }
 
   /** Returns the elapsed time since serialization started (in milliseconds). */
   public long getElapsedTimeMs() {
-    return System.currentTimeMillis() - serializationStartTime;
+    return TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - serializationStartTimeNanos);
   }
 
   @Override

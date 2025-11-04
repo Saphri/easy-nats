@@ -29,7 +29,7 @@ class AckTest {
   @BeforeEach
   void setUp() throws Exception {
     // Reset subscriber state before each test
-    given().when().post("/ack/reset").then().statusCode(200);
+    given().when().post("/ack/reset").then().statusCode(204);
 
     // Purge stream to start clean
     NatsTestUtils.purgeStream();
@@ -53,7 +53,7 @@ class AckTest {
         .when()
         .post("/ack/publish")
         .then()
-        .statusCode(202);
+        .statusCode(204);
 
     // Then: Verify the subscriber received it and called ack() without error
     await()
@@ -93,7 +93,7 @@ class AckTest {
         .when()
         .post("/ack/publish")
         .then()
-        .statusCode(202);
+        .statusCode(204);
 
     // Then: Verify correct deserialization
     await()
@@ -117,7 +117,7 @@ class AckTest {
             });
 
     // When: We reset and publish the second order
-    given().when().post("/ack/reset").then().statusCode(200);
+    given().when().post("/ack/reset").then().statusCode(204);
 
     given()
         .contentType(ContentType.JSON)
@@ -125,7 +125,7 @@ class AckTest {
         .when()
         .post("/ack/publish")
         .then()
-        .statusCode(202);
+        .statusCode(204);
 
     // Then: Verify the new order is deserialized correctly (not previous order)
     await()
@@ -160,7 +160,7 @@ class AckTest {
         .when()
         .post("/ack/publish")
         .then()
-        .statusCode(202);
+        .statusCode(204);
 
     // Then: Verify subscriber received message and accessor methods didn't throw
     // (This is tested indirectly - if accessor methods threw, the subscriber would log an error)

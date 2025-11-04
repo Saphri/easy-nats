@@ -1,5 +1,8 @@
 package org.mjelle.quarkus.easynats.runtime;
 
+import java.nio.charset.StandardCharsets;
+import java.util.concurrent.TimeUnit;
+
 import org.mjelle.quarkus.easynats.runtime.subscriber.MessageType;
 
 /**
@@ -11,7 +14,8 @@ import org.mjelle.quarkus.easynats.runtime.subscriber.MessageType;
 public class DeserializationContext<T> {
   private final MessageType<T> messageType;
   private final byte[] rawPayload;
-  private final long deserializationStartTime;
+  private final long deserializationStartTimeMillis;
+  private final long deserializationStartTimeNanos;
 
   /**
    * Creates a deserialization context.
@@ -22,7 +26,8 @@ public class DeserializationContext<T> {
   public DeserializationContext(MessageType<T> messageType, byte[] rawPayload) {
     this.messageType = messageType;
     this.rawPayload = rawPayload;
-    this.deserializationStartTime = System.currentTimeMillis();
+    this.deserializationStartTimeMillis = System.currentTimeMillis();
+    this.deserializationStartTimeNanos = System.nanoTime();
 
     // Validate invariants
     if (!messageType.getValidationResult().isValid()) {
@@ -46,7 +51,7 @@ public class DeserializationContext<T> {
   /** Returns the raw payload as a UTF-8 string (limited to first 1000 characters for logging). */
   public String getRawPayloadAsString() {
     try {
-      String payload = new String(rawPayload, "UTF-8");
+      String payload = new String(rawPayload, StandardCharsets.UTF_8);
       if (payload.length() > 1000) {
         return payload.substring(0, 1000) + "... [truncated]";
       }
@@ -58,12 +63,12 @@ public class DeserializationContext<T> {
 
   /** Returns the time when deserialization started (milliseconds since epoch). */
   public long getDeserializationStartTime() {
-    return deserializationStartTime;
+    return deserializationStartTimeMillis;
   }
 
   /** Returns the elapsed time since deserialization started (in milliseconds). */
   public long getElapsedTimeMs() {
-    return System.currentTimeMillis() - deserializationStartTime;
+    return TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - deserializationStartTimeNanos);
   }
 
   @Override

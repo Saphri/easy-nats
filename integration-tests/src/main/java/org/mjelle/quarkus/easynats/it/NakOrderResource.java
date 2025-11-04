@@ -1,13 +1,15 @@
 package org.mjelle.quarkus.easynats.it;
 
+import java.util.Map;
+
 import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.InternalServerErrorException;
+import jakarta.ws.rs.NotFoundException;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
-import jakarta.ws.rs.core.Response;
 
 import org.mjelle.quarkus.easynats.NatsPublisher;
 import org.mjelle.quarkus.easynats.NatsSubject;
@@ -38,14 +40,12 @@ public class NakOrderResource {
 
   @POST
   @Path("/publish")
-  @Produces(MediaType.APPLICATION_JSON)
-  public Response publishOrder(OrderData order) {
+  public void publishOrder(OrderData order) {
     try {
       if (order == null) {
         throw new BadRequestException("Order cannot be null");
       }
       orderPublisher.publish(order);
-      return Response.accepted().build();
     } catch (PublishingException e) {
       throw new InternalServerErrorException(e);
     }
@@ -54,37 +54,36 @@ public class NakOrderResource {
   @GET
   @Path("/last-processed")
   @Produces(MediaType.APPLICATION_JSON)
-  public Response getLastProcessedOrder() {
+  public OrderData getLastProcessedOrder() {
     OrderData last = nakOrderListener.getLastProcessedOrder();
     if (last == null) {
-      return Response.status(Response.Status.NOT_FOUND).build();
+      throw new NotFoundException("No processed order found");
     }
-    return Response.ok(last).build();
+    return last;
   }
 
   @GET
   @Path("/redelivery-count")
   @Produces(MediaType.APPLICATION_JSON)
-  public Response getLastRedeliveryCount() {
+  public Map<String, Integer> getLastRedeliveryCount() {
     int count = nakOrderListener.getLastRedeliveryCount();
-    return Response.ok(java.util.Collections.singletonMap("redeliveryCount", count)).build();
+    return Map.of("redeliveryCount", count);
   }
 
   @GET
   @Path("/error")
   @Produces(MediaType.APPLICATION_JSON)
-  public Response getNakError() {
+  public Map<String, String> getNakError() {
     String error = nakOrderListener.getLastNakError();
     if (error == null) {
-      return Response.status(Response.Status.NOT_FOUND).build();
+      throw new NotFoundException("No error found");
     }
-    return Response.ok(java.util.Collections.singletonMap("error", error)).build();
+    return Map.of("error", error);
   }
 
   @POST
   @Path("/reset")
-  public Response reset() {
+  public void reset() {
     nakOrderListener.reset();
-    return Response.ok().build();
   }
 }

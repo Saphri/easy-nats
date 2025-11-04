@@ -30,7 +30,7 @@ class NakTest {
   @BeforeEach
   void setUp() throws Exception {
     // Reset subscriber state before each test
-    given().when().post("/nak/reset").then().statusCode(200);
+    given().when().post("/nak/reset").then().statusCode(204);
 
     // Purge stream to start clean
     NatsTestUtils.purgeStream();
@@ -54,7 +54,7 @@ class NakTest {
         .when()
         .post("/nak/publish")
         .then()
-        .statusCode(202);
+        .statusCode(204);
 
     // Then: Verify subscriber received message with metadata
     // On first delivery, subscriber calls nak() to request redelivery
@@ -91,7 +91,7 @@ class NakTest {
         .when()
         .post("/nak/publish")
         .then()
-        .statusCode(202);
+        .statusCode(204);
 
     // Then: Verify the subscriber processed the message (called nak() on first attempt, then ack()
     // on second)
@@ -132,7 +132,7 @@ class NakTest {
         .when()
         .post("/nak/publish")
         .then()
-        .statusCode(202);
+        .statusCode(204);
 
     // Then: Verify correct deserialization on redelivery
     await()
@@ -169,7 +169,7 @@ class NakTest {
         .when()
         .post("/nak/publish")
         .then()
-        .statusCode(202);
+        .statusCode(204);
 
     // Then: Verify subscriber received message and accessor methods didn't throw
     await()

@@ -3,6 +3,8 @@ package org.mjelle.quarkus.easynats.it.health;
 import static io.restassured.RestAssured.given;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.concurrent.TimeUnit;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -138,14 +140,14 @@ class HealthCheckTest {
   @Test
   @DisplayName("Health check endpoints respond within acceptable time")
   void testHealthCheckResponseTime() {
-    long startTime = System.currentTimeMillis();
+    long startTime = System.nanoTime();
     given().accept(ContentType.JSON).when().get("/q/health/live").then().statusCode(200);
-    long endTime = System.currentTimeMillis();
-    long responseTime = endTime - startTime;
+    long endTime = System.nanoTime();
+    long responseTimeMs = TimeUnit.NANOSECONDS.toMillis(endTime - startTime);
 
     // Health checks should respond very quickly (well under 100ms per spec)
     // We use a generous timeout to account for first-time JIT compilation
-    assertThat(responseTime).isLessThan(1000); // 1 second as a reasonable upper bound
+    assertThat(responseTimeMs).isLessThan(1000); // 1 second as a reasonable upper bound
   }
 
   /**

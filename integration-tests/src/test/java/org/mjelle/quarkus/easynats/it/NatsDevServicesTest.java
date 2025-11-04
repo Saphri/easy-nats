@@ -2,6 +2,9 @@ package org.mjelle.quarkus.easynats.it;
 
 import static io.restassured.RestAssured.given;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
+
+import java.time.Duration;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -75,7 +78,7 @@ class NatsDevServicesTest {
 
   @Test
   @DisplayName("Dev Services connection remains stable across multiple operations")
-  void testConnectionStabilityWithDevServices() throws InterruptedException {
+  void testConnectionStabilityWithDevServices() {
     // When - Perform multiple operations
     for (int i = 0; i < 3; i++) {
       // Publish message
@@ -100,7 +103,11 @@ class NatsDevServicesTest {
 
       // Then - Connection should remain active
       assertThat(status.getBoolean("active")).isTrue();
-      Thread.sleep(100);
+
+      // Small delay between iterations using awaitility
+      if (i < 2) {
+        await().pollDelay(Duration.ofMillis(100)).atMost(Duration.ofMillis(200)).until(() -> true);
+      }
     }
   }
 }

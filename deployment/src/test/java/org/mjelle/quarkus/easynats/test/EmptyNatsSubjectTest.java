@@ -1,6 +1,6 @@
 package org.mjelle.quarkus.easynats.test;
 
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.spi.DeploymentException;
@@ -26,7 +26,7 @@ public class EmptyNatsSubjectTest {
                       .addClasses(EmptySubjectBean.class, NatsPublisher.class, NatsSubject.class))
           .assertException(
               t -> {
-                assertInstanceOf(DeploymentException.class, t);
+                assertThat(t).isInstanceOf(DeploymentException.class);
               });
 
   @Test
