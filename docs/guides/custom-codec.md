@@ -225,7 +225,13 @@ public class OrderListener {
 }
 ```
 
-**Note**: In explicit mode, deserialization errors are NOT caught by the framework. Your method receives the `NatsMessage` and can handle errors as needed.
+**Result (Explicit Mode - `NatsMessage<T>` subscriber method)**:
+1. If codec throws `DeserializationException`, the framework catches it
+2. Logs the error
+3. **Does NOT invoke** your subscriber method (same as implicit mode)
+4. **naks** the message → NATS retries it
+
+**Note**: Deserialization errors are handled the same way in both implicit and explicit modes. Your exception handling in the subscriber method applies to business logic errors (like `InvalidOrderException`), not deserialization/codec errors.
 
 ---
 
@@ -738,23 +744,28 @@ public class MyCodec implements Codec {
 **Symptom**: Your subscriber method is called even though decode() threw an exception.
 
 **Causes**:
-1. You're using explicit mode (`NatsMessage<T>`) - the framework doesn't auto-NAK
-2. An exception was thrown after codec.decode() returned successfully
+1. An exception was thrown **after** `codec.decode()` returned successfully (during business logic)
+2. Note: If `codec.decode()` throws `DeserializationException`, the framework auto-naks and your subscriber method is NOT called (in both implicit and explicit modes)
 
 **Solution**:
-- If using explicit mode, handle errors manually:
+- Handle business logic errors in your subscriber method:
   ```java
   @NatsSubscriber("orders")
   public void handle(NatsMessage<OrderData> msg) {
       try {
-          OrderData order = msg.getPayload();
-          // process...
+          OrderData order = msg.getPayload();  // Already deserialized successfully
+          // Business logic - validate and process...
+          validateAndProcess(order);
           msg.ack();
-      } catch (Exception e) {
-          msg.nak();  // ← You control this
+      } catch (BusinessException e) {
+          // You decide: retry or discard?
+          msg.nak();  // ← You control this for business errors
+          // Or: message.nakWithDelay(Duration.ofSeconds(5));
       }
   }
   ```
+
+- Codec errors (JSON parsing, validation in decode()) are handled by the framework and never reach your subscriber method
 
 ### Issue: Type Information Not Available in Decode
 
