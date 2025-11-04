@@ -229,8 +229,8 @@ class DefaultMessageHandlerTest {
     }
 
     @Test
-    @DisplayName("Explicit mode: codec decode error does NOT auto-NAK (developer responsibility)")
-    void testExplicitModeCodecDecodeErrorNoAutoNak() throws Exception {
+    @DisplayName("Explicit mode: codec decode error auto-NAKs (consistent with implicit mode)")
+    void testExplicitModeCodecDecodeErrorAutoNak() throws Exception {
         // Given: Explicit mode subscriber with codec that throws DeserializationException
         Method method = TestSubscriber.class.getMethod("handleWithExplicitMode", org.mjelle.quarkus.easynats.NatsMessage.class);
         TestSubscriber bean = spy(new TestSubscriber());
@@ -248,8 +248,8 @@ class DefaultMessageHandlerTest {
         // When: Handler processes message with codec error in explicit mode
         handler.handle(message);
 
-        // Then: Message is NOT auto-NAK'd (developer handles it in explicit mode)
-        verify(message, never()).nak();
+        // Then: Message IS auto-NAK'd (same behavior as implicit mode, since subscriber is never invoked)
+        verify(message).nak();
         verify(message, never()).ack();
         // Subscriber method is NOT invoked (error before method call)
         verify(bean, never()).handleWithExplicitMode(any());
