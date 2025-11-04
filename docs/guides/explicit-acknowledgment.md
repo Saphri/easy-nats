@@ -27,8 +27,9 @@ void handleOrder(Order order) {
 
 *   **Explicit Control (Advanced):**
     *   You define a subscriber method that accepts a `NatsMessage<T>` wrapper (e.g., `void handleOrder(NatsMessage<Order> msg)`).
-    *   The framework **does nothing** automatically.
-    *   You **must** call `msg.ack()`, `msg.nak()`, or `msg.term()` to resolve the message.
+    *   The framework automatically **naks** messages that fail to deserialize or violate CloudEvent requirements (these errors occur before your method is invoked).
+    *   For successfully deserialized messages, you **must** call `msg.ack()`, `msg.nak()`, or `msg.term()` to resolve the message.
+    *   Unhandled exceptions in your subscriber method are logged but do NOT trigger automatic nak (unlike implicit mode).
 
 ```java
 @NatsSubscriber(subject = "orders", stream = "ORDERS", consumer = "processor")
@@ -203,9 +204,11 @@ public class EventProcessor {
 
 ## Example 4: Terminating a Message
 
-**Scenario**: A message is unrecoverable (e.g., malformed JSON, invalid data). Instead of retrying, you want to stop processing it immediately.
+**Scenario**: A message is unrecoverable (e.g., business rule violation, unrecoverable state). Instead of retrying, you want to stop processing it immediately.
 
 The `msg.term()` method tells the NATS server to stop redelivering the message, even if it hasn't reached its maximum delivery count. This is useful for preventing poison pills from endlessly cycling through your system.
+
+**Note**: Deserialization errors and CloudEvent validation failures are automatically handled by the framework and will not invoke your subscriber method. Use `term()` only for business logic failures detected after successful deserialization.
 
 ```java
 @ApplicationScoped
@@ -216,7 +219,8 @@ public class DataValidator {
     @NatsSubscriber(stream = "DATA", consumer = "validator")
     public void handleData(NatsMessage<RawData> msg) {
         try {
-            // The payload() call might not throw; validation is key.
+            // msg.payload() returns successfully deserialized data
+            // (deserialization errors are auto-nakked and never reach this method)
             RawData data = msg.payload();
             validate(data);
 
@@ -225,7 +229,7 @@ public class DataValidator {
             log.info("Data validated successfully: {}", data.id());
 
         } catch (ValidationException e) {
-            // Unrecoverable error: the data is invalid.
+            // Unrecoverable error: the data failed business validation.
             // Terminate the message to prevent retries.
             msg.term();
             log.error("Invalid data received. Terminating message: {}", e.getMessage());

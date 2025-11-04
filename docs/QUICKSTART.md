@@ -419,6 +419,8 @@ By default, the framework automatically acknowledges messages on success and rej
 
 This is done by changing your subscriber method parameter from the payload type (e.g., `OrderData`) to the `NatsMessage<T>` wrapper (e.g., `NatsMessage<OrderData>`).
 
+**Important**: The framework automatically naks messages that fail to deserialize or violate CloudEvent requirements, so your subscriber method is only invoked for successfully deserialized messages.
+
 ```java
 import org.mjelle.quarkus.easynats.NatsMessage;
 
@@ -433,7 +435,7 @@ public void handleOrder(NatsMessage<OrderData> message) {
 }
 ```
 
-📖 **Learn More**: For a deep dive into this feature, see the **[Explicit Ack/Nak Guide](EXPLICIT_ACK_NAK_GUIDE.md)**.
+📖 **Learn More**: For a deep dive into this feature, see the **[Explicit Ack/Nak Guide](guides/explicit-acknowledgment.md)**.
 
 ---
 

@@ -188,10 +188,8 @@ public class DefaultMessageHandler implements MessageHandler {
                 if (span != null) {
                     traceService.recordException(span, e);
                 }
-                // Only auto-nak if implicit mode; explicit mode developer handles it
-                if (!isExplicitMode) {
-                    nakMessage(message);
-                }
+                // Auto-nak message since it cannot be processed in either mode
+                nakMessage(message);
                 return;
             } catch (DeserializationException e) {
                 // Log with detailed context for debugging
@@ -219,10 +217,8 @@ public class DefaultMessageHandler implements MessageHandler {
                 if (span != null) {
                     traceService.recordException(span, e);
                 }
-                // Only auto-nak if implicit mode; explicit mode developer handles it
-                if (!isExplicitMode) {
-                    nakMessage(message);
-                }
+                // Auto-nak message since it cannot be processed in either mode
+                nakMessage(message);
                 return;
             }
 

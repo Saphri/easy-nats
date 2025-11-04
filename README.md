@@ -242,7 +242,9 @@ public class MyTypedProducer {
 
 ### Explicit Acknowledgment
 
-For advanced error handling, you can take full control over message acknowledgment. To do this, change your subscriber method to accept a `NatsMessage<T>` parameter. This disables automatic acknowledgment and gives you access to `ack()` and `nak()` methods.
+For advanced error handling, you can take full control over message acknowledgment. To do this, change your subscriber method to accept a `NatsMessage<T>` parameter. This gives you access to `ack()` and `nak()` methods.
+
+**Note**: The framework automatically naks messages that fail to deserialize or violate CloudEvent requirements, so your subscriber method is only invoked for successfully deserialized messages.
 
 ```java
 import org.mjelle.quarkus.easynats.NatsMessage;
@@ -258,11 +260,11 @@ public class MyNatsConsumer {
         try {
             // Process the event
             process(event);
-            
+
             // Manually acknowledge the message
             message.ack();
             System.out.println("Message processed and acknowledged.");
-            
+
         } catch (Exception e) {
             // Reject the message and request redelivery after 10 seconds
             message.nakWithDelay(Duration.ofSeconds(10));
