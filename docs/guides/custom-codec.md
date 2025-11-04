@@ -745,7 +745,7 @@ public class MyCodec implements Codec {
 
 **Causes**:
 1. An exception was thrown **after** `codec.decode()` returned successfully (during business logic)
-2. Note: If `codec.decode()` throws `DeserializationException`, the framework auto-NAKs and your subscriber method is NOT called (in both implicit and explicit modes)
+2. Note: If `codec.decode()` throws `DeserializationException`, the framework auto-naks and your subscriber method is NOT called (in both implicit and explicit modes)
 
 **Solution**:
 - Handle business logic errors in your subscriber method:
