@@ -229,7 +229,7 @@ public class OrderListener {
 1. If codec throws `DeserializationException`, the framework catches it
 2. Logs the error
 3. **Does NOT invoke** your subscriber method (same as implicit mode)
-4. **Negatively acknowledges (NACKs)** the message → NATS retries it
+4. **naks** the message → NATS retries it
 
 **Note**: Deserialization errors are handled the same way in both implicit and explicit modes. Your exception handling in the subscriber method applies to business logic errors (like `InvalidOrderException`), not deserialization/codec errors.
 
