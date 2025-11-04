@@ -5,8 +5,7 @@ import io.quarkus.test.junit.QuarkusIntegrationTest;
 /**
  * Native image integration tests for the Quarkus Easy NATS extension.
  *
- * Extends the JVM tests to validate they work in native image mode.
+ * <p>Extends the JVM tests to validate they work in native image mode.
  */
 @QuarkusIntegrationTest
-public class QuarkusEasyNatsIT extends QuarkusEasyNatsTest {
-}
+public class QuarkusEasyNatsIT extends QuarkusEasyNatsTest {}

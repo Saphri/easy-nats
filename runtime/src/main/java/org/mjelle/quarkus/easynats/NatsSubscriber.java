@@ -8,36 +8,33 @@ import java.lang.annotation.Target;
 /**
  * Annotation for subscribing to NATS JetStream messages.
  *
- * <p>
- * Methods annotated with {@code @NatsSubscriber} will automatically subscribe to the specified
- * NATS subject and receive messages. The annotated method must have a single parameter representing the message payload. This parameter can be any Jackson-serializable POJO (Plain Old Java Object). The framework will automatically handle JSON deserialization. For advanced use cases requiring access to message metadata or explicit acknowledgment control, the parameter can be of type `NatsMessage<T>`, where `T` is your POJO type.
- * </p>
+ * <p>Methods annotated with {@code @NatsSubscriber} will automatically subscribe to the specified
+ * NATS subject and receive messages. The annotated method must have a single parameter representing
+ * the message payload. This parameter can be any Jackson-serializable POJO (Plain Old Java Object).
+ * The framework will automatically handle JSON deserialization. For advanced use cases requiring
+ * access to message metadata or explicit acknowledgment control, the parameter can be of type
+ * `NatsMessage<T>`, where `T` is your POJO type.
  *
- * <p>
- * The annotation supports two modes:
- * </p>
+ * <p>The annotation supports two modes:
+ *
  * <ul>
- * <li><strong>Ephemeral Mode</strong>: Use the {@code subject()} property to subscribe to a subject.
- * The consumer is created dynamically and does not survive restarts.</li>
- * <li><strong>Durable Mode</strong>: Use {@code stream()} and {@code consumer()} properties to bind
- * to a pre-configured durable consumer. The consumer must exist on the NATS server and will preserve
- * messages across application restarts.</li>
+ *   <li><strong>Ephemeral Mode</strong>: Use the {@code subject()} property to subscribe to a
+ *       subject. The consumer is created dynamically and does not survive restarts.
+ *   <li><strong>Durable Mode</strong>: Use {@code stream()} and {@code consumer()} properties to
+ *       bind to a pre-configured durable consumer. The consumer must exist on the NATS server and
+ *       will preserve messages across application restarts.
  * </ul>
  *
- * <p>
- * Message acknowledgment is handled implicitly:
- * </p>
+ * <p>Message acknowledgment is handled implicitly:
+ *
  * <ul>
- * <li>If the method completes successfully, the message is acknowledged (ack)</li>
- * <li>If the method throws an exception, the message is negatively acknowledged (nak)</li>
+ *   <li>If the method completes successfully, the message is acknowledged (ack)
+ *   <li>If the method throws an exception, the message is negatively acknowledged (nak)
  * </ul>
  *
- * <p>
- * Example (Ephemeral Mode):
- * </p>
+ * <p>Example (Ephemeral Mode):
  *
- * <pre>
- * {@code
+ * <pre>{@code
  * @ApplicationScoped
  * public class MyNatsConsumer {
  *     @NatsSubscriber(subject = "my-subject")
@@ -45,15 +42,11 @@ import java.lang.annotation.Target;
  *         System.out.println("Received: " + message);
  *     }
  * }
- * }
- * </pre>
+ * }</pre>
  *
- * <p>
- * Example (Durable Mode):
- * </p>
+ * <p>Example (Durable Mode):
  *
- * <pre>
- * {@code
+ * <pre>{@code
  * @ApplicationScoped
  * public class MyDurableConsumer {
  *     @NatsSubscriber(stream = "orders", consumer = "processor")
@@ -61,8 +54,7 @@ import java.lang.annotation.Target;
  *         System.out.println("Processing order: " + orderData);
  *     }
  * }
- * }
- * </pre>
+ * }</pre>
  *
  * @see NatsConnectionManager
  * @see org.mjelle.quarkus.easynats.NatsMessage
@@ -70,39 +62,33 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
 public @interface NatsSubscriber {
-    /**
-     * The NATS subject to subscribe to (ephemeral mode).
-     *
-     * <p>
-     * Use this property for ephemeral consumers. Cannot be combined with {@code stream()} or
-     * {@code consumer()}.
-     * </p>
-     *
-     * @return the subject name (must be non-empty for ephemeral mode)
-     */
-    String subject() default "";
+  /**
+   * The NATS subject to subscribe to (ephemeral mode).
+   *
+   * <p>Use this property for ephemeral consumers. Cannot be combined with {@code stream()} or
+   * {@code consumer()}.
+   *
+   * @return the subject name (must be non-empty for ephemeral mode)
+   */
+  String subject() default "";
 
-    /**
-     * The NATS JetStream stream name (durable mode).
-     *
-     * <p>
-     * Use this property with {@code consumer()} for durable consumers. The stream must exist on the
-     * NATS server. Cannot be combined with {@code subject()}.
-     * </p>
-     *
-     * @return the stream name (must be non-empty and paired with consumer())
-     */
-    String stream() default "";
+  /**
+   * The NATS JetStream stream name (durable mode).
+   *
+   * <p>Use this property with {@code consumer()} for durable consumers. The stream must exist on
+   * the NATS server. Cannot be combined with {@code subject()}.
+   *
+   * @return the stream name (must be non-empty and paired with consumer())
+   */
+  String stream() default "";
 
-    /**
-     * The NATS JetStream durable consumer name (durable mode).
-     *
-     * <p>
-     * Use this property with {@code stream()} for durable consumers. The consumer must be
-     * pre-configured on the NATS server. Cannot be combined with {@code subject()}.
-     * </p>
-     *
-     * @return the consumer name (must be non-empty and paired with stream())
-     */
-    String consumer() default "";
+  /**
+   * The NATS JetStream durable consumer name (durable mode).
+   *
+   * <p>Use this property with {@code stream()} for durable consumers. The consumer must be
+   * pre-configured on the NATS server. Cannot be combined with {@code subject()}.
+   *
+   * @return the consumer name (must be non-empty and paired with stream())
+   */
+  String consumer() default "";
 }

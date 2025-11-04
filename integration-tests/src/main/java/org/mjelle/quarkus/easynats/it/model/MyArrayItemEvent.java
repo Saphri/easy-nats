@@ -2,20 +2,19 @@ package org.mjelle.quarkus.easynats.it.model;
 
 public class MyArrayItemEvent {
 
-    private String data;
+  private String data;
 
-    public MyArrayItemEvent() {
-    }
+  public MyArrayItemEvent() {}
 
-    public MyArrayItemEvent(String data) {
-        this.data = data;
-    }
+  public MyArrayItemEvent(String data) {
+    this.data = data;
+  }
 
-    public String getData() {
-        return data;
-    }
+  public String getData() {
+    return data;
+  }
 
-    public void setData(String data) {
-        this.data = data;
-    }
+  public void setData(String data) {
+    this.data = data;
+  }
 }

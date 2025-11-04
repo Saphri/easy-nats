@@ -3,39 +3,42 @@ package org.mjelle.quarkus.easynats.it.example;
 import static io.restassured.RestAssured.given;
 import static org.awaitility.Awaitility.await;
 
-import io.quarkus.test.junit.QuarkusTest;
 import java.time.Duration;
+
 import org.junit.jupiter.api.Test;
+
+import io.quarkus.test.junit.QuarkusTest;
 
 /**
  * Integration test for the greeting example.
  *
- * Verifies that messages sent via the REST endpoint are received by the listener.
+ * <p>Verifies that messages sent via the REST endpoint are received by the listener.
  */
 @QuarkusTest
 class GreetingExampleTest {
 
-    @Test
-    void testGreetingEndToEnd() {
-        // Send a greeting via REST endpoint
-        given()
-            .contentType("text/plain")
-            .body("Integration Test")
+  @Test
+  void testGreetingEndToEnd() {
+    // Send a greeting via REST endpoint
+    given()
+        .contentType("text/plain")
+        .body("Integration Test")
         .when()
-            .post("/example/greeting")
+        .post("/example/greeting")
         .then()
-            .statusCode(200)
-            .extract().asString()
-            .equals("Hello, Integration Test!");
+        .statusCode(200)
+        .extract()
+        .asString()
+        .equals("Hello, Integration Test!");
 
-        // Wait a moment for the async message to be processed
-        // In a real test, you'd verify the listener processed the message
-        await()
-            .atMost(Duration.ofSeconds(2))
-            .pollDelay(Duration.ofMillis(100))
-            .until(() -> true);  // The listener logs show the message was received
+    // Wait a moment for the async message to be processed
+    // In a real test, you'd verify the listener processed the message
+    await()
+        .atMost(Duration.ofSeconds(2))
+        .pollDelay(Duration.ofMillis(100))
+        .until(() -> true); // The listener logs show the message was received
 
-        // Note: The listener prints to logs. In a production test, you could inject
-        // the listener and verify it stored the received message in a list.
-    }
+    // Note: The listener prints to logs. In a production test, you could inject
+    // the listener and verify it stored the received message in a list.
+  }
 }

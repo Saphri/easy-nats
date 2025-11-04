@@ -14,31 +14,28 @@ import io.smallrye.common.annotation.RunOnVirtualThread;
 /**
  * REST resource for TypedSubscriber integration tests.
  *
- * <p>
- * Provides endpoints to:
- * 1. Publish CloudEvent messages to test subjects
- * 2. Retrieve last received typed objects for verification
- * </p>
+ * <p>Provides endpoints to: 1. Publish CloudEvent messages to test subjects 2. Retrieve last
+ * received typed objects for verification
  */
 @ApplicationScoped
 @Path("/subscribe")
 @RunOnVirtualThread
 public class OrderSubscriberResource {
 
-    private OrderListener orderListener;
+  private OrderListener orderListener;
 
-    public OrderSubscriberResource(OrderListener orderListener) {
-        this.orderListener = orderListener;
-    }
+  public OrderSubscriberResource(OrderListener orderListener) {
+    this.orderListener = orderListener;
+  }
 
-    @GET
-    @Path("/last-order")
-    @Produces(MediaType.APPLICATION_JSON)
-    public OrderData getLastOrderPojo() {
-        OrderData order = orderListener.getLastOrderPojoRef().get();
-        if (order == null) {
-            throw new NotFoundException();
-        }
-        return order;
+  @GET
+  @Path("/last-order")
+  @Produces(MediaType.APPLICATION_JSON)
+  public OrderData getLastOrderPojo() {
+    OrderData order = orderListener.getLastOrderPojoRef().get();
+    if (order == null) {
+      throw new NotFoundException();
     }
+    return order;
+  }
 }

@@ -2,51 +2,49 @@ package org.mjelle.quarkus.easynats.runtime.subscriber;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-/**
- * Test POJO for deserialization testing.
- */
+/** Test POJO for deserialization testing. */
 public class TestUser {
 
-    @JsonProperty("userId")
-    private String userId;
+  @JsonProperty("userId")
+  private String userId;
 
-    @JsonProperty("name")
-    private String name;
+  @JsonProperty("name")
+  private String name;
 
-    @JsonProperty("email")
-    private String email;
+  @JsonProperty("email")
+  private String email;
 
-    public TestUser() {
-        // No-arg constructor for Jackson
-    }
+  public TestUser() {
+    // No-arg constructor for Jackson
+  }
 
-    public TestUser(String userId, String name, String email) {
-        this.userId = userId;
-        this.name = name;
-        this.email = email;
-    }
+  public TestUser(String userId, String name, String email) {
+    this.userId = userId;
+    this.name = name;
+    this.email = email;
+  }
 
-    public String getUserId() {
-        return userId;
-    }
+  public String getUserId() {
+    return userId;
+  }
 
-    public void setUserId(String userId) {
-        this.userId = userId;
-    }
+  public void setUserId(String userId) {
+    this.userId = userId;
+  }
 
-    public String getName() {
-        return name;
-    }
+  public String getName() {
+    return name;
+  }
 
-    public void setName(String name) {
-        this.name = name;
-    }
+  public void setName(String name) {
+    this.name = name;
+  }
 
-    public String getEmail() {
-        return email;
-    }
+  public String getEmail() {
+    return email;
+  }
 
-    public void setEmail(String email) {
-        this.email = email;
-    }
+  public void setEmail(String email) {
+    this.email = email;
+  }
 }

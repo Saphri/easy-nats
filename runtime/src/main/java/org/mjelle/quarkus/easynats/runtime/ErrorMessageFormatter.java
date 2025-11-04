@@ -3,21 +3,22 @@ package org.mjelle.quarkus.easynats.runtime;
 /**
  * Generates clear, actionable error messages for type validation failures.
  *
- * Formats error messages with guidance for users to implement the wrapper pattern
- * for unsupported types.
+ * <p>Formats error messages with guidance for users to implement the wrapper pattern for
+ * unsupported types.
  */
 public class ErrorMessageFormatter {
 
-    /**
-     * Formats error message for primitive type rejection.
-     *
-     * @param type the primitive type (int, long, etc.)
-     * @return formatted error message with wrapper example
-     */
-    public static String formatPrimitiveTypeError(Class<?> type) {
-        String typeName = type.getName();
-        String wrapper = getWrapperClassName(typeName);
-        return String.format("""
+  /**
+   * Formats error message for primitive type rejection.
+   *
+   * @param type the primitive type (int, long, etc.)
+   * @return formatted error message with wrapper example
+   */
+  public static String formatPrimitiveTypeError(Class<?> type) {
+    String typeName = type.getName();
+    String wrapper = getWrapperClassName(typeName);
+    return String.format(
+        """
             Primitive type '%s' is not supported. Wrap it in a POJO:
             public class %sValue {
                 public %s value;
@@ -26,21 +27,21 @@ public class ErrorMessageFormatter {
             }
 
             Then use TypedPublisher<%sValue> instead of TypedPublisher<%s>""",
-            typeName, wrapper, typeName, wrapper, wrapper, typeName, wrapper, wrapper
-        );
-    }
+        typeName, wrapper, typeName, wrapper, wrapper, typeName, wrapper, wrapper);
+  }
 
-    /**
-     * Formats error message for array type rejection.
-     *
-     * @param type the array type (int[], String[], etc.)
-     * @return formatted error message with wrapper example
-     */
-    public static String formatArrayTypeError(Class<?> type) {
-        String typeName = type.getSimpleName();
-        String elementTypeName = type.getComponentType().getSimpleName();
-        String capitalizedElement = capitalizeFirstLetter(elementTypeName);
-        return String.format("""
+  /**
+   * Formats error message for array type rejection.
+   *
+   * @param type the array type (int[], String[], etc.)
+   * @return formatted error message with wrapper example
+   */
+  public static String formatArrayTypeError(Class<?> type) {
+    String typeName = type.getSimpleName();
+    String elementTypeName = type.getComponentType().getSimpleName();
+    String capitalizedElement = capitalizeFirstLetter(elementTypeName);
+    return String.format(
+        """
             Array type '%s' is not supported. Wrap it in a POJO:
             public class %sList {
                 public %s[] items;
@@ -49,20 +50,26 @@ public class ErrorMessageFormatter {
             }
 
             Then use TypedPublisher<%sList> instead of TypedPublisher<%s>""",
-            typeName, capitalizedElement, elementTypeName, capitalizedElement, capitalizedElement,
-            elementTypeName, capitalizedElement, typeName
-        );
-    }
+        typeName,
+        capitalizedElement,
+        elementTypeName,
+        capitalizedElement,
+        capitalizedElement,
+        elementTypeName,
+        capitalizedElement,
+        typeName);
+  }
 
-    /**
-     * Formats error message for missing no-arg constructor.
-     *
-     * @param type the type without no-arg constructor
-     * @return formatted error message with fix example
-     */
-    public static String formatMissingNoArgCtorError(Class<?> type) {
-        String simpleName = type.getSimpleName();
-        return String.format("""
+  /**
+   * Formats error message for missing no-arg constructor.
+   *
+   * @param type the type without no-arg constructor
+   * @return formatted error message with fix example
+   */
+  public static String formatMissingNoArgCtorError(Class<?> type) {
+    String simpleName = type.getSimpleName();
+    return String.format(
+        """
             Type '%s' requires a no-arg constructor for Jackson deserialization.
 
             Add a no-arg constructor:
@@ -75,18 +82,18 @@ public class ErrorMessageFormatter {
             OR use @JsonDeserialize with a custom deserializer:
             @JsonDeserialize(using = Custom%sDeserializer.class)
             public class %s { ... }""",
-            simpleName, simpleName, simpleName, simpleName, simpleName
-        );
-    }
+        simpleName, simpleName, simpleName, simpleName, simpleName);
+  }
 
-    /**
-     * Formats error message for unresolvable generic type parameter.
-     *
-     * @param type the type with unresolvable generic parameter
-     * @return formatted error message with guidance
-     */
-    public static String formatUnresolvableGenericError(Class<?> type) {
-        return String.format("""
+  /**
+   * Formats error message for unresolvable generic type parameter.
+   *
+   * @param type the type with unresolvable generic parameter
+   * @return formatted error message with guidance
+   */
+  public static String formatUnresolvableGenericError(Class<?> type) {
+    return String.format(
+        """
             Type '%s' has unresolvable generic parameter.
             Provide concrete type instead of wildcard or unresolvable generic:
 
@@ -96,19 +103,19 @@ public class ErrorMessageFormatter {
 
             // ✓ CORRECT: Concrete type
             TypedPublisher<Container<String>> publisher;""",
-            type.getSimpleName()
-        );
-    }
+        type.getSimpleName());
+  }
 
-    /**
-     * Formats error message for Jackson type construction failure.
-     *
-     * @param type the type that failed Jackson introspection
-     * @param jacksonError the Jackson error message
-     * @return formatted error message with guidance
-     */
-    public static String formatJacksonError(Class<?> type, String jacksonError) {
-        return String.format("""
+  /**
+   * Formats error message for Jackson type construction failure.
+   *
+   * @param type the type that failed Jackson introspection
+   * @param jacksonError the Jackson error message
+   * @return formatted error message with guidance
+   */
+  public static String formatJacksonError(Class<?> type, String jacksonError) {
+    return String.format(
+        """
             Type '%s' failed Jackson type introspection: %s
 
             This usually means:
@@ -117,25 +124,22 @@ public class ErrorMessageFormatter {
             3. The type structure is incompatible with Jackson
 
             Try wrapping the type in a Jackson-compatible POJO or adding a custom deserializer.""",
-            type.getSimpleName(), jacksonError
-        );
-    }
+        type.getSimpleName(), jacksonError);
+  }
 
-    /**
-     * Formats a deserialization error message.
-     *
-     * @param typeName the target type name
-     * @param rawPayload the raw JSON payload that failed to deserialize
-     * @param rootCause the Jackson deserialization error message
-     * @return formatted error message for logging
-     */
-    public static String formatDeserializationError(
-        String typeName,
-        String rawPayload,
-        String rootCause
-    ) {
-        String truncatedPayload = truncatePayload(rawPayload, 1000);
-        return String.format("""
+  /**
+   * Formats a deserialization error message.
+   *
+   * @param typeName the target type name
+   * @param rawPayload the raw JSON payload that failed to deserialize
+   * @param rootCause the Jackson deserialization error message
+   * @return formatted error message for logging
+   */
+  public static String formatDeserializationError(
+      String typeName, String rawPayload, String rootCause) {
+    String truncatedPayload = truncatePayload(rawPayload, 1000);
+    return String.format(
+        """
             Failed to deserialize to type '%s':
               Root cause: %s
               Raw payload: %s
@@ -148,19 +152,19 @@ public class ErrorMessageFormatter {
               5. Use @JsonAlias to accept multiple JSON field names
 
             Note: Jackson annotations work transparently - the library delegates directly to ObjectMapper""",
-            typeName, rootCause, truncatedPayload, typeName
-        );
-    }
+        typeName, rootCause, truncatedPayload, typeName);
+  }
 
-    /**
-     * Formats a serialization error message.
-     *
-     * @param typeName the type that failed to serialize
-     * @param rootCause the Jackson serialization error message
-     * @return formatted error message for logging
-     */
-    public static String formatSerializationError(String typeName, String rootCause) {
-        return String.format("""
+  /**
+   * Formats a serialization error message.
+   *
+   * @param typeName the type that failed to serialize
+   * @param rootCause the Jackson serialization error message
+   * @return formatted error message for logging
+   */
+  public static String formatSerializationError(String typeName, String rootCause) {
+    return String.format(
+        """
             Failed to serialize type '%s':
               Root cause: %s
 
@@ -172,38 +176,37 @@ public class ErrorMessageFormatter {
               5. Ensure all fields are Jackson-serializable
 
             Note: Jackson annotations work transparently - the library delegates directly to ObjectMapper""",
-            typeName, rootCause
-        );
-    }
+        typeName, rootCause);
+  }
 
-    private static String getWrapperClassName(String primitiveTypeName) {
-        return switch (primitiveTypeName) {
-            case "int" -> "Int";
-            case "long" -> "Long";
-            case "double" -> "Double";
-            case "float" -> "Float";
-            case "boolean" -> "Boolean";
-            case "byte" -> "Byte";
-            case "short" -> "Short";
-            case "char" -> "Char";
-            default -> "Value";
-        };
-    }
+  private static String getWrapperClassName(String primitiveTypeName) {
+    return switch (primitiveTypeName) {
+      case "int" -> "Int";
+      case "long" -> "Long";
+      case "double" -> "Double";
+      case "float" -> "Float";
+      case "boolean" -> "Boolean";
+      case "byte" -> "Byte";
+      case "short" -> "Short";
+      case "char" -> "Char";
+      default -> "Value";
+    };
+  }
 
-    private static String truncatePayload(String payload, int maxLength) {
-        if (payload == null) {
-            return "[null payload]";
-        }
-        if (payload.length() > maxLength) {
-            return payload.substring(0, maxLength) + "... [truncated]";
-        }
-        return payload;
+  private static String truncatePayload(String payload, int maxLength) {
+    if (payload == null) {
+      return "[null payload]";
     }
+    if (payload.length() > maxLength) {
+      return payload.substring(0, maxLength) + "... [truncated]";
+    }
+    return payload;
+  }
 
-    private static String capitalizeFirstLetter(String str) {
-        if (str == null || str.isEmpty()) {
-            return str;
-        }
-        return str.substring(0, 1).toUpperCase() + str.substring(1);
+  private static String capitalizeFirstLetter(String str) {
+    if (str == null || str.isEmpty()) {
+      return str;
     }
+    return str.substring(0, 1).toUpperCase() + str.substring(1);
+  }
 }
