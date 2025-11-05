@@ -1,0 +1,38 @@
+{
+  "name": "quarkus-easynats",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+  "features": {
+    "ghcr.io/devcontainers/features/java:1": {
+      "version": "23.1.9.r21",
+      "jdkDistro": "mandrel",
+      "installMaven": "true"
+    },
+    "ghcr.io/devcontainers/features/node:1": {},
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {},
+    "ghcr.io/devcontainers-extra/features/quarkus-sdkman:3": {
+      "jdkVersion": "none"
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "java.compile.nullAnalysis.mode": "automatic",
+        "java.test.config": {
+          "vmArgs": [
+            "-Djava.util.logging.manager=org.jboss.logmanager.LogManager"
+          ]
+        }
+      },
+      "extensions": [
+        "vscjava.vscode-java-pack",
+        "redhat.vscode-quarkus",
+        "ms-azuretools.vscode-containers",
+        "humao.rest-client",
+        "sonarsource.sonarlint-vscode",
+        "redhat.vscode-xml",
+        "redhat.vscode-yaml"
+      ]
+    }
+  },
+  "forwardPorts": [8080]
+}
