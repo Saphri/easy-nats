@@ -33,7 +33,10 @@ class NatsConnectionAccessTest {
     Boolean closed = response.getBoolean("closed");
     String serverVersion = response.getString("serverVersion");
 
-    assertThat(connectedUrl).isNotNull().contains("localhost:");
+    assertThat(connectedUrl)
+        .isNotNull()
+        .startsWith("nats://")
+        .matches("nats://[^:]+:\\d+"); // Match nats://<host>:<port> pattern
     assertThat(status).isEqualTo("CONNECTED");
     assertThat(closed).isFalse();
     assertThat(serverVersion).isNotNull();

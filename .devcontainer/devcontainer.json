@@ -30,9 +30,14 @@
         "humao.rest-client",
         "sonarsource.sonarlint-vscode",
         "redhat.vscode-xml",
-        "redhat.vscode-yaml"
+        "redhat.vscode-yaml",
+        "anthropic.claude-code"
       ]
     }
   },
-  "forwardPorts": [8080]
+  "forwardPorts": [8080],
+  "remoteEnv": {
+    "ANTHROPIC_API_KEY": "${localEnv:ANTHROPIC_API_KEY}"
+  },
+  "postCreateCommand": "npm install -g @anthropic-ai/claude-code"
 }
