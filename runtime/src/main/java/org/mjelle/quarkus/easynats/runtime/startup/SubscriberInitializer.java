@@ -94,7 +94,11 @@ public class SubscriberInitializer {
       initializeAllSubscribers();
     } catch (Exception e) {
       LOGGER.errorf(e, "Failed to initialize NATS subscribers at startup");
-      throw new IllegalStateException("Failed to initialize NATS subscribers at startup", e);
+      throw new IllegalStateException(
+          """
+          Failed to initialize NATS subscribers at startup
+          """,
+          e);
     }
   }
 
@@ -108,13 +112,17 @@ public class SubscriberInitializer {
       try {
         initializeSubscriber(metadata);
       } catch (Exception e) {
-        String errorContext =
+        throw new IllegalStateException(
             metadata.isDurableConsumer()
-                ? String.format(
-                    "durable consumer: stream=%s, consumer=%s",
-                    metadata.stream(), metadata.consumer())
-                : String.format("subject: %s", metadata.subject());
-        throw new IllegalStateException("Failed to initialize subscriber for " + errorContext, e);
+                ? """
+                Failed to initialize subscriber for durable consumer: stream=%s, consumer=%s
+                """
+                    .formatted(metadata.stream(), metadata.consumer())
+                : """
+                Failed to initialize subscriber for subject: %s
+                """
+                    .formatted(metadata.subject()),
+            e);
       }
     }
 
@@ -184,11 +192,11 @@ public class SubscriberInitializer {
             metadata.stream(), metadata.consumer());
       } catch (io.nats.client.JetStreamApiException e) {
         throw new IllegalStateException(
-            String.format(
-                """
-                                Failed to verify durable consumer: Stream '%s' does not contain consumer '%s'.
-                                Please ensure the consumer is pre-configured on the NATS server.""",
-                metadata.stream(), metadata.consumer()),
+            """
+            Failed to verify durable consumer: Stream '%s' does not contain consumer '%s'.
+            Please ensure the consumer is pre-configured on the NATS server.
+            """
+                .formatted(metadata.stream(), metadata.consumer()),
             e);
       }
     } else {
@@ -260,16 +268,20 @@ public class SubscriberInitializer {
     java.util.List<String> streams = jsm.getStreamNames(subject);
 
     if (streams.isEmpty()) {
-      throw new IllegalStateException("No JetStream stream found for subject: " + subject);
+      throw new IllegalStateException(
+          """
+          No JetStream stream found for subject: %s
+          """
+              .formatted(subject));
     }
 
     if (streams.size() > 1) {
       throw new IllegalStateException(
-          "Multiple streams found for subject '"
-              + subject
-              + "': "
-              + streams
-              + ". Cannot determine which stream to use.");
+          """
+          Multiple streams found for subject '%s': %s.
+          Cannot determine which stream to use.
+          """
+              .formatted(subject, streams));
     }
 
     return streams.get(0);
@@ -306,11 +318,9 @@ public class SubscriberInitializer {
     }
 
     throw new NoSuchMethodException(
-        "Method "
-            + metadata.methodName()
-            + " with "
-            + expectedParamCount
-            + " parameter(s) not found in class "
-            + metadata.declaringBeanClass());
+        """
+        Method %s with %d parameter(s) not found in class %s
+        """
+            .formatted(metadata.methodName(), expectedParamCount, metadata.declaringBeanClass()));
   }
 }

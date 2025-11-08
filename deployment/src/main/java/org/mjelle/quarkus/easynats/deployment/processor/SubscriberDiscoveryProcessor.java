@@ -44,7 +44,10 @@ public class SubscriberDiscoveryProcessor {
       AnnotationTarget target = annotation.target();
 
       if (target.kind() != AnnotationTarget.Kind.METHOD) {
-        throw new IllegalArgumentException("@NatsSubscriber can only be applied to methods");
+        throw new IllegalArgumentException(
+            """
+          @NatsSubscriber can only be applied to methods
+          """);
       }
 
       MethodInfo method = target.asMethod();
@@ -104,9 +107,10 @@ public class SubscriberDiscoveryProcessor {
     // Validate exactly one parameter
     if (method.parametersCount() != 1) {
       throw new IllegalArgumentException(
-          String.format(
-              "@NatsSubscriber method %s.%s must have exactly one parameter, found %d",
-              declaringClass.name(), method.name(), method.parametersCount()));
+          """
+          @NatsSubscriber method %s.%s must have exactly one parameter, found %d
+          """
+              .formatted(declaringClass.name(), method.name(), method.parametersCount()));
     }
 
     Type parameterType = method.parameterType(0);
@@ -138,15 +142,17 @@ public class SubscriberDiscoveryProcessor {
     // Check for primitive types
     if (isPrimitiveType(paramTypeName)) {
       throw new IllegalArgumentException(
-          String.format(
-              "Primitive type '%s' is not supported for @NatsSubscriber parameter in method %s.%s. "
-                  + "Wrap it in a POJO: public class %sValue { public %s value; public %sValue() {}; }",
-              paramTypeName,
-              declaringClass.name(),
-              method.name(),
-              getPrimitiveWrapperName(paramTypeName),
-              paramTypeName,
-              getPrimitiveWrapperName(paramTypeName)));
+          """
+          Primitive type '%s' is not supported for @NatsSubscriber parameter in method %s.%s.
+          Wrap it in a POJO: public class %sValue { public %s value; public %sValue() {}; }
+          """
+              .formatted(
+                  paramTypeName,
+                  declaringClass.name(),
+                  method.name(),
+                  getPrimitiveWrapperName(paramTypeName),
+                  paramTypeName,
+                  getPrimitiveWrapperName(paramTypeName)));
     }
   }
 
@@ -228,36 +234,40 @@ public class SubscriberDiscoveryProcessor {
     // Rule 1: Cannot have both subject and stream/consumer
     if (hasSubject && (hasStream || hasConsumer)) {
       throw new IllegalArgumentException(
-          String.format(
-              "@NatsSubscriber on method %s.%s cannot specify both 'subject' and 'stream'/'consumer' properties. "
-                  + "Use 'subject' for ephemeral mode or 'stream'/'consumer' for durable mode.",
-              declaringClass.name(), method.name()));
+          """
+          @NatsSubscriber on method %s.%s cannot specify both 'subject' and 'stream'/'consumer' properties.
+          Use 'subject' for ephemeral mode or 'stream'/'consumer' for durable mode.
+          """
+              .formatted(declaringClass.name(), method.name()));
     }
 
     // Rule 2: stream and consumer must both be provided or both be empty
     if (hasStream && !hasConsumer) {
       throw new IllegalArgumentException(
-          String.format(
-              "@NatsSubscriber on method %s.%s specifies 'stream' but missing 'consumer'. "
-                  + "For durable mode, both 'stream' and 'consumer' must be provided.",
-              declaringClass.name(), method.name()));
+          """
+          @NatsSubscriber on method %s.%s specifies 'stream' but missing 'consumer'.
+          For durable mode, both 'stream' and 'consumer' must be provided.
+          """
+              .formatted(declaringClass.name(), method.name()));
     }
 
     if (hasConsumer && !hasStream) {
       throw new IllegalArgumentException(
-          String.format(
-              "@NatsSubscriber on method %s.%s specifies 'consumer' but missing 'stream'. "
-                  + "For durable mode, both 'stream' and 'consumer' must be provided.",
-              declaringClass.name(), method.name()));
+          """
+          @NatsSubscriber on method %s.%s specifies 'consumer' but missing 'stream'.
+          For durable mode, both 'stream' and 'consumer' must be provided.
+          """
+              .formatted(declaringClass.name(), method.name()));
     }
 
     // Rule 3: At least one mode must be specified
     if (!hasSubject && !hasStream && !hasConsumer) {
       throw new IllegalArgumentException(
-          String.format(
-              "@NatsSubscriber on method %s.%s must specify either 'subject' (ephemeral mode) "
-                  + "or 'stream'/'consumer' (durable mode). At least one property must be non-empty.",
-              declaringClass.name(), method.name()));
+          """
+          @NatsSubscriber on method %s.%s must specify either 'subject' (ephemeral mode)
+          or 'stream'/'consumer' (durable mode). At least one property must be non-empty.
+          """
+              .formatted(declaringClass.name(), method.name()));
     }
   }
 }

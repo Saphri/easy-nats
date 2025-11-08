@@ -173,7 +173,11 @@ public class DefaultMessageHandler implements MessageHandler {
           payload = codec.decode(eventData, targetType, ceType);
         } catch (Exception e) {
           throw new DeserializationException(
-              "Failed to deserialize to type " + payloadType.getTypeName(), e);
+              """
+              Failed to deserialize to type %s
+              """
+                  .formatted(payloadType.getTypeName()),
+              e);
         }
       } catch (CloudEventException e) {
         LOGGER.errorf(
