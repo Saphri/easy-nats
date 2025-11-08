@@ -43,6 +43,12 @@ public class NatsPublisher<T> {
   private final CloudEventsMetadataGenerator metadataGenerator;
   private final CloudEventsHeadersBuilder headersBuilder;
 
+  /**
+   * Constructor for dependency injection without tracing (for test compatibility).
+   *
+   * @param connectionManager the NATS connection manager (injected by Quarkus)
+   * @param codec the global payload codec (injected by Quarkus)
+   */
   public NatsPublisher(NatsConnectionManager connectionManager, Codec codec) {
     this(
         connectionManager,
@@ -53,6 +59,13 @@ public class NatsPublisher<T> {
         new CloudEventsHeadersBuilder());
   }
 
+  /**
+   * Constructor for dependency injection with a default subject.
+   *
+   * @param connectionManager the NATS connection manager (injected by Quarkus)
+   * @param codec the global payload codec (injected by Quarkus)
+   * @param subject the default NATS subject for this publisher
+   */
   public NatsPublisher(NatsConnectionManager connectionManager, Codec codec, String subject) {
     this(
         connectionManager,
@@ -63,6 +76,13 @@ public class NatsPublisher<T> {
         new CloudEventsHeadersBuilder());
   }
 
+  /**
+   * Constructor for dependency injection with tracing.
+   *
+   * @param connectionManager the NATS connection manager (injected by Quarkus)
+   * @param codec the global payload codec (injected by Quarkus)
+   * @param traceService the tracing service (injected by Quarkus)
+   */
   @Inject
   public NatsPublisher(
       NatsConnectionManager connectionManager, Codec codec, NatsTraceService traceService) {
@@ -75,6 +95,14 @@ public class NatsPublisher<T> {
         new CloudEventsHeadersBuilder());
   }
 
+  /**
+   * Constructor for dependency injection with tracing and a default subject.
+   *
+   * @param connectionManager the NATS connection manager (injected by Quarkus)
+   * @param codec the global payload codec (injected by Quarkus)
+   * @param traceService the tracing service (injected by Quarkus)
+   * @param subject the default NATS subject for this publisher
+   */
   public NatsPublisher(
       NatsConnectionManager connectionManager,
       Codec codec,
@@ -89,6 +117,16 @@ public class NatsPublisher<T> {
         new CloudEventsHeadersBuilder());
   }
 
+  /**
+   * Full constructor for dependency injection.
+   *
+   * @param connectionManager the NATS connection manager (injected by Quarkus)
+   * @param codec the global payload codec (injected by Quarkus)
+   * @param traceService the tracing service (injected by Quarkus)
+   * @param subject the default NATS subject for this publisher
+   * @param metadataGenerator the CloudEvents metadata generator (injected by Quarkus)
+   * @param headersBuilder the CloudEvents headers builder (injected by Quarkus)
+   */
   public NatsPublisher(
       NatsConnectionManager connectionManager,
       Codec codec,
@@ -104,11 +142,43 @@ public class NatsPublisher<T> {
     this.headersBuilder = headersBuilder;
   }
 
+  /**
+   * Publishes a typed payload to the default NATS subject as a CloudEvent. The default subject must
+   * be configured via @NatsSubject.
+   *
+   * <p>The payload is automatically wrapped in CloudEvents 1.0 format with: - ce-specversion: "1.0"
+   * - ce-type: The fully-qualified class name of the payload - ce-source: The application name
+   * (from quarkus.application.name), hostname, or "localhost" - ce-id: Auto-generated UUID -
+   * ce-time: Current timestamp in ISO 8601 UTC format - ce-datacontenttype: The value returned by
+   * the global codec's getContentType() method
+   *
+   * <p>The payload is encoded using the global codec (default: Jackson JSON encoder).
+   *
+   * @param payload the object to publish (must not be null)
+   * @throws IllegalArgumentException if payload is null
+   * @throws PublishingException if the default subject is not configured or if publication fails
+   */
   public void publish(T payload) throws PublishingException {
     validateDefaultSubject();
     publish(this.subject, payload);
   }
 
+  /**
+   * Publishes a typed payload to the specified NATS subject as a CloudEvent.
+   *
+   * <p>The payload is automatically wrapped in CloudEvents 1.0 format with: - ce-specversion: "1.0"
+   * - ce-type: The fully-qualified class name of the payload - ce-source: The application name
+   * (from quarkus.application.name), hostname, or "localhost" - ce-id: Auto-generated UUID -
+   * ce-time: Current timestamp in ISO 8601 UTC format - ce-datacontenttype: The value returned by
+   * the global codec's getContentType() method
+   *
+   * <p>The payload is encoded using the global codec (default: Jackson JSON encoder).
+   *
+   * @param subject the NATS subject to publish to
+   * @param payload the object to publish (must not be null)
+   * @throws PublishingException if publication fails (payload is null, serialization error,
+   *     connection error, broker unreachable, etc.)
+   */
   public void publish(String subject, T payload) throws PublishingException {
     if (payload == null) {
       throw new PublishingException("Cannot publish null object");
