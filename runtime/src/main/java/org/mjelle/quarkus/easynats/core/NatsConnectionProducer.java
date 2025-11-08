@@ -157,8 +157,10 @@ public class NatsConnectionProducer {
                 config.tlsConfigurationName().orElse("default"));
           } catch (Exception e) {
             throw new NatsConfigurationException(
-                "Failed to create SSLContext from TLS configuration: "
-                    + config.tlsConfigurationName().orElse("default"),
+                """
+                Failed to create SSLContext from TLS configuration: %s
+                """
+                    .formatted(config.tlsConfigurationName().orElse("default")),
                 e);
           }
         } else {
@@ -175,7 +177,10 @@ public class NatsConnectionProducer {
       throw e;
     } catch (Exception e) {
       String errorMsg =
-          String.format("Failed to create NATS Options from configuration: %s", e.getMessage());
+          """
+          Failed to create NATS Options from configuration: %s
+          """
+              .formatted(e.getMessage());
       log.errorf(e, errorMsg);
       throw new NatsConfigurationException(errorMsg, e);
     }
@@ -197,24 +202,30 @@ public class NatsConnectionProducer {
     // Validate servers property
     if (config.servers().isEmpty()) {
       throw new NatsConfigurationException(
-          "quarkus.easynats.servers is required when using the default NATS Options producer. "
-              + "Either configure servers in application.properties (e.g., quarkus.easynats.servers=nats://localhost:4222) "
-              + "or provide a custom @Produces Options bean in your application.");
+          """
+          quarkus.easynats.servers is required when using the default NATS Options producer.
+          Either configure servers in application.properties (e.g., quarkus.easynats.servers=nats://localhost:4222)
+          or provide a custom @Produces Options bean in your application.
+          """);
     }
 
     java.util.List<String> servers = config.servers().get();
     if (servers.isEmpty()) {
       throw new NatsConfigurationException(
-          "quarkus.easynats.servers must not be empty. "
-              + "Provide at least one NATS server URL (e.g., nats://localhost:4222).");
+          """
+          quarkus.easynats.servers must not be empty.
+          Provide at least one NATS server URL (e.g., nats://localhost:4222).
+          """);
     }
 
     // Validate each server URL is non-empty
     for (String server : servers) {
       if (server == null || server.trim().isEmpty()) {
         throw new NatsConfigurationException(
-            "Server URL in quarkus.easynats.servers cannot be empty or null. "
-                + "Provide valid NATS server URLs (e.g., nats://localhost:4222).");
+            """
+            Server URL in quarkus.easynats.servers cannot be empty or null.
+            Provide valid NATS server URLs (e.g., nats://localhost:4222).
+            """);
       }
     }
 
@@ -224,14 +235,18 @@ public class NatsConnectionProducer {
 
     if (hasUsername && !hasPassword) {
       throw new NatsConfigurationException(
-          "quarkus.easynats.username is specified but quarkus.easynats.password is missing. "
-              + "Either provide both username and password, or provide neither.");
+          """
+          quarkus.easynats.username is specified but quarkus.easynats.password is missing.
+          Either provide both username and password, or provide neither.
+          """);
     }
 
     if (hasPassword && !hasUsername) {
       throw new NatsConfigurationException(
-          "quarkus.easynats.password is specified but quarkus.easynats.username is missing. "
-              + "Either provide both username and password, or provide neither.");
+          """
+          quarkus.easynats.password is specified but quarkus.easynats.username is missing.
+          Either provide both username and password, or provide neither.
+          """);
     }
   }
 }

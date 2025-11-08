@@ -101,7 +101,11 @@ class QuarkusEasyNatsProcessor {
     } catch (IllegalArgumentException e) {
       errors.produce(
           new ValidationPhaseBuildItem.ValidationErrorBuildItem(
-              new DefinitionException("Subscriber validation error: " + e.getMessage())));
+              new DefinitionException(
+                  """
+                  Subscriber validation error: %s
+                  """
+                      .formatted(e.getMessage()))));
     }
   }
 
@@ -204,8 +208,11 @@ class QuarkusEasyNatsProcessor {
               errors.produce(
                   new ValidationPhaseBuildItem.ValidationErrorBuildItem(
                       new DefinitionException(
-                          "@NatsSubject can only be applied to fields of type NatsPublisher. Injection point: "
-                              + injectionPoint)));
+                          """
+                          @NatsSubject can only be applied to fields of type NatsPublisher.
+                          Injection point: %s
+                          """
+                              .formatted(injectionPoint))));
             }
 
             // Validate that the subject value is not empty
@@ -214,8 +221,11 @@ class QuarkusEasyNatsProcessor {
               errors.produce(
                   new ValidationPhaseBuildItem.ValidationErrorBuildItem(
                       new DefinitionException(
-                          "NatsSubject value cannot be empty. Injection point: "
-                              + injectionPoint)));
+                          """
+                          NatsSubject value cannot be empty.
+                          Injection point: %s
+                          """
+                              .formatted(injectionPoint))));
             }
           }
         }
