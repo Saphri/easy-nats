@@ -6,6 +6,8 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
 
+import jakarta.annotation.Nullable;
+
 import org.jboss.logging.Logger;
 import org.mjelle.quarkus.easynats.NatsMessage;
 import org.mjelle.quarkus.easynats.codec.Codec;
@@ -49,26 +51,6 @@ public class DefaultMessageHandler implements MessageHandler {
   private final NatsConfiguration config;
 
   /**
-   * Creates a new message handler (without tracing).
-   *
-   * @param metadata the subscriber metadata
-   * @param bean the bean instance containing the subscriber method
-   * @param method the subscriber method
-   * @param objectMapper the Jackson ObjectMapper for typed deserialization
-   * @param codec the global payload codec for deserialization
-   * @param config the NATS configuration for logging settings
-   */
-  public DefaultMessageHandler(
-      SubscriberMetadata metadata,
-      Object bean,
-      Method method,
-      ObjectMapper objectMapper,
-      Codec codec,
-      NatsConfiguration config) {
-    this(metadata, bean, method, objectMapper, codec, config, null);
-  }
-
-  /**
    * Creates a new message handler.
    *
    * @param metadata the subscriber metadata
@@ -86,7 +68,7 @@ public class DefaultMessageHandler implements MessageHandler {
       ObjectMapper objectMapper,
       Codec codec,
       NatsConfiguration config,
-      NatsTraceService traceService) {
+      @Nullable NatsTraceService traceService) {
     this.metadata = metadata;
     this.bean = bean;
     this.method = method;

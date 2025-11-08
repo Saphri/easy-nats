@@ -204,7 +204,7 @@ class DefaultMessageHandlerTest {
         .thenThrow(new DeserializationException("Codec validation failed"));
 
     DefaultMessageHandler handler =
-        new DefaultMessageHandler(metadata, bean, method, objectMapper, codec, config);
+        new DefaultMessageHandler(metadata, bean, method, objectMapper, codec, config, null);
 
     // When: Handler processes message with codec error
     handler.handle(message);
@@ -229,7 +229,7 @@ class DefaultMessageHandlerTest {
     when(codec.decode(messageData, OrderData.class, "com.example.Order")).thenReturn(decodedData);
 
     DefaultMessageHandler handler =
-        new DefaultMessageHandler(metadata, bean, method, objectMapper, codec, config);
+        new DefaultMessageHandler(metadata, bean, method, objectMapper, codec, config, null);
 
     // When: Handler processes message with successful decode
     handler.handle(message);
@@ -256,7 +256,7 @@ class DefaultMessageHandlerTest {
         .thenThrow(new DeserializationException("Codec validation failed"));
 
     DefaultMessageHandler handler =
-        new DefaultMessageHandler(metadata, bean, method, objectMapper, codec, config);
+        new DefaultMessageHandler(metadata, bean, method, objectMapper, codec, config, null);
 
     // When: Handler processes message with codec error in explicit mode
     handler.handle(message);

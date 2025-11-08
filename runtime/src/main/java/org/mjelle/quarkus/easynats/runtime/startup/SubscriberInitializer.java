@@ -162,10 +162,8 @@ public class SubscriberInitializer {
     }
 
     DefaultMessageHandler handler =
-        (traceService != null)
-            ? new DefaultMessageHandler(
-                metadata, bean, method, objectMapper, codec, config, traceService)
-            : new DefaultMessageHandler(metadata, bean, method, objectMapper, codec, config);
+        new DefaultMessageHandler(
+            metadata, bean, method, objectMapper, codec, config, traceService);
 
     JetStreamManagement jsm = connectionManager.getConnection().jetStreamManagement();
     JetStream js = connectionManager.getJetStream();
