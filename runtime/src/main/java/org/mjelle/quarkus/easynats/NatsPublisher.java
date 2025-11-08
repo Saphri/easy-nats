@@ -40,6 +40,8 @@ public class NatsPublisher<T> {
   private final String subject;
   private final AtomicBoolean typeValidated = new AtomicBoolean(false);
   private final NatsTraceService traceService;
+  private final CloudEventsMetadataGenerator metadataGenerator;
+  private final CloudEventsHeadersBuilder headersBuilder;
 
   /**
    * Constructor for dependency injection without tracing (for test compatibility).
@@ -48,7 +50,13 @@ public class NatsPublisher<T> {
    * @param codec the global payload codec (injected by Quarkus)
    */
   public NatsPublisher(NatsConnectionManager connectionManager, Codec codec) {
-    this(connectionManager, codec, null, null);
+    this(
+        connectionManager,
+        codec,
+        null,
+        null,
+        new CloudEventsMetadataGenerator(),
+        new CloudEventsHeadersBuilder());
   }
 
   /**
@@ -59,7 +67,13 @@ public class NatsPublisher<T> {
    * @param subject the default NATS subject for this publisher
    */
   public NatsPublisher(NatsConnectionManager connectionManager, Codec codec, String subject) {
-    this(connectionManager, codec, null, subject);
+    this(
+        connectionManager,
+        codec,
+        null,
+        subject,
+        new CloudEventsMetadataGenerator(),
+        new CloudEventsHeadersBuilder());
   }
 
   /**
@@ -72,7 +86,13 @@ public class NatsPublisher<T> {
   @Inject
   public NatsPublisher(
       NatsConnectionManager connectionManager, Codec codec, NatsTraceService traceService) {
-    this(connectionManager, codec, traceService, null);
+    this(
+        connectionManager,
+        codec,
+        traceService,
+        null,
+        new CloudEventsMetadataGenerator(),
+        new CloudEventsHeadersBuilder());
   }
 
   /**
@@ -88,10 +108,38 @@ public class NatsPublisher<T> {
       Codec codec,
       NatsTraceService traceService,
       String subject) {
+    this(
+        connectionManager,
+        codec,
+        traceService,
+        subject,
+        new CloudEventsMetadataGenerator(),
+        new CloudEventsHeadersBuilder());
+  }
+
+  /**
+   * Full constructor for dependency injection.
+   *
+   * @param connectionManager the NATS connection manager (injected by Quarkus)
+   * @param codec the global payload codec (injected by Quarkus)
+   * @param traceService the tracing service (injected by Quarkus)
+   * @param subject the default NATS subject for this publisher
+   * @param metadataGenerator the CloudEvents metadata generator (injected by Quarkus)
+   * @param headersBuilder the CloudEvents headers builder (injected by Quarkus)
+   */
+  public NatsPublisher(
+      NatsConnectionManager connectionManager,
+      Codec codec,
+      NatsTraceService traceService,
+      String subject,
+      CloudEventsMetadataGenerator metadataGenerator,
+      CloudEventsHeadersBuilder headersBuilder) {
     this.connectionManager = connectionManager;
     this.codec = codec;
     this.traceService = traceService;
     this.subject = subject;
+    this.metadataGenerator = metadataGenerator;
+    this.headersBuilder = headersBuilder;
   }
 
   /**
@@ -136,7 +184,6 @@ public class NatsPublisher<T> {
       throw new PublishingException("Cannot publish null object");
     }
 
-    // Validate type parameter T on first publish call
     validateTypeOnce();
 
     Span span = null;
@@ -144,28 +191,25 @@ public class NatsPublisher<T> {
     try {
       byte[] encodedPayload = encodePayload(payload);
       String contentType = codec.getContentType();
-      CloudEventsHeaders.HeadersWithMetadata hwm =
-          CloudEventsHeaders.createHeadersWithMetadata(payload.getClass(), contentType, null, null);
+      CloudEventsMetadata metadata =
+          metadataGenerator.generate(payload.getClass(), null, null, contentType);
+      io.nats.client.impl.Headers headers = headersBuilder.build(metadata);
 
-      // Create a tracing span for this publish operation
       if (traceService != null) {
-        span = traceService.createProducerSpan(subject, hwm.headers);
+        span = traceService.createProducerSpan(subject, headers);
         if (span != null) {
           scope = traceService.activateSpan(span);
         }
       }
 
       JetStream jetStream = connectionManager.getJetStream();
-      jetStream.publish(subject, hwm.headers, encodedPayload);
+      jetStream.publish(subject, headers, encodedPayload);
     } catch (IOException | JetStreamApiException | SerializationException e) {
-      // Record the exception in the span before throwing
       if (traceService != null && span != null) {
         traceService.recordException(span, e);
       }
-      // Wrap other exceptions (NATS connection, broker errors, etc.)
       throw new PublishingException("Failed to publish message to subject '" + subject + "'", e);
     } finally {
-      // Clean up span and scope
       if (scope != null) {
         scope.close();
       }
@@ -175,15 +219,8 @@ public class NatsPublisher<T> {
     }
   }
 
-  /**
-   * Validates the generic type parameter T on the first publish call. Uses AtomicBoolean to ensure
-   * validation happens only once (thread-safe).
-   *
-   * @throws IllegalArgumentException if type T is not Jackson-compatible
-   */
   private void validateTypeOnce() {
     if (!typeValidated.getAndSet(true)) {
-      // First time - validate the type
       Class<T> typeClass = extractGenericType();
       if (typeClass != null) {
         TypeValidator validator = new TypeValidator();
@@ -200,12 +237,6 @@ public class NatsPublisher<T> {
     }
   }
 
-  /**
-   * Extracts the generic type parameter T from NatsPublisher<T>. Uses Java reflection to retrieve
-   * type information.
-   *
-   * @return the Class object for type T, or null if it cannot be determined
-   */
   @SuppressWarnings("unchecked")
   private Class<T> extractGenericType() {
     try {
@@ -222,22 +253,10 @@ public class NatsPublisher<T> {
     return null;
   }
 
-  /**
-   * Encode a payload using the global codec.
-   *
-   * @param payload the object to encode
-   * @return the encoded byte array
-   * @throws SerializationException if codec encoding fails
-   */
   private byte[] encodePayload(T payload) throws SerializationException {
     return codec.encode(payload);
   }
 
-  /**
-   * Validates that a default subject is configured for this publisher.
-   *
-   * @throws PublishingException if the default subject is not configured
-   */
   private void validateDefaultSubject() throws PublishingException {
     if (this.subject == null || this.subject.trim().isEmpty()) {
       throw new PublishingException(
