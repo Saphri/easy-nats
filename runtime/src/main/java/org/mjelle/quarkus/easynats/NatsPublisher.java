@@ -19,6 +19,19 @@ import io.nats.client.JetStreamApiException;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.context.Scope;
 
+/**
+ * Generic injectable wrapper for publishing typed messages to NATS JetStream as CloudEvents.
+ *
+ * <p>All messages published through this class are automatically wrapped in the CloudEvents 1.0
+ * format. Supports both primitive types (native encoding) and complex types (Jackson serialization)
+ * for the payload. The CloudEvents metadata is generated automatically and includes: -
+ * ce-specversion: "1.0" - ce-type: The fully-qualified class name of the payload - ce-source: The
+ * application name (from quarkus.application.name), hostname, or "localhost" - ce-id:
+ * Auto-generated UUID - ce-time: Current timestamp in ISO 8601 UTC format - ce-datacontenttype: The
+ * value returned by the global codec's getContentType() method (default: "application/json")
+ *
+ * @param <T> the type of payload to publish
+ */
 @Dependent
 public class NatsPublisher<T> {
 
@@ -31,17 +44,35 @@ public class NatsPublisher<T> {
   private final CloudEventsHeadersBuilder headersBuilder;
 
   public NatsPublisher(NatsConnectionManager connectionManager, Codec codec) {
-    this(connectionManager, codec, null, null);
+    this(
+        connectionManager,
+        codec,
+        null,
+        null,
+        new CloudEventsMetadataGenerator(),
+        new CloudEventsHeadersBuilder());
   }
 
   public NatsPublisher(NatsConnectionManager connectionManager, Codec codec, String subject) {
-    this(connectionManager, codec, null, subject);
+    this(
+        connectionManager,
+        codec,
+        null,
+        subject,
+        new CloudEventsMetadataGenerator(),
+        new CloudEventsHeadersBuilder());
   }
 
   @Inject
   public NatsPublisher(
       NatsConnectionManager connectionManager, Codec codec, NatsTraceService traceService) {
-    this(connectionManager, codec, traceService, null);
+    this(
+        connectionManager,
+        codec,
+        traceService,
+        null,
+        new CloudEventsMetadataGenerator(),
+        new CloudEventsHeadersBuilder());
   }
 
   public NatsPublisher(
@@ -49,12 +80,28 @@ public class NatsPublisher<T> {
       Codec codec,
       NatsTraceService traceService,
       String subject) {
+    this(
+        connectionManager,
+        codec,
+        traceService,
+        subject,
+        new CloudEventsMetadataGenerator(),
+        new CloudEventsHeadersBuilder());
+  }
+
+  public NatsPublisher(
+      NatsConnectionManager connectionManager,
+      Codec codec,
+      NatsTraceService traceService,
+      String subject,
+      CloudEventsMetadataGenerator metadataGenerator,
+      CloudEventsHeadersBuilder headersBuilder) {
     this.connectionManager = connectionManager;
     this.codec = codec;
     this.traceService = traceService;
     this.subject = subject;
-    this.metadataGenerator = new CloudEventsMetadataGenerator();
-    this.headersBuilder = new CloudEventsHeadersBuilder();
+    this.metadataGenerator = metadataGenerator;
+    this.headersBuilder = headersBuilder;
   }
 
   public void publish(T payload) throws PublishingException {

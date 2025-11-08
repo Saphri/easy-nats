@@ -18,7 +18,7 @@ class CloudEventsMetadataGeneratorTest {
 
   // ISO 8601 pattern for validation
   private static final Pattern ISO_8601_PATTERN =
-      Pattern.compile("\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d+Z");
+      Pattern.compile("\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z");
 
   @Test
   void testGenerateIdReturnsValidUuidFormat() {

@@ -7,9 +7,6 @@ import org.eclipse.microprofile.config.ConfigProvider;
 
 public class CloudEventsMetadataGenerator {
 
-  public static final String SPEC_VERSION = "1.0";
-  public static final String CONTENT_TYPE_JSON = "application/json";
-
   public CloudEventsMetadata generate(
       Class<?> payloadClass,
       String ceTypeOverride,
@@ -17,9 +14,15 @@ public class CloudEventsMetadataGenerator {
       String dataContentType) {
     String ceType = ceTypeOverride != null ? ceTypeOverride : generateType(payloadClass);
     String ceSource = ceSourceOverride != null ? ceSourceOverride : generateSource();
-    String contentType = dataContentType != null ? dataContentType : CONTENT_TYPE_JSON;
+    String contentType =
+        dataContentType != null ? dataContentType : CloudEventsHeaders.CONTENT_TYPE_JSON;
     return new CloudEventsMetadata(
-        SPEC_VERSION, ceType, ceSource, generateId(), generateTime(), contentType);
+        CloudEventsHeaders.SPEC_VERSION,
+        ceType,
+        ceSource,
+        generateId(),
+        generateTime(),
+        contentType);
   }
 
   private String generateId() {
