@@ -21,6 +21,7 @@ import org.mjelle.quarkus.easynats.NatsSubscriber;
 import org.mjelle.quarkus.easynats.core.NatsConnectionProducer;
 import org.mjelle.quarkus.easynats.deployment.build.SubscriberBuildItem;
 import org.mjelle.quarkus.easynats.deployment.build.SubscribersCollectionBuildItem;
+import org.mjelle.quarkus.easynats.deployment.processor.PublisherTypeValidator;
 import org.mjelle.quarkus.easynats.deployment.processor.SubscriberDiscoveryProcessor;
 import org.mjelle.quarkus.easynats.runtime.NatsConnectionProvider;
 import org.mjelle.quarkus.easynats.runtime.NatsPublisherProducer;
@@ -129,6 +130,42 @@ class QuarkusEasyNatsProcessor {
   }
 
   @BuildStep
+  void validateNatsPublisherTypes(
+      CombinedIndexBuildItem combinedIndex,
+      ValidationPhaseBuildItem validationPhase,
+      BuildProducer<ValidationPhaseBuildItem.ValidationErrorBuildItem> errors) {
+    PublisherTypeValidator validator = new PublisherTypeValidator(combinedIndex.getIndex());
+
+    for (BeanInfo bean : validationPhase.getContext().beans()) {
+      for (InjectionPointInfo injectionPoint : bean.getAllInjectionPoints()) {
+        Type injectionPointType = injectionPoint.getType();
+
+        if (injectionPointType.name().equals(NATS_PUBLISHER)
+            && injectionPointType.kind() == Type.Kind.PARAMETERIZED_TYPE) {
+          ParameterizedType parameterizedType = injectionPointType.asParameterizedType();
+          if (!parameterizedType.arguments().isEmpty()) {
+            Type payloadType = parameterizedType.arguments().get(0);
+            PublisherTypeValidator.ValidationResult result = validator.validate(payloadType);
+
+            if (!result.isValid()) {
+              errors.produce(
+                  new ValidationPhaseBuildItem.ValidationErrorBuildItem(
+                      new DefinitionException(
+                          String.format(
+                              """
+                              Invalid NatsPublisher type parameter at injection point: %s
+
+                              %s
+                              """,
+                              injectionPoint, result.getErrorMessage()))));
+            }
+          }
+        }
+      }
+    }
+  }
+
+  @BuildStep
   void registerPublisherTypesForReflection(
       ValidationPhaseBuildItem validationPhase,
       BuildProducer<ReflectiveClassBuildItem> reflectiveClass) {
@@ -152,7 +189,11 @@ class QuarkusEasyNatsProcessor {
       Type type, BuildProducer<ReflectiveClassBuildItem> reflectiveClass) {
     if (type.kind() == Type.Kind.CLASS) {
       reflectiveClass.produce(
-          ReflectiveClassBuildItem.builder(type.asClassType().name().toString()).build());
+          ReflectiveClassBuildItem.builder(type.asClassType().name().toString())
+              .constructors()
+              .methods()
+              .fields()
+              .build());
     } else if (type.kind() == Type.Kind.PARAMETERIZED_TYPE) {
       ParameterizedType parameterizedType = type.asParameterizedType();
       if (SUPPORTED_COLLECTIONS.contains(parameterizedType.name())) {

@@ -10,11 +10,12 @@ import jakarta.ws.rs.core.MediaType;
 
 import org.mjelle.quarkus.easynats.NatsPublisher;
 import org.mjelle.quarkus.easynats.it.model.MyArrayItemEvent;
+import org.mjelle.quarkus.easynats.it.model.MyArrayItemEventList;
 
 @Path("/array-payload")
 public class ArrayPayloadResource {
 
-  @Inject NatsPublisher<MyArrayItemEvent[]> publisher;
+  @Inject NatsPublisher<MyArrayItemEventList> publisher;
 
   @Inject ArrayPayloadSubscriber subscriber;
 
@@ -23,7 +24,7 @@ public class ArrayPayloadResource {
   @Consumes(MediaType.APPLICATION_JSON)
   public void publish(MyArrayItemEvent[] event) {
     try {
-      publisher.publish("test.array", event);
+      publisher.publish("test.array", new MyArrayItemEventList(event));
     } catch (org.mjelle.quarkus.easynats.PublishingException e) {
       throw new RuntimeException(e);
     }
@@ -33,6 +34,7 @@ public class ArrayPayloadResource {
   @Path("/get-last-message")
   @Produces(MediaType.APPLICATION_JSON)
   public MyArrayItemEvent[] getLastMessage() {
-    return subscriber.getLastMessage();
+    MyArrayItemEventList list = subscriber.getLastMessage();
+    return list != null ? list.getItems() : null;
   }
 }

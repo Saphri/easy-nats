@@ -3,19 +3,19 @@ package org.mjelle.quarkus.easynats.it;
 import jakarta.enterprise.context.ApplicationScoped;
 
 import org.mjelle.quarkus.easynats.NatsSubscriber;
-import org.mjelle.quarkus.easynats.it.model.MyArrayItemEvent;
+import org.mjelle.quarkus.easynats.it.model.MyArrayItemEventList;
 
 @ApplicationScoped
 public class ArrayPayloadSubscriber {
 
-  private volatile MyArrayItemEvent[] lastMessage;
+  private volatile MyArrayItemEventList lastMessage;
 
   @NatsSubscriber(subject = "test.array")
-  public void onMessage(MyArrayItemEvent[] event) {
+  public void onMessage(MyArrayItemEventList event) {
     this.lastMessage = event;
   }
 
-  public MyArrayItemEvent[] getLastMessage() {
+  public MyArrayItemEventList getLastMessage() {
     return lastMessage;
   }
 }
