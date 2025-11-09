@@ -1,9 +1,6 @@
 package org.mjelle.quarkus.easynats;
 
 import java.io.IOException;
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import jakarta.enterprise.context.Dependent;
 import jakarta.inject.Inject;
@@ -11,8 +8,6 @@ import jakarta.inject.Inject;
 import org.mjelle.quarkus.easynats.codec.Codec;
 import org.mjelle.quarkus.easynats.codec.SerializationException;
 import org.mjelle.quarkus.easynats.runtime.observability.NatsTraceService;
-import org.mjelle.quarkus.easynats.runtime.subscriber.TypeValidationResult;
-import org.mjelle.quarkus.easynats.runtime.subscriber.TypeValidator;
 
 import io.nats.client.JetStream;
 import io.nats.client.JetStreamApiException;
@@ -38,7 +33,6 @@ public class NatsPublisher<T> {
   private final NatsConnectionManager connectionManager;
   private final Codec codec;
   private final String subject;
-  private final AtomicBoolean typeValidated = new AtomicBoolean(false);
   private final NatsTraceService traceService;
   private final CloudEventsMetadataGenerator metadataGenerator;
   private final CloudEventsHeadersBuilder headersBuilder;
@@ -184,8 +178,6 @@ public class NatsPublisher<T> {
       throw new PublishingException("Cannot publish null object");
     }
 
-    validateTypeOnce();
-
     Span span = null;
     Scope scope = null;
     try {
@@ -217,40 +209,6 @@ public class NatsPublisher<T> {
         span.end();
       }
     }
-  }
-
-  private void validateTypeOnce() {
-    if (!typeValidated.getAndSet(true)) {
-      Class<T> typeClass = extractGenericType();
-      if (typeClass != null) {
-        TypeValidator validator = new TypeValidator();
-        TypeValidationResult result = validator.validate(typeClass);
-
-        if (!result.isValid()) {
-          String errorMsg =
-              String.format(
-                  "Invalid type '%s' for NatsPublisher: %s",
-                  typeClass.getSimpleName(), result.getErrorMessage());
-          throw new IllegalArgumentException(errorMsg);
-        }
-      }
-    }
-  }
-
-  @SuppressWarnings("unchecked")
-  private Class<T> extractGenericType() {
-    try {
-      Type genericSuperclass = getClass().getGenericSuperclass();
-      if (genericSuperclass instanceof ParameterizedType pt) {
-        Type[] typeArgs = pt.getActualTypeArguments();
-        if (typeArgs.length > 0 && typeArgs[0] instanceof Class<?>) {
-          return (Class<T>) typeArgs[0];
-        }
-      }
-    } catch (Exception e) {
-      // If extraction fails, that's OK - type validation will be skipped
-    }
-    return null;
   }
 
   private byte[] encodePayload(T payload) throws SerializationException {

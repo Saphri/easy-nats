@@ -21,6 +21,7 @@ import org.mjelle.quarkus.easynats.NatsSubscriber;
 import org.mjelle.quarkus.easynats.core.NatsConnectionProducer;
 import org.mjelle.quarkus.easynats.deployment.build.SubscriberBuildItem;
 import org.mjelle.quarkus.easynats.deployment.build.SubscribersCollectionBuildItem;
+import org.mjelle.quarkus.easynats.deployment.processor.PublisherTypeValidator;
 import org.mjelle.quarkus.easynats.deployment.processor.SubscriberDiscoveryProcessor;
 import org.mjelle.quarkus.easynats.runtime.NatsConnectionProvider;
 import org.mjelle.quarkus.easynats.runtime.NatsPublisherRecorder;
@@ -124,6 +125,42 @@ class QuarkusEasyNatsProcessor {
               .build());
       for (Type parameterType : method.parameterTypes()) {
         processTypeForReflection(parameterType, reflectiveClass);
+      }
+    }
+  }
+
+  @BuildStep
+  void validateNatsPublisherTypes(
+      CombinedIndexBuildItem combinedIndex,
+      ValidationPhaseBuildItem validationPhase,
+      BuildProducer<ValidationPhaseBuildItem.ValidationErrorBuildItem> errors) {
+    PublisherTypeValidator validator = new PublisherTypeValidator(combinedIndex.getIndex());
+
+    for (BeanInfo bean : validationPhase.getContext().beans()) {
+      for (InjectionPointInfo injectionPoint : bean.getAllInjectionPoints()) {
+        Type injectionPointType = injectionPoint.getType();
+
+        if (injectionPointType.name().equals(NATS_PUBLISHER)
+            && injectionPointType.kind() == Type.Kind.PARAMETERIZED_TYPE) {
+          ParameterizedType parameterizedType = injectionPointType.asParameterizedType();
+          if (!parameterizedType.arguments().isEmpty()) {
+            Type payloadType = parameterizedType.arguments().get(0);
+            PublisherTypeValidator.ValidationResult result = validator.validate(payloadType);
+
+            if (!result.isValid()) {
+              errors.produce(
+                  new ValidationPhaseBuildItem.ValidationErrorBuildItem(
+                      new DefinitionException(
+                          String.format(
+                              """
+                              Invalid NatsPublisher type parameter at injection point: %s
+
+                              %s
+                              """,
+                              injectionPoint, result.getErrorMessage()))));
+            }
+          }
+        }
       }
     }
   }
