@@ -221,7 +221,7 @@ public class SubscriberInitializer {
     ConsumerContext consumerContext = js.getConsumerContext(streamName, consumerInfo.getName());
 
     // Start consuming messages using the ConsumerContext API
-    consumers.add(consumerContext.consume(handler::handle));
+    MessageConsumer consumer = consumerContext.consume(handler::handle);
 
     if (metadata.isDurableConsumer()) {
       LOGGER.infof(
@@ -235,6 +235,9 @@ public class SubscriberInitializer {
           "Successfully initialized ephemeral subscription: subject=%s, stream=%s, method=%s.%s",
           metadata.subject(), streamName, metadata.declaringBeanClass(), metadata.methodName());
     }
+
+    // Only add consumer to list after all operations complete successfully
+    consumers.add(consumer);
   }
 
   /**
