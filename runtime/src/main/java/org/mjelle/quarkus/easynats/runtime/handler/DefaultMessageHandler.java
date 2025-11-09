@@ -180,13 +180,14 @@ public class DefaultMessageHandler implements MessageHandler {
   public void handle(Message message) {
     if (objectMapper == null) {
       LOGGER.errorf(
-          "Message received for subject=%s after application shutdown. "
+          "Message received for subject=%s but ObjectMapper is unavailable "
+              + "(application may be shutting down or misconfigured). "
               + "Sending nak to retry delivery.",
           message.getSubject());
       try {
         message.nak(); // Ensure message is redelivered
       } catch (Exception e) {
-        LOGGER.error("Failed to nak message during shutdown", e);
+        LOGGER.error("Failed to nak message when ObjectMapper is unavailable", e);
       }
       return;
     }
