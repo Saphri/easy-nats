@@ -23,7 +23,7 @@ import org.mjelle.quarkus.easynats.deployment.build.SubscriberBuildItem;
 import org.mjelle.quarkus.easynats.deployment.build.SubscribersCollectionBuildItem;
 import org.mjelle.quarkus.easynats.deployment.processor.SubscriberDiscoveryProcessor;
 import org.mjelle.quarkus.easynats.runtime.NatsConnectionProvider;
-import org.mjelle.quarkus.easynats.runtime.NatsPublisherRecorder;
+import org.mjelle.quarkus.easynats.runtime.NatsPublisherProducer;
 import org.mjelle.quarkus.easynats.runtime.SubscriberRegistry;
 import org.mjelle.quarkus.easynats.runtime.SubscriberRegistryRecorder;
 import org.mjelle.quarkus.easynats.runtime.codec.DefaultCodec;
@@ -240,7 +240,7 @@ class QuarkusEasyNatsProcessor {
         .addBeanClass(NatsConnectionProducer.class)
         .addBeanClass(NatsConnectionProvider.class)
         .addBeanClass(DefaultCodec.class)
-        .addBeanClass(NatsPublisherRecorder.class)
+        .addBeanClass(NatsPublisherProducer.class)
         .addBeanClass(SubscriberRegistry.class)
         .addBeanClass(SubscriberInitializer.class)
         .addBeanClass(ConnectionStatusHolder.class)

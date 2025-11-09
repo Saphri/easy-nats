@@ -12,7 +12,7 @@ import org.mjelle.quarkus.easynats.codec.Codec;
 import org.mjelle.quarkus.easynats.runtime.observability.NatsTraceService;
 
 @ApplicationScoped
-public class NatsPublisherRecorder {
+public class NatsPublisherProducer {
 
   /**
    * CDI producer for {@link NatsPublisher} instances.
