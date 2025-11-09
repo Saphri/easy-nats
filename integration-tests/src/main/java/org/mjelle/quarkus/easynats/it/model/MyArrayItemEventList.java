@@ -1,7 +1,6 @@
 package org.mjelle.quarkus.easynats.it.model;
 
 import java.util.Arrays;
-import java.util.Objects;
 
 public class MyArrayItemEventList {
 
