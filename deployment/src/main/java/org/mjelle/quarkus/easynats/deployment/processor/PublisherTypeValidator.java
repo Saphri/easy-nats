@@ -88,9 +88,7 @@ public class PublisherTypeValidator {
       if (!isStandardCollection) {
         // Validate that custom generic type has a no-arg constructor
         ClassInfo rawClassInfo = index.getClassByName(parameterizedType.name());
-        if (rawClassInfo != null
-            && !isRecord(rawClassInfo)
-            && !hasNoArgConstructor(rawClassInfo)) {
+        if (rawClassInfo != null && !isRecord(rawClassInfo) && !hasNoArgConstructor(rawClassInfo)) {
           return createMissingNoArgCtorError(
               Type.create(parameterizedType.name(), Type.Kind.CLASS));
         }
