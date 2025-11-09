@@ -223,21 +223,32 @@ public class SubscriberInitializer {
     // Start consuming messages using the ConsumerContext API
     MessageConsumer consumer = consumerContext.consume(handler::handle);
 
-    if (metadata.isDurableConsumer()) {
-      LOGGER.infof(
-          "Successfully initialized durable subscription: stream=%s, consumer=%s, method=%s.%s",
-          metadata.stream(),
-          metadata.consumer(),
-          metadata.declaringBeanClass(),
-          metadata.methodName());
-    } else {
-      LOGGER.infof(
-          "Successfully initialized ephemeral subscription: subject=%s, stream=%s, method=%s.%s",
-          metadata.subject(), streamName, metadata.declaringBeanClass(), metadata.methodName());
-    }
+    try {
+      if (metadata.isDurableConsumer()) {
+        LOGGER.infof(
+            "Successfully initialized durable subscription: stream=%s, consumer=%s, method=%s.%s",
+            metadata.stream(),
+            metadata.consumer(),
+            metadata.declaringBeanClass(),
+            metadata.methodName());
+      } else {
+        LOGGER.infof(
+            "Successfully initialized ephemeral subscription: subject=%s, stream=%s, method=%s.%s",
+            metadata.subject(), streamName, metadata.declaringBeanClass(), metadata.methodName());
+      }
 
-    // Only add consumer to list after all operations complete successfully
-    consumers.add(consumer);
+      // Only add consumer to list after all operations complete successfully
+      consumers.add(consumer);
+    } catch (Exception e) {
+      // Clean up the consumer if any operation fails after consumer creation
+      try {
+        consumer.stop();
+        LOGGER.debugf("Stopped consumer during cleanup after initialization failure");
+      } catch (Exception stopException) {
+        LOGGER.error("Failed to stop consumer during cleanup", stopException);
+      }
+      throw e;
+    }
   }
 
   /**
