@@ -5,6 +5,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.ConcurrentHashMap;
 
 import jakarta.annotation.Nullable;
 
@@ -38,6 +39,29 @@ import io.opentelemetry.context.Scope;
 public class DefaultMessageHandler implements MessageHandler {
 
   private static final Logger LOGGER = Logger.getLogger(DefaultMessageHandler.class);
+
+  /**
+   * Cache for JavaType objects to reduce reflection overhead during handler construction.
+   *
+   * <p>Keyed by "declaringBeanClass#methodName#paramTypes" to uniquely identify each subscriber
+   * method signature, including overloaded methods. Stores computed JavaType objects
+   * (parameterType, payloadType) which are expensive to construct via reflection.
+   *
+   * <p>This optimization reduces startup latency for applications with multiple subscribers by
+   * eliminating redundant type construction calls.
+   */
+  private static final ConcurrentHashMap<String, CachedJavaTypes> TYPE_CACHE =
+      new ConcurrentHashMap<>();
+
+  /**
+   * Holds cached JavaType objects for a subscriber method.
+   *
+   * @param parameterType the full parameter type (e.g., NatsMessage&lt;Order&gt; or Order)
+   * @param payloadType the payload type to deserialize (e.g., Order)
+   * @param isExplicitMode true if parameter is NatsMessage&lt;T&gt;, false otherwise
+   */
+  private record CachedJavaTypes(
+      JavaType parameterType, JavaType payloadType, boolean isExplicitMode) {}
 
   private final SubscriberMetadata metadata;
   private final Object bean;
@@ -77,15 +101,45 @@ public class DefaultMessageHandler implements MessageHandler {
     this.config = config;
     this.traceService = traceService;
 
-    // Determine parameter type from the Method's generic parameter type
-    // This avoids needing to Class.forName() user types which aren't available at runtime
-    Type genericParamType = method.getGenericParameterTypes()[0];
-    this.parameterType = objectMapper.getTypeFactory().constructType(genericParamType);
+    // Use cached JavaType objects to reduce reflection overhead
+    // Cache key includes parameter types to handle overloaded methods correctly
+    String cacheKey = getCacheKey(metadata);
+    CachedJavaTypes cachedTypes =
+        TYPE_CACHE.computeIfAbsent(
+            cacheKey,
+            k -> {
+              // Determine parameter type from the Method's generic parameter type
+              // This avoids needing to Class.forName() user types which aren't available at
+              // runtime
+              Type genericParamType = method.getGenericParameterTypes()[0];
+              JavaType paramType = objectMapper.getTypeFactory().constructType(genericParamType);
 
-    // Detect if parameter type is NatsMessage<T> (explicit mode)
-    // If so, extract T for deserialization; otherwise use full parameter type
-    this.isExplicitMode = isNatsMessageType(genericParamType);
-    this.payloadType = isExplicitMode ? extractPayloadType(genericParamType) : this.parameterType;
+              // Detect if parameter type is NatsMessage<T> (explicit mode)
+              // If so, extract T for deserialization; otherwise use full parameter type
+              boolean explicitMode = isNatsMessageType(genericParamType);
+              JavaType payloadType =
+                  explicitMode ? extractPayloadType(genericParamType, objectMapper) : paramType;
+
+              return new CachedJavaTypes(paramType, payloadType, explicitMode);
+            });
+
+    this.parameterType = cachedTypes.parameterType();
+    this.payloadType = cachedTypes.payloadType();
+    this.isExplicitMode = cachedTypes.isExplicitMode();
+  }
+
+  /**
+   * Generates a cache key for the subscriber method.
+   *
+   * @param metadata the subscriber metadata
+   * @return cache key in format "declaringBeanClass#methodName#paramType1,paramType2,..."
+   */
+  private static String getCacheKey(SubscriberMetadata metadata) {
+    return metadata.declaringBeanClass()
+        + "#"
+        + metadata.methodName()
+        + "#"
+        + String.join(",", metadata.parameterTypes());
   }
 
   /**
@@ -94,7 +148,7 @@ public class DefaultMessageHandler implements MessageHandler {
    * @param type the type to check
    * @return true if type is NatsMessage or NatsMessage&lt;T&gt;, false otherwise
    */
-  private boolean isNatsMessageType(Type type) {
+  private static boolean isNatsMessageType(Type type) {
     if (type instanceof ParameterizedType) {
       Type rawType = ((ParameterizedType) type).getRawType();
       return rawType instanceof Class && NatsMessage.class.isAssignableFrom((Class<?>) rawType);
@@ -108,9 +162,10 @@ public class DefaultMessageHandler implements MessageHandler {
    * Extracts the payload type T from NatsMessage&lt;T&gt;.
    *
    * @param type the NatsMessage&lt;T&gt; type
+   * @param objectMapper the Jackson ObjectMapper to use for type construction
    * @return the type T, or String if T cannot be determined
    */
-  private JavaType extractPayloadType(Type type) {
+  private static JavaType extractPayloadType(Type type, ObjectMapper objectMapper) {
     if (type instanceof ParameterizedType) {
       Type[] typeArgs = ((ParameterizedType) type).getActualTypeArguments();
       if (typeArgs.length > 0) {
