@@ -130,8 +130,9 @@ public class NatsDevServicesProcessor {
       return;
     }
 
+    ContainerDiscoveryResult discoveryResult = null;
     try {
-      ContainerDiscoveryResult discoveryResult =
+      discoveryResult =
           discoverNatsContainer(composeProjectBuildItem, launchMode.getLaunchMode(), config);
 
       if (discoveryResult.found()) {
