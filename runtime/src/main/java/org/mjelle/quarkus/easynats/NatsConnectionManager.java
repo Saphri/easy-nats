@@ -1,6 +1,5 @@
 package org.mjelle.quarkus.easynats;
 
-import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Singleton;
 
 import io.nats.client.Connection;
