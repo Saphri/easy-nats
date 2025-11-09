@@ -4,6 +4,7 @@ import org.jboss.jandex.ClassInfo;
 import org.jboss.jandex.DotName;
 import org.jboss.jandex.IndexView;
 import org.jboss.jandex.MethodInfo;
+import org.jboss.jandex.ParameterizedType;
 import org.jboss.jandex.Type;
 
 /**
@@ -63,15 +64,38 @@ public class PublisherTypeValidator {
       return ValidationResult.valid();
     }
 
-    // For parameterized types (e.g., List<String>), validate the raw type
+    // For parameterized types (e.g., List<String>), recursively validate type arguments
     if (type.kind() == Type.Kind.PARAMETERIZED_TYPE) {
-      // The parameterized type itself should be fine, but we validate the raw type
-      Type rawType =
-          type.asParameterizedType().name().toString().equals("java.util.List")
-                  || type.asParameterizedType().name().toString().equals("java.util.Set")
-                  || type.asParameterizedType().name().toString().equals("java.util.Map")
-              ? Type.create(type.asParameterizedType().name(), Type.Kind.CLASS)
-              : type;
+      ParameterizedType parameterizedType = type.asParameterizedType();
+
+      // Recursively validate all type arguments (e.g., validate String in List<String>)
+      for (Type typeArgument : parameterizedType.arguments()) {
+        ValidationResult argResult = validate(typeArgument);
+        if (!argResult.isValid()) {
+          return argResult; // Propagate error from nested type
+        }
+      }
+
+      // For custom generic types (not standard collections), validate the raw type
+      String rawTypeName = parameterizedType.name().toString();
+      boolean isStandardCollection =
+          rawTypeName.equals("java.util.List")
+              || rawTypeName.equals("java.util.Set")
+              || rawTypeName.equals("java.util.Queue")
+              || rawTypeName.equals("java.util.Map")
+              || rawTypeName.equals("java.util.Collection");
+
+      if (!isStandardCollection) {
+        // Validate that custom generic type has a no-arg constructor
+        ClassInfo rawClassInfo = index.getClassByName(parameterizedType.name());
+        if (rawClassInfo != null
+            && !isRecord(rawClassInfo)
+            && !hasNoArgConstructor(rawClassInfo)) {
+          return createMissingNoArgCtorError(
+              Type.create(parameterizedType.name(), Type.Kind.CLASS));
+        }
+      }
+
       return ValidationResult.valid();
     }
 
@@ -85,14 +109,6 @@ public class PublisherTypeValidator {
 
     // All other types are considered valid
     return ValidationResult.valid();
-  }
-
-  private boolean isPrimitive(Type type) {
-    return type.kind() == Type.Kind.PRIMITIVE;
-  }
-
-  private boolean isArray(Type type) {
-    return type.kind() == Type.Kind.ARRAY;
   }
 
   private boolean isRecord(ClassInfo classInfo) {
