@@ -1,5 +1,6 @@
 package org.mjelle.quarkus.easynats.runtime;
 
+import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.context.Dependent;
 import jakarta.enterprise.inject.Produces;
 import jakarta.enterprise.inject.spi.InjectionPoint;
@@ -10,10 +11,8 @@ import org.mjelle.quarkus.easynats.NatsSubject;
 import org.mjelle.quarkus.easynats.codec.Codec;
 import org.mjelle.quarkus.easynats.runtime.observability.NatsTraceService;
 
-import io.quarkus.runtime.annotations.Recorder;
-
-@Recorder
-public class NatsPublisherRecorder {
+@ApplicationScoped
+public class NatsPublisherProducer {
 
   /**
    * CDI producer for {@link NatsPublisher} instances.
