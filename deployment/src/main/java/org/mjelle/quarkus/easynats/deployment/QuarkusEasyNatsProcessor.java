@@ -189,7 +189,11 @@ class QuarkusEasyNatsProcessor {
       Type type, BuildProducer<ReflectiveClassBuildItem> reflectiveClass) {
     if (type.kind() == Type.Kind.CLASS) {
       reflectiveClass.produce(
-          ReflectiveClassBuildItem.builder(type.asClassType().name().toString()).build());
+          ReflectiveClassBuildItem.builder(type.asClassType().name().toString())
+              .constructors()
+              .methods()
+              .fields()
+              .build());
     } else if (type.kind() == Type.Kind.PARAMETERIZED_TYPE) {
       ParameterizedType parameterizedType = type.asParameterizedType();
       if (SUPPORTED_COLLECTIONS.contains(parameterizedType.name())) {
