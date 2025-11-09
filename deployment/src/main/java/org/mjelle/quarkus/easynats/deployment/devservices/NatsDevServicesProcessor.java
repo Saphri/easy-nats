@@ -156,7 +156,8 @@ public class NatsDevServicesProcessor {
                 + "Ensure docker-compose NATS service is running or configure quarkus.easynats.servers explicitly.");
       }
     } catch (Exception e) {
-      // An exception here implies discovery succeeded but configuration extraction failed, so we should fail fast.
+      // An exception here implies discovery succeeded but configuration extraction failed, so we
+      // should fail fast.
       log.errorf(e, "NATS container discovery succeeded but configuration extraction failed");
       throw new RuntimeException("DevServices NATS configuration failed", e);
     }
