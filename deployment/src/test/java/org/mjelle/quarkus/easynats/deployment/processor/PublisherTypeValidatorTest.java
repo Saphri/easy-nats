@@ -71,6 +71,28 @@ class PublisherTypeValidatorTest {
     assertThat(result.isValid()).isFalse();
     assertThat(result.getErrorMessage()).contains("Array type");
     assertThat(result.getErrorMessage()).contains("not supported");
+    assertThat(result.getErrorMessage()).contains("StringList");
+  }
+
+  @Test
+  @DisplayName("validate rejects primitive array types with proper capitalization")
+  void testValidatePrimitiveArrayType() {
+    Type arrayType = mock(Type.class);
+    ArrayType arrayTypeImpl = mock(ArrayType.class);
+    Type componentType = mock(Type.class);
+
+    when(arrayType.kind()).thenReturn(Type.Kind.ARRAY);
+    when(arrayType.asArrayType()).thenReturn(arrayTypeImpl);
+    when(arrayTypeImpl.constituent()).thenReturn(componentType);
+    when(componentType.name()).thenReturn(DotName.createSimple("int"));
+
+    PublisherTypeValidator.ValidationResult result = validator.validate(arrayType);
+
+    assertThat(result.isValid()).isFalse();
+    assertThat(result.getErrorMessage()).contains("Array type 'int[]'");
+    assertThat(result.getErrorMessage()).contains("IntList"); // Should be capitalized
+    assertThat(result.getErrorMessage()).doesNotContain("intList"); // Should NOT be lowercase
+    assertThat(result.getErrorMessage()).contains("public class IntList");
   }
 
   @Test

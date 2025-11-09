@@ -151,6 +151,7 @@ public class PublisherTypeValidator {
   private ValidationResult createArrayTypeError(Type type) {
     String typeName = type.asArrayType().constituent().name().toString();
     String elementTypeName = typeName.substring(typeName.lastIndexOf('.') + 1);
+    String capitalizedTypeName = capitalizeFirstLetter(elementTypeName);
     String message =
         String.format(
             """
@@ -165,12 +166,12 @@ public class PublisherTypeValidator {
             Then use: NatsPublisher<%sList>
             """,
             elementTypeName,
+            capitalizedTypeName,
             elementTypeName,
+            capitalizedTypeName,
+            capitalizedTypeName,
             elementTypeName,
-            elementTypeName,
-            elementTypeName,
-            elementTypeName,
-            elementTypeName);
+            capitalizedTypeName);
     return ValidationResult.error(message);
   }
 
@@ -205,6 +206,13 @@ public class PublisherTypeValidator {
       case "char" -> "Char";
       default -> "Value";
     };
+  }
+
+  private String capitalizeFirstLetter(String str) {
+    if (str == null || str.isEmpty()) {
+      return str;
+    }
+    return Character.toUpperCase(str.charAt(0)) + str.substring(1);
   }
 
   /** Represents the result of type validation. */
