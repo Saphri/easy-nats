@@ -66,11 +66,12 @@ public class PublisherTypeValidator {
     // For parameterized types (e.g., List<String>), validate the raw type
     if (type.kind() == Type.Kind.PARAMETERIZED_TYPE) {
       // The parameterized type itself should be fine, but we validate the raw type
-      Type rawType = type.asParameterizedType().name().toString().equals("java.util.List")
-              || type.asParameterizedType().name().toString().equals("java.util.Set")
-              || type.asParameterizedType().name().toString().equals("java.util.Map")
-          ? Type.create(type.asParameterizedType().name(), Type.Kind.CLASS)
-          : type;
+      Type rawType =
+          type.asParameterizedType().name().toString().equals("java.util.List")
+                  || type.asParameterizedType().name().toString().equals("java.util.Set")
+                  || type.asParameterizedType().name().toString().equals("java.util.Map")
+              ? Type.create(type.asParameterizedType().name(), Type.Kind.CLASS)
+              : type;
       return ValidationResult.valid();
     }
 
@@ -192,9 +193,7 @@ public class PublisherTypeValidator {
     };
   }
 
-  /**
-   * Represents the result of type validation.
-   */
+  /** Represents the result of type validation. */
   public static class ValidationResult {
     private final boolean valid;
     private final String errorMessage;

@@ -13,9 +13,7 @@ import org.mjelle.quarkus.easynats.NatsPublisher;
 
 import io.quarkus.test.QuarkusUnitTest;
 
-/**
- * Tests that NatsPublisher with array type parameters are rejected at build time.
- */
+/** Tests that NatsPublisher with array type parameters are rejected at build time. */
 public class InvalidPublisherArrayTypeTest {
 
   @RegisterExtension
