@@ -156,14 +156,9 @@ public class NatsDevServicesProcessor {
                 + "Ensure docker-compose NATS service is running or configure quarkus.easynats.servers explicitly.");
       }
     } catch (Exception e) {
-      // If the error is not a "container not found" scenario, fail fast
-      if (discoveryResult != null && discoveryResult.found()) {
-        log.errorf(e, "NATS container discovery succeeded but configuration extraction failed");
-        throw new RuntimeException("DevServices NATS configuration failed", e);
-      } else {
-        // Container not found is expected in some scenarios
-        log.warnf(e, "NATS container discovery failed (no container found): %s", e.getMessage());
-      }
+      // An exception here implies discovery succeeded but configuration extraction failed, so we should fail fast.
+      log.errorf(e, "NATS container discovery succeeded but configuration extraction failed");
+      throw new RuntimeException("DevServices NATS configuration failed", e);
     }
   }
 
