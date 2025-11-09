@@ -1,6 +1,7 @@
 package org.mjelle.quarkus.easynats;
 
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Singleton;
 
 import io.nats.client.Connection;
 import io.nats.client.JetStream;
@@ -11,7 +12,7 @@ import io.nats.client.JetStream;
  * <p>This class consumes the NatsConnection produced by NatsConnectionProvider, providing access to
  * the underlying NATS Connection and JetStream context.
  */
-@ApplicationScoped // Note: @ApplicationScoped provides singleton semantics in Quarkus
+@Singleton // Changed from @ApplicationScoped for performance and semantic correctness
 public class NatsConnectionManager {
 
   private final Connection connection;
