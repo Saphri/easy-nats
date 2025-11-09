@@ -7,6 +7,7 @@ import static org.mockito.Mockito.when;
 import java.util.Collections;
 import java.util.List;
 
+import org.jboss.jandex.ArrayType;
 import org.jboss.jandex.ClassInfo;
 import org.jboss.jandex.DotName;
 import org.jboss.jandex.IndexView;
@@ -57,7 +58,7 @@ class PublisherTypeValidatorTest {
   @DisplayName("validate rejects array types")
   void testValidateArrayType() {
     Type arrayType = mock(Type.class);
-    Type.ArrayType arrayTypeImpl = mock(Type.ArrayType.class);
+    ArrayType arrayTypeImpl = mock(ArrayType.class);
     Type componentType = mock(Type.class);
 
     when(arrayType.kind()).thenReturn(Type.Kind.ARRAY);
@@ -154,7 +155,7 @@ class PublisherTypeValidatorTest {
     Type parameterizedType = mock(Type.class);
     ParameterizedType paramType = mock(ParameterizedType.class);
     Type arrayArgument = mock(Type.class);
-    Type.ArrayType arrayTypeImpl = mock(Type.ArrayType.class);
+    ArrayType arrayTypeImpl = mock(ArrayType.class);
     Type componentType = mock(Type.class);
 
     when(parameterizedType.kind()).thenReturn(Type.Kind.PARAMETERIZED_TYPE);
