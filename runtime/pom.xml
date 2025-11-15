@@ -5,7 +5,7 @@
     <parent>
         <groupId>org.mjelle.quarkus.easynats</groupId>
         <artifactId>quarkus-easy-nats-parent</artifactId>
-        <version>999-SNAPSHOT</version>
+        <version>0.3.0</version>
     </parent>
     <artifactId>quarkus-easy-nats</artifactId>
     <name>quarkus-easy-nats - Runtime</name>
