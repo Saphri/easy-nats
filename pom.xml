@@ -17,7 +17,7 @@
         <cloudevents.version>4.0.1</cloudevents.version>
         <compiler-plugin.version>3.14.1</compiler-plugin.version>
         <failsafe-plugin.version>${surefire-plugin.version}</failsafe-plugin.version>
-        <jnats.version>2.23.0</jnats.version>
+        <jnats.version>2.24.1</jnats.version>
         <maven.compiler.release>21</maven.compiler.release>
         <mockito.version>5.20.0</mockito.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
