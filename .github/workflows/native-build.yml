@@ -75,7 +75,7 @@ jobs:
 
       - name: Upload native build logs (on failure)
         if: failure()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: native-validation-logs-${{ matrix.os }}-mandrel-${{ matrix.mandrel-version }}
           path: |
@@ -99,7 +99,7 @@ jobs:
 
       - name: Upload extension JARs (validated for native)
         if: success()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: extension-jars-native-validated-${{ matrix.os }}
           path: |
