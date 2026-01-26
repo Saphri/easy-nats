@@ -13,7 +13,7 @@
     </modules>
 
     <properties>
-        <assertj.version>3.27.6</assertj.version>
+        <assertj.version>3.27.7</assertj.version>
         <cloudevents.version>4.0.1</cloudevents.version>
         <compiler-plugin.version>3.14.1</compiler-plugin.version>
         <failsafe-plugin.version>${surefire-plugin.version}</failsafe-plugin.version>
